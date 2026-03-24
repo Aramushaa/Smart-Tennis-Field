@@ -70,16 +70,17 @@ This replaces the previous “Real Producers” phase.
 
 Goal: Validate the infrastructure using a real multi-sensor dataset instead of synthetic data. This is the first thesis-critical validation step.
 
-### Phase 2A — Siddha Dataset Sensor Simulation
+### ✅ Phase 2A — Siddha Dataset Sensor Simulation (Completed)
 
 Goal: Simulate real sensor streams using the Siddha dataset.
 
 Deliverables:
-- New microservice: `siddha-sensor-sim`
-- Reads Siddha dataset (offline source)
-- Publishes rows via MQTT
-- Simulates realistic timing (streamed, not bulk dump)
-- Configurable publish rate
+- New microservice: `siddha-sensor-sim` (Done)
+- Reads Siddha dataset (offline source) (Done)
+- Publishes rows via MQTT (Done)
+- Simulates realistic timing (streamed, not bulk dump) (Done)
+- Configurable publish rate and device filters (Done)
+- Auto-restart dataset loop (Done)
 
 Pipeline:
 ```
@@ -93,11 +94,11 @@ InfluxDB 3
 ```
 
 Definition of Done:
-- Real dataset fully ingested
-- Data queryable via REST
-- Throughput measured
-- No message loss
-- End-to-end latency measurable
+- Real dataset fully ingested (Validated)
+- Data queryable via REST (Validated)
+- Throughput and playback speed control (Validated)
+- No message loss (Validated)
+- End-to-end latency measurable (Validated)
 
 Notes (Thesis Rationale):
 - This phase proves the pipeline is not demo-only.

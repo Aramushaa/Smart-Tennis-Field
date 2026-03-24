@@ -1,0 +1,1169 @@
+﻿docker : 2026-03-24 
+10:43:35,034 | INFO | 
+Starting Siddha sensor 
+simulator
+At line:1 char:1
++ docker logs 
+siddha-sensor-sim 2>&1 
+| Out-File -FilePath 
+"C:\Users\Ara ...
++ ~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~
+    + CategoryInfo     
+         : NotSpecifi  
+  ed: (2026-03-24 10   
+ :4...ensor simulat    
+or:String) [], Rem    
+oteException
+    + FullyQualifiedEr 
+   rorId : NativeComm  
+  andError
+ 
+2026-03-24 
+10:43:35,034 | INFO | 
+Configuration | dataset
+_path=/app/dataset/data
+.parquet | 
+replay_mode=realtime | 
+replay_speed=1.0
+Traceback (most recent 
+call last):
+  File "<frozen 
+runpy>", line 198, in 
+_run_module_as_main
+  File "<frozen 
+runpy>", line 88, in 
+_run_code
+  File 
+"/app/app/main.py", 
+line 122, in <module>
+    main()
+  File 
+"/app/app/main.py", 
+line 71, in main
+    publisher.connect()
+  File "/app/app/publis
+her.py", line 31, in 
+connect
+    self.client.connect
+(self.host, self.port, 
+keepalive=60)
+  File "/usr/local/lib/
+python3.11/site-package
+s/paho/mqtt/client.py",
+ line 1435, in connect
+    return 
+self.reconnect()
+           
+^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/
+python3.11/site-package
+s/paho/mqtt/client.py",
+ line 1598, in 
+reconnect
+    self._sock = 
+self._create_socket()
+                 
+^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/
+python3.11/site-package
+s/paho/mqtt/client.py",
+ line 4609, in 
+_create_socket
+    sock = self._create
+_socket_connection()
+           ^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/
+python3.11/site-package
+s/paho/mqtt/client.py",
+ line 4640, in _create_
+socket_connection
+    return socket.creat
+e_connection(addr, time
+out=self._connect_timeo
+ut, 
+source_address=source)
+           ^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^
+^^^
+  File "/usr/local/lib/
+python3.11/socket.py", 
+line 863, in 
+create_connection
+    raise exceptions[0]
+  File "/usr/local/lib/
+python3.11/socket.py", 
+line 848, in 
+create_connection
+    sock.connect(sa)
+ConnectionRefusedError:
+ [Errno 111] 
+Connection refused
+2026-03-24 
+10:43:37,524 | INFO | 
+Starting Siddha sensor 
+simulator
+2026-03-24 
+10:43:37,524 | INFO | 
+Configuration | dataset
+_path=/app/dataset/data
+.parquet | 
+replay_mode=realtime | 
+replay_speed=1.0
+Traceback (most recent 
+call last):
+  File "<frozen 
+runpy>", line 198, in 
+_run_module_as_main
+  File "<frozen 
+runpy>", line 88, in 
+_run_code
+  File 
+"/app/app/main.py", 
+line 122, in <module>
+    main()
+  File 
+"/app/app/main.py", 
+line 71, in main
+    publisher.connect()
+  File "/app/app/publis
+her.py", line 31, in 
+connect
+    self.client.connect
+(self.host, self.port, 
+keepalive=60)
+  File "/usr/local/lib/
+python3.11/site-package
+s/paho/mqtt/client.py",
+ line 1435, in connect
+    return 
+self.reconnect()
+           
+^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/
+python3.11/site-package
+s/paho/mqtt/client.py",
+ line 1598, in 
+reconnect
+    self._sock = 
+self._create_socket()
+                 
+^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/
+python3.11/site-package
+s/paho/mqtt/client.py",
+ line 4609, in 
+_create_socket
+    sock = self._create
+_socket_connection()
+           ^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/
+python3.11/site-package
+s/paho/mqtt/client.py",
+ line 4640, in _create_
+socket_connection
+    return socket.creat
+e_connection(addr, time
+out=self._connect_timeo
+ut, 
+source_address=source)
+           ^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^
+^^^
+  File "/usr/local/lib/
+python3.11/socket.py", 
+line 863, in 
+create_connection
+    raise exceptions[0]
+  File "/usr/local/lib/
+python3.11/socket.py", 
+line 848, in 
+create_connection
+    sock.connect(sa)
+ConnectionRefusedError:
+ [Errno 111] 
+Connection refused
+2026-03-24 
+10:43:39,690 | INFO | 
+Starting Siddha sensor 
+simulator
+2026-03-24 
+10:43:39,690 | INFO | 
+Configuration | dataset
+_path=/app/dataset/data
+.parquet | 
+replay_mode=realtime | 
+replay_speed=1.0
+Traceback (most recent 
+call last):
+  File "<frozen 
+runpy>", line 198, in 
+_run_module_as_main
+  File "<frozen 
+runpy>", line 88, in 
+_run_code
+  File 
+"/app/app/main.py", 
+line 122, in <module>
+    main()
+  File 
+"/app/app/main.py", 
+line 71, in main
+    publisher.connect()
+  File "/app/app/publis
+her.py", line 31, in 
+connect
+    self.client.connect
+(self.host, self.port, 
+keepalive=60)
+  File "/usr/local/lib/
+python3.11/site-package
+s/paho/mqtt/client.py",
+ line 1435, in connect
+    return 
+self.reconnect()
+           
+^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/
+python3.11/site-package
+s/paho/mqtt/client.py",
+ line 1598, in 
+reconnect
+    self._sock = 
+self._create_socket()
+                 
+^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/
+python3.11/site-package
+s/paho/mqtt/client.py",
+ line 4609, in 
+_create_socket
+    sock = self._create
+_socket_connection()
+           ^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/
+python3.11/site-package
+s/paho/mqtt/client.py",
+ line 4640, in _create_
+socket_connection
+    return socket.creat
+e_connection(addr, time
+out=self._connect_timeo
+ut, 
+source_address=source)
+           ^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^
+^^^
+  File "/usr/local/lib/
+python3.11/socket.py", 
+line 863, in 
+create_connection
+    raise exceptions[0]
+  File "/usr/local/lib/
+python3.11/socket.py", 
+line 848, in 
+create_connection
+    sock.connect(sa)
+ConnectionRefusedError:
+ [Errno 111] 
+Connection refused
+2026-03-24 
+10:43:41,724 | INFO | 
+Starting Siddha sensor 
+simulator
+2026-03-24 
+10:43:41,725 | INFO | 
+Configuration | dataset
+_path=/app/dataset/data
+.parquet | 
+replay_mode=realtime | 
+replay_speed=1.0
+2026-03-24 
+10:43:41,735 | INFO | 
+Connected to MQTT 
+broker | host=emqx | 
+port=1883
+2026-03-24 
+10:44:03,073 | INFO | 
+Replay completed 
+successfully | 
+total_samples=0
+2026-03-24 
+10:44:03,679 | INFO | 
+Disconnected from MQTT 
+broker
+2026-03-24 
+10:44:05,692 | INFO | 
+Starting Siddha sensor 
+simulator
+2026-03-24 
+10:44:05,692 | INFO | 
+Configuration | dataset
+_path=/app/dataset/data
+.parquet | 
+replay_mode=realtime | 
+replay_speed=1.0
+2026-03-24 
+10:44:05,699 | INFO | 
+Connected to MQTT 
+broker | host=emqx | 
+port=1883
+2026-03-24 
+10:44:13,235 | INFO | 
+Replay completed 
+successfully | 
+total_samples=0
+2026-03-24 
+10:44:13,873 | INFO | 
+Disconnected from MQTT 
+broker
+2026-03-24 
+10:44:15,551 | INFO | 
+Starting Siddha sensor 
+simulator
+2026-03-24 
+10:44:15,551 | INFO | 
+Configuration | dataset
+_path=/app/dataset/data
+.parquet | 
+replay_mode=realtime | 
+replay_speed=1.0
+2026-03-24 
+10:44:15,559 | INFO | 
+Connected to MQTT 
+broker | host=emqx | 
+port=1883
+2026-03-24 
+10:44:25,184 | INFO | 
+Replay completed 
+successfully | 
+total_samples=0
+2026-03-24 
+10:44:25,587 | INFO | 
+Disconnected from MQTT 
+broker
+2026-03-24 
+10:44:27,793 | INFO | 
+Starting Siddha sensor 
+simulator
+2026-03-24 
+10:44:27,794 | INFO | 
+Configuration | dataset
+_path=/app/dataset/data
+.parquet | 
+replay_mode=realtime | 
+replay_speed=1.0
+2026-03-24 
+10:44:27,813 | INFO | 
+Connected to MQTT 
+broker | host=emqx | 
+port=1883
+2026-03-24 
+10:44:34,798 | INFO | 
+Replay completed 
+successfully | 
+total_samples=0
+2026-03-24 
+10:44:35,818 | INFO | 
+Disconnected from MQTT 
+broker
+2026-03-24 
+10:44:37,990 | INFO | 
+Starting Siddha sensor 
+simulator
+2026-03-24 
+10:44:37,990 | INFO | 
+Configuration | dataset
+_path=/app/dataset/data
+.parquet | 
+replay_mode=realtime | 
+replay_speed=1.0
+2026-03-24 
+10:44:37,997 | INFO | 
+Connected to MQTT 
+broker | host=emqx | 
+port=1883
+2026-03-24 
+10:44:44,811 | INFO | 
+Replay completed 
+successfully | 
+total_samples=0
+2026-03-24 
+10:44:45,008 | INFO | 
+Disconnected from MQTT 
+broker
+2026-03-24 
+10:44:47,427 | INFO | 
+Starting Siddha sensor 
+simulator
+2026-03-24 
+10:44:47,427 | INFO | 
+Configuration | dataset
+_path=/app/dataset/data
+.parquet | 
+replay_mode=realtime | 
+replay_speed=1.0
+2026-03-24 
+10:44:47,437 | INFO | 
+Connected to MQTT 
+broker | host=emqx | 
+port=1883
+2026-03-24 
+10:44:54,749 | INFO | 
+Replay completed 
+successfully | 
+total_samples=0
+2026-03-24 
+10:44:55,720 | INFO | 
+Disconnected from MQTT 
+broker
+2026-03-24 
+10:44:58,147 | INFO | 
+Starting Siddha sensor 
+simulator
+2026-03-24 
+10:44:58,147 | INFO | 
+Configuration | dataset
+_path=/app/dataset/data
+.parquet | 
+replay_mode=realtime | 
+replay_speed=1.0
+2026-03-24 
+10:44:58,154 | INFO | 
+Connected to MQTT 
+broker | host=emqx | 
+port=1883
+2026-03-24 
+10:45:09,036 | INFO | 
+Replay completed 
+successfully | 
+total_samples=0
+2026-03-24 
+10:45:10,041 | INFO | 
+Disconnected from MQTT 
+broker
+2026-03-24 
+10:45:11,840 | INFO | 
+Starting Siddha sensor 
+simulator
+2026-03-24 
+10:45:11,840 | INFO | 
+Configuration | dataset
+_path=/app/dataset/data
+.parquet | 
+replay_mode=realtime | 
+replay_speed=1.0
+2026-03-24 
+10:45:11,848 | INFO | 
+Connected to MQTT 
+broker | host=emqx | 
+port=1883
+2026-03-24 
+10:45:22,669 | INFO | 
+Replay completed 
+successfully | 
+total_samples=0
+2026-03-24 
+10:45:22,862 | INFO | 
+Disconnected from MQTT 
+broker
+2026-03-24 
+10:45:24,585 | INFO | 
+Starting Siddha sensor 
+simulator
+2026-03-24 
+10:45:24,585 | INFO | 
+Configuration | dataset
+_path=/app/dataset/data
+.parquet | 
+replay_mode=realtime | 
+replay_speed=1.0
+2026-03-24 
+10:45:24,590 | INFO | 
+Connected to MQTT 
+broker | host=emqx | 
+port=1883
+2026-03-24 
+10:45:38,615 | INFO | 
+Replay completed 
+successfully | 
+total_samples=0
+2026-03-24 
+10:45:39,597 | INFO | 
+Disconnected from MQTT 
+broker
+2026-03-24 
+10:45:41,583 | INFO | 
+Starting Siddha sensor 
+simulator
+2026-03-24 
+10:45:41,584 | INFO | 
+Configuration | dataset
+_path=/app/dataset/data
+.parquet | 
+replay_mode=realtime | 
+replay_speed=1.0
+2026-03-24 
+10:45:41,590 | INFO | 
+Connected to MQTT 
+broker | host=emqx | 
+port=1883
+2026-03-24 
+10:45:51,706 | INFO | 
+Replay completed 
+successfully | 
+total_samples=0
+2026-03-24 
+10:45:52,676 | INFO | 
+Disconnected from MQTT 
+broker
+2026-03-24 
+10:45:54,551 | INFO | 
+Starting Siddha sensor 
+simulator
+2026-03-24 
+10:45:54,551 | INFO | 
+Configuration | dataset
+_path=/app/dataset/data
+.parquet | 
+replay_mode=realtime | 
+replay_speed=1.0
+2026-03-24 
+10:45:54,558 | INFO | 
+Connected to MQTT 
+broker | host=emqx | 
+port=1883
+2026-03-24 
+10:46:01,725 | INFO | 
+Replay completed 
+successfully | 
+total_samples=0
+2026-03-24 
+10:46:03,600 | INFO | 
+Disconnected from MQTT 
+broker
+2026-03-24 
+10:46:05,432 | INFO | 
+Starting Siddha sensor 
+simulator
+2026-03-24 
+10:46:05,432 | INFO | 
+Configuration | dataset
+_path=/app/dataset/data
+.parquet | 
+replay_mode=realtime | 
+replay_speed=1.0
+2026-03-24 
+10:46:05,437 | INFO | 
+Connected to MQTT 
+broker | host=emqx | 
+port=1883
+2026-03-24 
+10:46:14,329 | INFO | 
+Replay completed 
+successfully | 
+total_samples=0
+2026-03-24 
+10:46:14,448 | INFO | 
+Disconnected from MQTT 
+broker
+2026-03-24 
+10:46:16,278 | INFO | 
+Starting Siddha sensor 
+simulator
+2026-03-24 
+10:46:16,278 | INFO | 
+Configuration | dataset
+_path=/app/dataset/data
+.parquet | 
+replay_mode=realtime | 
+replay_speed=1.0
+2026-03-24 
+10:46:16,284 | INFO | 
+Connected to MQTT 
+broker | host=emqx | 
+port=1883
+2026-03-24 
+10:46:28,626 | INFO | 
+Replay completed 
+successfully | 
+total_samples=0
+2026-03-24 
+10:46:29,428 | INFO | 
+Disconnected from MQTT 
+broker
+2026-03-24 
+10:46:31,593 | INFO | 
+Starting Siddha sensor 
+simulator
+2026-03-24 
+10:46:31,593 | INFO | 
+Configuration | dataset
+_path=/app/dataset/data
+.parquet | 
+replay_mode=realtime | 
+replay_speed=1.0
+2026-03-24 
+10:46:31,603 | INFO | 
+Connected to MQTT 
+broker | host=emqx | 
+port=1883
+2026-03-24 
+10:46:39,616 | INFO | 
+Replay completed 
+successfully | 
+total_samples=0
+2026-03-24 
+10:46:40,591 | INFO | 
+Disconnected from MQTT 
+broker
+2026-03-24 
+10:46:42,113 | INFO | 
+Starting Siddha sensor 
+simulator
+2026-03-24 
+10:46:42,113 | INFO | 
+Configuration | dataset
+_path=/app/dataset/data
+.parquet | 
+replay_mode=realtime | 
+replay_speed=1.0
+2026-03-24 
+10:46:42,119 | INFO | 
+Connected to MQTT 
+broker | host=emqx | 
+port=1883
+2026-03-24 
+10:46:48,778 | INFO | 
+Replay completed 
+successfully | 
+total_samples=0
+2026-03-24 
+10:46:49,130 | INFO | 
+Disconnected from MQTT 
+broker
+2026-03-24 
+10:46:50,876 | INFO | 
+Starting Siddha sensor 
+simulator
+2026-03-24 
+10:46:50,877 | INFO | 
+Configuration | dataset
+_path=/app/dataset/data
+.parquet | 
+replay_mode=realtime | 
+replay_speed=1.0
+2026-03-24 
+10:46:50,885 | INFO | 
+Connected to MQTT 
+broker | host=emqx | 
+port=1883
+2026-03-24 
+10:47:01,149 | INFO | 
+Replay completed 
+successfully | 
+total_samples=0
+2026-03-24 
+10:47:02,130 | INFO | 
+Disconnected from MQTT 
+broker
+2026-03-24 
+10:47:04,973 | INFO | 
+Starting Siddha sensor 
+simulator
+2026-03-24 
+10:47:04,973 | INFO | 
+Configuration | dataset
+_path=/app/dataset/data
+.parquet | 
+replay_mode=realtime | 
+replay_speed=1.0
+2026-03-24 
+10:47:04,978 | INFO | 
+Connected to MQTT 
+broker | host=emqx | 
+port=1883
+2026-03-24 
+10:47:11,274 | INFO | 
+Replay completed 
+successfully | 
+total_samples=0
+2026-03-24 
+10:47:12,033 | INFO | 
+Disconnected from MQTT 
+broker
+2026-03-24 
+10:47:13,438 | INFO | 
+Starting Siddha sensor 
+simulator
+2026-03-24 
+10:47:13,438 | INFO | 
+Configuration | dataset
+_path=/app/dataset/data
+.parquet | 
+replay_mode=realtime | 
+replay_speed=1.0
+2026-03-24 
+10:47:13,442 | INFO | 
+Connected to MQTT 
+broker | host=emqx | 
+port=1883
+2026-03-24 
+10:47:22,395 | INFO | 
+Replay completed 
+successfully | 
+total_samples=0
+2026-03-24 
+10:47:22,455 | INFO | 
+Disconnected from MQTT 
+broker
+2026-03-24 
+10:47:24,354 | INFO | 
+Starting Siddha sensor 
+simulator
+2026-03-24 
+10:47:24,354 | INFO | 
+Configuration | dataset
+_path=/app/dataset/data
+.parquet | 
+replay_mode=realtime | 
+replay_speed=1.0
+2026-03-24 
+10:47:24,361 | INFO | 
+Connected to MQTT 
+broker | host=emqx | 
+port=1883
+2026-03-24 
+10:47:33,202 | INFO | 
+Replay completed 
+successfully | 
+total_samples=0
+2026-03-24 
+10:47:33,371 | INFO | 
+Disconnected from MQTT 
+broker
+2026-03-24 
+10:47:36,050 | INFO | 
+Starting Siddha sensor 
+simulator
+2026-03-24 
+10:47:36,050 | INFO | 
+Configuration | dataset
+_path=/app/dataset/data
+.parquet | 
+replay_mode=realtime | 
+replay_speed=1.0
+2026-03-24 
+10:47:36,056 | INFO | 
+Connected to MQTT 
+broker | host=emqx | 
+port=1883
+2026-03-24 
+10:47:45,630 | INFO | 
+Replay completed 
+successfully | 
+total_samples=0
+2026-03-24 
+10:47:46,069 | INFO | 
+Disconnected from MQTT 
+broker
+2026-03-24 
+10:47:47,767 | INFO | 
+Starting Siddha sensor 
+simulator
+2026-03-24 
+10:47:47,767 | INFO | 
+Configuration | dataset
+_path=/app/dataset/data
+.parquet | 
+replay_mode=realtime | 
+replay_speed=1.0
+2026-03-24 
+10:47:47,774 | INFO | 
+Connected to MQTT 
+broker | host=emqx | 
+port=1883
+2026-03-24 
+10:47:57,700 | INFO | 
+Replay completed 
+successfully | 
+total_samples=0
+2026-03-24 
+10:47:57,787 | INFO | 
+Disconnected from MQTT 
+broker
+2026-03-24 
+10:47:59,585 | INFO | 
+Starting Siddha sensor 
+simulator
+2026-03-24 
+10:47:59,585 | INFO | 
+Configuration | dataset
+_path=/app/dataset/data
+.parquet | 
+replay_mode=realtime | 
+replay_speed=1.0
+2026-03-24 
+10:47:59,591 | INFO | 
+Connected to MQTT 
+broker | host=emqx | 
+port=1883
+2026-03-24 
+10:48:12,288 | INFO | 
+Replay completed 
+successfully | 
+total_samples=0
+2026-03-24 
+10:48:12,465 | INFO | 
+Disconnected from MQTT 
+broker
+2026-03-24 
+10:48:14,573 | INFO | 
+Starting Siddha sensor 
+simulator
+2026-03-24 
+10:48:14,573 | INFO | 
+Configuration | dataset
+_path=/app/dataset/data
+.parquet | 
+replay_mode=realtime | 
+replay_speed=1.0
+2026-03-24 
+10:48:14,580 | INFO | 
+Connected to MQTT 
+broker | host=emqx | 
+port=1883
+2026-03-24 
+10:48:23,353 | INFO | 
+Replay completed 
+successfully | 
+total_samples=0
+2026-03-24 
+10:48:23,591 | INFO | 
+Disconnected from MQTT 
+broker
+2026-03-24 
+10:48:25,524 | INFO | 
+Starting Siddha sensor 
+simulator
+2026-03-24 
+10:48:25,524 | INFO | 
+Configuration | dataset
+_path=/app/dataset/data
+.parquet | 
+replay_mode=realtime | 
+replay_speed=1.0
+2026-03-24 
+10:48:25,532 | INFO | 
+Connected to MQTT 
+broker | host=emqx | 
+port=1883
+2026-03-24 
+10:48:35,712 | INFO | 
+Replay completed 
+successfully | 
+total_samples=0
+2026-03-24 
+10:48:37,641 | INFO | 
+Disconnected from MQTT 
+broker
+2026-03-24 
+10:48:39,348 | INFO | 
+Starting Siddha sensor 
+simulator
+2026-03-24 
+10:48:39,348 | INFO | 
+Configuration | dataset
+_path=/app/dataset/data
+.parquet | 
+replay_mode=realtime | 
+replay_speed=1.0
+2026-03-24 
+10:48:39,355 | INFO | 
+Connected to MQTT 
+broker | host=emqx | 
+port=1883
+2026-03-24 
+10:48:49,188 | INFO | 
+Replay completed 
+successfully | 
+total_samples=0
+2026-03-24 
+10:48:49,369 | INFO | 
+Disconnected from MQTT 
+broker
+2026-03-24 
+10:48:50,923 | INFO | 
+Starting Siddha sensor 
+simulator
+2026-03-24 
+10:48:50,923 | INFO | 
+Configuration | dataset
+_path=/app/dataset/data
+.parquet | 
+replay_mode=realtime | 
+replay_speed=1.0
+2026-03-24 
+10:48:50,930 | INFO | 
+Connected to MQTT 
+broker | host=emqx | 
+port=1883
+2026-03-24 
+10:48:58,318 | INFO | 
+Replay completed 
+successfully | 
+total_samples=0
+2026-03-24 
+10:48:59,023 | INFO | 
+Disconnected from MQTT 
+broker
+2026-03-24 
+10:49:00,690 | INFO | 
+Starting Siddha sensor 
+simulator
+2026-03-24 
+10:49:00,690 | INFO | 
+Configuration | dataset
+_path=/app/dataset/data
+.parquet | 
+replay_mode=realtime | 
+replay_speed=1.0
+2026-03-24 
+10:49:00,697 | INFO | 
+Connected to MQTT 
+broker | host=emqx | 
+port=1883
+2026-03-24 
+10:49:12,250 | INFO | 
+Replay completed 
+successfully | 
+total_samples=0
+2026-03-24 
+10:49:12,564 | INFO | 
+Disconnected from MQTT 
+broker
+2026-03-24 
+10:49:14,185 | INFO | 
+Starting Siddha sensor 
+simulator
+2026-03-24 
+10:49:14,185 | INFO | 
+Configuration | dataset
+_path=/app/dataset/data
+.parquet | 
+replay_mode=realtime | 
+replay_speed=1.0
+2026-03-24 
+10:49:14,192 | INFO | 
+Connected to MQTT 
+broker | host=emqx | 
+port=1883
+2026-03-24 
+10:49:23,987 | INFO | 
+Replay completed 
+successfully | 
+total_samples=0
+2026-03-24 
+10:49:24,205 | INFO | 
+Disconnected from MQTT 
+broker
+2026-03-24 
+10:49:26,136 | INFO | 
+Starting Siddha sensor 
+simulator
+2026-03-24 
+10:49:26,136 | INFO | 
+Configuration | dataset
+_path=/app/dataset/data
+.parquet | 
+replay_mode=realtime | 
+replay_speed=1.0
+2026-03-24 
+10:49:26,142 | INFO | 
+Connected to MQTT 
+broker | host=emqx | 
+port=1883
+2026-03-24 
+10:49:33,310 | INFO | 
+Replay completed 
+successfully | 
+total_samples=0
+2026-03-24 
+10:49:34,287 | INFO | 
+Disconnected from MQTT 
+broker
+2026-03-24 
+10:49:35,947 | INFO | 
+Starting Siddha sensor 
+simulator
+2026-03-24 
+10:49:35,947 | INFO | 
+Configuration | dataset
+_path=/app/dataset/data
+.parquet | 
+replay_mode=realtime | 
+replay_speed=1.0
+2026-03-24 
+10:49:35,955 | INFO | 
+Connected to MQTT 
+broker | host=emqx | 
+port=1883
+2026-03-24 
+10:49:48,157 | INFO | 
+Replay completed 
+successfully | 
+total_samples=0
+2026-03-24 
+10:49:48,961 | INFO | 
+Disconnected from MQTT 
+broker
+2026-03-24 
+10:49:50,932 | INFO | 
+Starting Siddha sensor 
+simulator
+2026-03-24 
+10:49:50,932 | INFO | 
+Configuration | dataset
+_path=/app/dataset/data
+.parquet | 
+replay_mode=realtime | 
+replay_speed=1.0
+2026-03-24 
+10:49:50,938 | INFO | 
+Connected to MQTT 
+broker | host=emqx | 
+port=1883
+2026-03-24 
+10:50:00,424 | INFO | 
+Replay completed 
+successfully | 
+total_samples=0
+2026-03-24 
+10:50:01,070 | INFO | 
+Disconnected from MQTT 
+broker
+2026-03-24 
+10:50:03,130 | INFO | 
+Starting Siddha sensor 
+simulator
+2026-03-24 
+10:50:03,130 | INFO | 
+Configuration | dataset
+_path=/app/dataset/data
+.parquet | 
+replay_mode=realtime | 
+replay_speed=1.0
+2026-03-24 
+10:50:03,136 | INFO | 
+Connected to MQTT 
+broker | host=emqx | 
+port=1883
+2026-03-24 
+10:50:15,157 | INFO | 
+Replay completed 
+successfully | 
+total_samples=0
+2026-03-24 
+10:50:16,140 | INFO | 
+Disconnected from MQTT 
+broker
+2026-03-24 
+10:50:17,877 | INFO | 
+Starting Siddha sensor 
+simulator
+2026-03-24 
+10:50:17,877 | INFO | 
+Configuration | dataset
+_path=/app/dataset/data
+.parquet | 
+replay_mode=realtime | 
+replay_speed=1.0
+2026-03-24 
+10:50:17,883 | INFO | 
+Connected to MQTT 
+broker | host=emqx | 
+port=1883
+2026-03-24 
+10:50:28,259 | INFO | 
+Replay completed 
+successfully | 
+total_samples=0
+2026-03-24 
+10:50:28,986 | INFO | 
+Disconnected from MQTT 
+broker
+2026-03-24 
+10:50:30,643 | INFO | 
+Starting Siddha sensor 
+simulator
+2026-03-24 
+10:50:30,643 | INFO | 
+Configuration | dataset
+_path=/app/dataset/data
+.parquet | 
+replay_mode=realtime | 
+replay_speed=1.0
+2026-03-24 
+10:50:30,651 | INFO | 
+Connected to MQTT 
+broker | host=emqx | 
+port=1883
+2026-03-24 
+10:50:37,864 | INFO | 
+Replay completed 
+successfully | 
+total_samples=0
+2026-03-24 
+10:50:38,827 | INFO | 
+Disconnected from MQTT 
+broker
+2026-03-24 
+10:50:41,345 | INFO | 
+Starting Siddha sensor 
+simulator
+2026-03-24 
+10:50:41,345 | INFO | 
+Configuration | dataset
+_path=/app/dataset/data
+.parquet | 
+replay_mode=realtime | 
+replay_speed=1.0
+2026-03-24 
+10:50:41,353 | INFO | 
+Connected to MQTT 
+broker | host=emqx | 
+port=1883
+2026-03-24 
+10:50:48,686 | INFO | 
+Replay completed 
+successfully | 
+total_samples=0
+2026-03-24 
+10:50:49,363 | INFO | 
+Disconnected from MQTT 
+broker
+2026-03-24 
+10:50:51,339 | INFO | 
+Starting Siddha sensor 
+simulator
+2026-03-24 
+10:50:51,339 | INFO | 
+Configuration | dataset
+_path=/app/dataset/data
+.parquet | 
+replay_mode=realtime | 
+replay_speed=1.0
+2026-03-24 
+10:50:51,345 | INFO | 
+Connected to MQTT 
+broker | host=emqx | 
+port=1883

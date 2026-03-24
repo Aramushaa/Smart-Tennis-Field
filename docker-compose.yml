@@ -5,6 +5,11 @@ services:
     ports:
       - "2883:1883"
       - "18083:18083"
+    healthcheck:
+      test: ["CMD", "emqx", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: always
 
   influxdb3:
@@ -24,14 +29,16 @@ services:
       dockerfile: Dockerfile
     container_name: ingest-service
     depends_on:
-      - emqx
-      - influxdb3
+      emqx:
+        condition: service_healthy
+      influxdb3:
+        condition: service_started
     env_file:
       - .env
     environment:
       MQTT_HOST: emqx
       MQTT_PORT: "1883"
-      SUB_TOPICS: tennis/sensor/+/events
+      SUB_TOPICS: tennis/sensor/+/events,tennis/camera/+/ball
       INFLUX_ENABLED: "1"
       INFLUX_HOST: http://influxdb3:8181
       INFLUX_DATABASE: tennis
@@ -40,18 +47,31 @@ services:
       - "8000:8000"
     restart: always
 
-  sensor-sim:
+  # sensor-sim:
+  #   build:
+  #     context: ./quickstarts/mqtt
+  #     dockerfile: Dockerfile.sensor
+  #   container_name: sensor-sim
+  #   depends_on:
+  #     - emqx
+  #   environment:
+  #     MQTT_HOST: emqx
+  #     MQTT_PORT: "1883"
+  #   restart: always
+
+  siddha-sensor-sim:
     build:
-      context: ./quickstarts/mqtt
-      dockerfile: Dockerfile.sensor
-    container_name: sensor-sim
+      context: ./services/siddha_sensor_sim
+      dockerfile: Dockerfile
+    container_name: siddha-sensor-sim
+    env_file:
+      - .env
     depends_on:
-      - emqx
-    environment:
-      MQTT_HOST: emqx
-      MQTT_PORT: "1883"
-    restart: always
+      emqx:
+        condition: service_healthy
+    volumes:
+      - ./dataset:/app/dataset:ro
+    restart: unless-stopped
 
 volumes:
   influxdb3_data:
-  

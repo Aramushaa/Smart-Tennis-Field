@@ -94,7 +94,7 @@ Raw Sensor Data -> InfluxDB -> HAR Service -> InfluxDB (Labeled Results)
 | EMQX | MQTT broker |
 | ingest-service | MQTT subscriber + normalization + persistence |
 | influxdb3 | Time-series database |
-| siddha-sensor-sim | Dataset-based sensor simulator |
+| siddha-sensor-sim | Siddha dataset MQTT replay simulator |
 | har-service | Activity recognition processor |
 | vision-gateway | (Future) YOLO-based detection |
 | sensor-gateway | (Future) Real hardware gateway |
@@ -103,7 +103,7 @@ Raw Sensor Data -> InfluxDB -> HAR Service -> InfluxDB (Labeled Results)
 
 1. Start all services:
 ```bash
-docker compose -f infra/docker-compose.yml up -d --build
+docker compose up -d --build
 ```
 
 2. Create InfluxDB admin token:
@@ -111,15 +111,23 @@ docker compose -f infra/docker-compose.yml up -d --build
 docker exec -it influxdb3 influxdb3 create token --admin
 ```
 
-3. Add token to `.env`:
+3. Add tokens and config to `.env`:
 ```bash
 INFLUX_ENABLED=1
 INFLUX_TOKEN=YOUR_TOKEN
+
+# Siddha Sensor Sim Configuration
+SIDDHA_MQTT_BROKER_HOST=emqx
+SIDDHA_MQTT_BROKER_PORT=1883
+SIDDHA_MQTT_TOPIC_PREFIX=tennis/sensor
+SIDDHA_DATASET_PATH=/app/dataset/data.parquet
+SIDDHA_REPLAY_MODE=realtime
+SIDDHA_REPLAY_SPEED=1.0
 ```
 
-4. Restart ingest service:
+4. Restart services to load `.env`:
 ```bash
-docker compose -f infra/docker-compose.yml restart ingest-service
+docker compose up -d
 ```
 
 ## 🌐 Endpoints
@@ -161,9 +169,14 @@ services/
     Dockerfile
     requirements.txt
 
-quickstarts/
-  mqtt/
-    Dockerfile.sensor
+  siddha_sensor_sim/
+    app/
+      main.py
+      publisher.py
+      dataset_loader.py
+      config.py
+    Dockerfile
+    requirements.txt
 
 infra/
   docker-compose.yml
@@ -188,15 +201,15 @@ This ensures the system is academically defensible.
 ## 🛑 Stop Services
 
 ```bash
-docker compose -f infra/docker-compose.yml down
+docker compose down
 ```
 
-Do not use `docker compose -f infra/docker-compose.yml down -v` unless you want to delete the InfluxDB volume and regenerate tokens.
+Do not use `docker compose down -v` unless you want to delete the InfluxDB volume and regenerate tokens.
 
 ## 🛠 Troubleshooting
 
 EMQX Port Conflict
-- Change host port in `infra/docker-compose.yml`: `2883:1883`
+- Change host port in `docker-compose.yml`: `2883:1883`
 
 InfluxDB Auth Errors
 - Verify `INFLUX_TOKEN` in `.env`
@@ -204,8 +217,8 @@ InfluxDB Auth Errors
 - If volume was deleted, regenerate token
 
 MQTT Connection Issues
-- `docker compose -f infra/docker-compose.yml ps`
-- `docker compose -f infra/docker-compose.yml logs emqx ingest-service`
+- `docker compose ps`
+- `docker compose logs emqx ingest-service`
 
 ## 🧠 Thesis Direction
 

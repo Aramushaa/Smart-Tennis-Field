@@ -1,15 +1,29 @@
- # FastAPI entrypoint (the ingest service)
+# FastAPI entrypoint (the ingest service)
 
 import json
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from .config import INFLUX_ENABLED, INFLUX_TOKEN, INFLUX_TABLE, PUB_TOPIC
 from .mqtt import start_mqtt_thread, stop_mqtt, get_memory_events, mqtt_client
 from .influx import query_influx_sql
+
+
+def _validate_timestamp(value: str, name: str) -> str:
+    """Validate and normalize an ISO-8601 timestamp to prevent SQL injection."""
+    try:
+        ts = value.replace("Z", "+00:00")
+        dt = datetime.fromisoformat(ts)
+        return dt.isoformat()
+    except (ValueError, TypeError):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid timestamp for '{name}': {value!r}. Expected ISO-8601 format.",
+        )
 
 
 @asynccontextmanager
@@ -45,9 +59,11 @@ def get_events(
     if use_influx:
         where = []
         if from_ts:
-            where.append(f"time >= '{from_ts}'")
+            safe_from = _validate_timestamp(from_ts, "from")
+            where.append(f"time >= '{safe_from}'")
         if to_ts:
-            where.append(f"time <= '{to_ts}'")
+            safe_to = _validate_timestamp(to_ts, "to")
+            where.append(f"time <= '{safe_to}'")
 
         where_sql = f"WHERE {' AND '.join(where)}" if where else ""
         sql = f"""

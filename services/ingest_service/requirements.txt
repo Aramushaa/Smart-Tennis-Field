@@ -2,4 +2,3 @@ fastapi
 uvicorn
 paho-mqtt
 python-dotenv
-influxdb3-python

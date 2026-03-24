@@ -1,0 +1,1 @@
+activity_labels = ["dribbling", "catch", "typing", "writing", "clapping", "teeth", "folding"]
