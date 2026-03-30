@@ -18,10 +18,19 @@ class MqttPublisher:
     - keeps the simulator entrypoint clean
     """
 
-    def __init__(self, host: str, port: int, topic_prefix: str):
+    def __init__(
+        self,
+        host: str,
+        port: int,
+        topic_prefix: str,
+        qos: int = 0,
+        wait_for_publish: bool = False,
+    ):
         self.host = host
         self.port = port
         self.topic_prefix = topic_prefix.rstrip("/")
+        self.qos = qos
+        self.wait_for_publish = wait_for_publish
         self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 
     def connect(self) -> None:
@@ -79,9 +88,11 @@ class MqttPublisher:
         result = self.client.publish(
             topic=topic,
             payload=json.dumps(payload),
-            qos=0,
-            retain=False,
+            qos=self.qos,
         )
+
+        if self.wait_for_publish:
+            result.wait_for_publish()
 
         if result.rc != mqtt.MQTT_ERR_SUCCESS:
             raise RuntimeError(

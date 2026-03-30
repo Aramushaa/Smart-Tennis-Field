@@ -1,234 +1,327 @@
-# 🎾 Smart Tennis Field — Distributed MQTT Time-Series Infrastructure
+# Smart Tennis Field
 
-Master Thesis Project
-Docker-based IoT + Time-Series + AI Processing Pipeline
+Master Thesis Project - Politecnico di Torino  
+Docker-based IoT, time-series, and AI processing pipeline
 
-## 📖 Overview
+## Overview
 
-This project implements a Dockerized, distributed, event-driven IoT infrastructure for collecting, storing, and processing multi-sensor data.
+This project implements a Dockerized, distributed, event-driven IoT architecture for ingesting, storing, and processing multi-sensor data in a reproducible and measurable way.
 
-The system is designed to:
-- Ingest real-time sensor streams via MQTT
-- Persist them in a time-series database (InfluxDB 3 Core)
-- Process them using independent microservices (HAR, future AI)
-- Expose results via REST API
-- Remain reproducible and measurable
+The pipeline is designed to cover the full lifecycle:
 
-This is not a demo-only project.
-It is a validated distributed pipeline architecture.
-
-## 🏗 Core Architecture
-
-```
-Dataset / Sensor Gateway
-            ↓
-        EMQX (MQTT Broker)
-            ↓
-      Ingest Service (FastAPI)
-            ↓
-       InfluxDB 3 Core
-            ↑
-      HAR Microservice
-            ↓
-         REST API
+```text
+Data -> Broker -> Storage -> Processing -> Storage -> API
 ```
 
-Architectural Principles:
-- Event-driven (MQTT backbone)
-- Ingestion separated from processing
-- Time-series persistence layer
-- Independent AI microservices
-- Fully Dockerized and reproducible
+This is not a demo-only system. It is a distributed ingestion infrastructure built for validation, measurement, and later AI processing.
 
-## 🚀 Current Implemented Phases
+## Objectives
 
-✅ Phase 0 — MQTT Infrastructure
-- EMQX broker (Dockerized)
-- Publisher -> `tennis/sensor/1/events`
-- Subscriber verification
-- Topic naming conventions defined
-- JSON payload schema defined
+- Ingest high-frequency sensor streams via MQTT
+- Persist structured telemetry in InfluxDB 3
+- Keep ingestion and processing decoupled
+- Support independent processing microservices such as HAR
+- Run reproducibly through Docker Compose
+- Enable measurable latency and throughput evaluation
 
-✅ Phase 1 — Ingest + Time-Series Persistence
+## Architecture
+
+```text
+Siddha Dataset (Parquet)
+        |
+        v
+siddha-sensor-sim
+        |
+        v
+EMQX (MQTT Broker)
+        |
+        v
+ingest-service (FastAPI)
+        |
+        v
+InfluxDB 3 Core
+        ^
+        |
+har-service (next phase)
+        |
+        v
+Predictions / derived outputs
+```
+
+## Architectural Principles
+
+- Event-driven design with MQTT as the backbone
+- Strict separation of ingestion and processing
+- Structured time-series storage instead of JSON-only blobs
+- Microservice-oriented deployment
+- Docker-first reproducibility
+- Deterministic replay and evaluation paths
+
+## Implemented Phases
+
+### Phase 0 - MQTT Infrastructure
+
+- EMQX broker running in Docker
+- Topic design for sensor and camera streams
+- QoS 1 subscriptions in ingest service
+- Pub/sub validation completed
+
+Topics:
+
+- `tennis/sensor/+/events`
+- `tennis/camera/+/ball`
+
+### Phase 1 - Ingest and Persistence
+
 - FastAPI ingest microservice
-- Background MQTT worker
-- Event normalization envelope
+- MQTT background worker
+- Event normalization layer
+- InfluxDB 3 integration through line protocol writes
+
+Normalized event shape:
+
 ```json
 {
   "ts": "...",
   "topic": "...",
   "source": "mqtt",
-  "payload": {"...": "..."}
+  "payload": {}
 }
 ```
-- InfluxDB 3 Core integration
-- Line protocol writes (`/api/v3/write_lp`)
-- SQL query endpoint (`/api/v3/query_sql`)
-- Token-based authentication
-- Time-range REST queries
 
-🚀 Phase 2 — Dataset Validation (Infrastructure Validation)
-- Siddha dataset sensor simulator
-- Real multi-sensor streaming via MQTT
-- Measurable ingestion throughput
-- End-to-end latency validation
+### Phase 2 - Dataset Validation
 
-This phase validates the pipeline using real structured sensor data.
+This is the completed validation phase for the ingestion infrastructure.
 
-🚀 Phase 3 — HAR Processing Microservice
-- Independent Docker container
-- Reads sliding time windows from InfluxDB
-- Runs activity recognition algorithm
-- Writes classification labels back to InfluxDB
+Implemented:
 
-Processing loop:
+- Siddha dataset replay through `siddha-sensor-sim`
+- Full replay of 64,697 samples
+- Structured storage in `imu_raw`
+- Deterministic ordering preserved
+- Throughput improved through batching
+- Timestamp collision handling added
 
-```
-Raw Sensor Data -> InfluxDB -> HAR Service -> InfluxDB (Labeled Results)
-```
+Key engineering fixes:
 
-## 🧩 Services
+- Batch writer thread in ingest service
+- Non-blocking MQTT publishing in simulator
+- Nanosecond collision offset for duplicate `(device, recording_id, dataset_ts)`
+
+### Phase 3 - HAR Microservice
+
+Planned next:
+
+- Sliding-window extraction from InfluxDB
+- ONNX inference integration
+- Prediction results written back to InfluxDB
+
+## Services
 
 | Service | Role |
 | --- | --- |
-| EMQX | MQTT broker |
-| ingest-service | MQTT subscriber + normalization + persistence |
-| influxdb3 | Time-series database |
-| siddha-sensor-sim | Siddha dataset MQTT replay simulator |
-| har-service | Activity recognition processor |
-| vision-gateway | (Future) YOLO-based detection |
-| sensor-gateway | (Future) Real hardware gateway |
+| `emqx` | MQTT broker |
+| `ingest-service` | MQTT consumer, normalization, persistence |
+| `influxdb3` | Time-series database |
+| `siddha-sensor-sim` | Dataset-driven simulator |
+| `har-service` | Activity recognition processor, next phase |
+| `vision-gateway` | Future YOLO-based detection |
+| `sensor-gateway` | Future hardware integration |
 
-## ⚙️ Quickstart (Docker Compose)
+## Project Structure
 
-1. Start all services:
+```text
+docs/
+  Architecture.md
+  DatasetContract.md
+  Phases.md
+
+services/
+  ingest_service/
+  siddha_sensor_sim/
+  har_service/        # next phase
+
+dataset/
+  data.parquet
+
+docker-compose.yml
+.env.example
+README.md
+```
+
+Notes:
+
+- Each service has its own Dockerfile
+- The dataset is mounted through Docker, not hardcoded into the containers
+
+## Quickstart
+
+### 1. Start the system
+
 ```bash
 docker compose up -d --build
 ```
 
-2. Create InfluxDB admin token:
+### 2. Create an InfluxDB admin token
+
 ```bash
 docker exec -it influxdb3 influxdb3 create token --admin
 ```
 
-3. Add tokens and config to `.env`:
+### 3. Configure `.env`
+
+Minimum required values:
+
 ```bash
 INFLUX_ENABLED=1
 INFLUX_TOKEN=YOUR_TOKEN
+INFLUX_DATABASE=tennis_phase2_1_qos1
+INFLUX_TABLE=events
+INFLUX_IMU_TABLE=imu_raw
+```
 
-# Siddha Sensor Sim Configuration
+Simulator-related values:
+
+```bash
 SIDDHA_MQTT_BROKER_HOST=emqx
 SIDDHA_MQTT_BROKER_PORT=1883
-SIDDHA_MQTT_TOPIC_PREFIX=tennis/sensor
 SIDDHA_DATASET_PATH=/app/dataset/data.parquet
 SIDDHA_REPLAY_MODE=realtime
 SIDDHA_REPLAY_SPEED=1.0
 ```
 
-4. Restart services to load `.env`:
+### 4. Restart services after changing `.env`
+
 ```bash
 docker compose up -d
 ```
 
-## 🌐 Endpoints
+## Endpoints
 
-| Component | URL |
+| Service | URL |
 | --- | --- |
-| EMQX Dashboard | http://localhost:18083 |
-| InfluxDB 3 Core | http://localhost:8181 |
-| Ingest API | http://localhost:8000 |
+| EMQX Dashboard | `http://localhost:18083` |
+| InfluxDB 3 | `http://localhost:8181` |
+| Ingest API | `http://localhost:8000` |
 
-## 🔌 REST API Routes
+## API
 
 - `GET /health`
-- `GET /events?limit=10`
-- `GET /events?from=...&to=...`
+- `GET /events`
 - `POST /publish`
 
-## 📡 MQTT Configuration
+## MQTT Access
 
-| Host Port | Container Port |
+| Host | Port |
 | --- | --- |
-| 2883 | 1883 |
+| `localhost` | `2883` |
 
-If connecting from host machine, use `localhost:2883`.
+If you connect from the host machine, use `localhost:2883`.
 
-## 📂 Project Structure
+## Data Model
 
-```
-docs/
-  Phases.md
+### MQTT Payload
 
-services/
-  ingest_service/
-    app/
-      main.py
-      mqtt.py
-      influx.py
-      config.py
-    Dockerfile
-    requirements.txt
-
-  siddha_sensor_sim/
-    app/
-      main.py
-      publisher.py
-      dataset_loader.py
-      config.py
-    Dockerfile
-    requirements.txt
-
-infra/
-  docker-compose.yml
-
-.env.example
-README.md
+```json
+{
+  "device": "phone",
+  "recording_id": "11",
+  "activity_gt": "A",
+  "dataset_ts": 0.05,
+  "acc_x": 0.0,
+  "gyro_x": 0.0,
+  "ts": "..."
+}
 ```
 
-## 📊 Thesis Evaluation Focus
+### InfluxDB Schema
 
-The system is designed to measure:
+Measurement:
+
+- `imu_raw`
+
+Tags:
+
+- `device`
+- `recording_id`
+
+Fields:
+
+- `acc_x`
+- `acc_y`
+- `acc_z`
+- `gyro_x`
+- `gyro_y`
+- `gyro_z`
+- `dataset_ts`
+- `activity_gt`
+
+## Performance Design
+
+### Previous bottlenecks
+
+- One HTTP write per MQTT message
+- Blocking simulator publish path
+- Timestamp collisions causing point overwrites
+
+### Current approach
+
+- Batch writer thread in ingest service
+- Configurable batch size and flush interval
+- Non-blocking MQTT publishing in the simulator
+- Collision-safe timestamp generation for IMU rows
+
+Result:
+
+- Full dataset ingestion is feasible
+- Throughput is substantially higher
+- Stored rows remain deterministic and queryable
+
+## Evaluation Metrics
+
 - End-to-end latency
-- Throughput under load
-- Broker restart recovery
-- DB reconnection logic
+- Ingestion throughput
 - HAR processing latency
-- Container isolation behavior
-- Resource usage (CPU/GPU)
+- Broker restart recovery
+- Database reconnection behavior
+- CPU usage during replay and inference
+- Replay mode comparison
 
-This ensures the system is academically defensible.
+## Troubleshooting
 
-## 🛑 Stop Services
+### InfluxDB errors
+
+- Check `INFLUX_TOKEN`
+- Check `INFLUX_DATABASE`
+- Database names must use only letters, numbers, underscores, or hyphens
+
+### MQTT issues
 
 ```bash
-docker compose down
+docker compose logs emqx ingest-service
 ```
 
-Do not use `docker compose down -v` unless you want to delete the InfluxDB volume and regenerate tokens.
+### Low throughput
 
-## 🛠 Troubleshooting
+- Check `INFLUX_BATCH_SIZE`
+- Check `INFLUX_FLUSH_INTERVAL_MS`
+- Check simulator replay mode and replay speed
 
-EMQX Port Conflict
-- Change host port in `docker-compose.yml`: `2883:1883`
+## Thesis Contribution
 
-InfluxDB Auth Errors
-- Verify `INFLUX_TOKEN` in `.env`
-- Restart ingest-service
-- If volume was deleted, regenerate token
+This project demonstrates:
 
-MQTT Connection Issues
-- `docker compose ps`
-- `docker compose logs emqx ingest-service`
+- A reproducible distributed IoT ingestion pipeline
+- Separation of ingestion and AI processing
+- Structured time-series modeling for ML workloads
+- Measurable system performance under replayed sensor data
 
-## 🧠 Thesis Direction
+## Current Status
 
-This project evolves from MQTT ingestion demo into a validated, reproducible, Docker-based distributed IoT + AI processing infrastructure.
-Infrastructure validation precedes physical hardware and YOLO integration.
-
-## 📌 Current Status
-
-- MQTT Infrastructure: Stable
-- Ingest + Persistence: Stable
-- Dataset Validation: In Progress
-- HAR Microservice: In Progress
-- Vision Gateway: Planned
+| Component | Status |
+| --- | --- |
+| MQTT | Stable |
+| Ingest | Stable |
+| Dataset pipeline | Completed |
+| HAR service | Next |
+| Vision gateway | Planned |

@@ -5,12 +5,12 @@ import threading
 import time
 from collections import deque
 from datetime import datetime, timezone
-from typing import Any, Deque, Dict, Optional, Callable
+from typing import Any, Deque, Dict, Optional
 
 import paho.mqtt.client as mqtt
 
 from .config import MQTT_HOST, MQTT_PORT, SUB_TOPICS, EVENT_BUFFER_MAX, INFLUX_ENABLED
-from .influx import write_event_to_influx
+from .influx import write_event_to_influx, write_imu_raw_to_influx
 
 
 EVENTS: Deque[Dict[str, Any]] = deque(maxlen=EVENT_BUFFER_MAX)
@@ -37,8 +37,19 @@ def normalize_event(topic: str, payload_obj: Any) -> Dict[str, Any]:
 def on_connect(client, userdata, flags, rc, properties=None):
     print("[MQTT] connected rc=", rc)
     for t in SUB_TOPICS:
-        client.subscribe(t)
-        print("[MQTT] subscribed to:", t)
+        client.subscribe(t, qos=1)
+        print("[MQTT] subscribed to:", t, "with QoS 1")
+
+
+def _process_influx_async(ev: Dict[str, Any], payload_obj: Any):
+    try:
+        write_event_to_influx(ev)
+
+        required_imu_fields = {"acc_x", "acc_y", "acc_z", "gyro_x", "gyro_y", "gyro_z"}
+        if isinstance(payload_obj, dict) and required_imu_fields.issubset(payload_obj.keys()):
+            write_imu_raw_to_influx(payload_obj)
+    except Exception as e:
+        print("[INFLUX] write error:", e)
 
 
 def on_message(client, userdata, msg):
@@ -58,14 +69,8 @@ def on_message(client, userdata, msg):
     with EVENTS_LOCK:
         EVENTS.append(ev)
 
-    print(f"[MQTT] RX {msg.topic} -> {raw}")
-
     if INFLUX_ENABLED:
-        try:
-            write_event_to_influx(ev)
-        except Exception as e:
-            print("[INFLUX] write error:", e)
-
+        _process_influx_async(ev, payload_obj)
 
 def mqtt_worker():
     mqtt_client.on_connect = on_connect

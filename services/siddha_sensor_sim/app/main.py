@@ -66,6 +66,8 @@ def main() -> None:
         host=settings.mqtt_broker_host,
         port=settings.mqtt_broker_port,
         topic_prefix=settings.mqtt_topic_prefix,
+        qos=settings.mqtt_qos,
+        wait_for_publish=settings.mqtt_wait_for_publish,
     )
 
     while True:
@@ -85,7 +87,7 @@ def main() -> None:
     published_count = 0
 
     try:
-        while True:  # Continuous replay loop
+        while True:
             for sample in loader.iter_samples(
                 device_filter=settings.default_device_filter,
                 activity_filter=settings.default_activity_filter,
@@ -115,8 +117,13 @@ def main() -> None:
 
                 previous_sample = sample
 
-            logger.info("Dataset pass complete | total_samples=%s | restarting replay...", published_count)
-            previous_sample = None  # Reset for next pass
+            logger.info("Dataset pass complete | total_samples=%s", published_count)
+
+            if not settings.loop_forever:
+                break
+
+            logger.info("Restarting replay because loop_forever=true")
+            previous_sample = None
 
     except KeyboardInterrupt:
         logger.warning("Simulator interrupted by user")

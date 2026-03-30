@@ -6,14 +6,19 @@ class Settings(BaseSettings):
     mqtt_broker_host: str = "emqx"
     mqtt_broker_port: int = 1883
     mqtt_topic_prefix: str = "tennis/sensor"
+    mqtt_qos: int = 0
+    mqtt_wait_for_publish: bool = False
 
     dataset_path: str = "/app/dataset/data.parquet"
 
     replay_mode: str = "realtime"   # "realtime" or "fast"
     replay_speed: float = 1.0       # 1.0 = real-time, 2.0 = 2x faster
+    loop_forever: bool = False
+    
     default_device_filter: str | None = None
     default_activity_filter: str | None = None
     default_recording_id_filter: str | None = None
+    
 
     @model_validator(mode="before")
     @classmethod

@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 
 from .config import INFLUX_ENABLED, INFLUX_TOKEN, INFLUX_TABLE, PUB_TOPIC
 from .mqtt import start_mqtt_thread, stop_mqtt, get_memory_events, mqtt_client
-from .influx import query_influx_sql
+from .influx import query_influx_sql, start_influx_writer, stop_influx_writer
 
 
 def _validate_timestamp(value: str, name: str) -> str:
@@ -29,6 +29,8 @@ def _validate_timestamp(value: str, name: str) -> str:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
+    if INFLUX_ENABLED:
+        start_influx_writer()
     start_mqtt_thread()
     print("[APP] startup complete")
 
@@ -36,6 +38,8 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     stop_mqtt()
+    if INFLUX_ENABLED:
+        stop_influx_writer()
     print("[APP] shutdown complete")
 
 

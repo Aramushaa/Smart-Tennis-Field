@@ -40,9 +40,6 @@ services:
       MQTT_PORT: "1883"
       SUB_TOPICS: tennis/sensor/+/events,tennis/camera/+/ball
       INFLUX_ENABLED: "1"
-      INFLUX_HOST: http://influxdb3:8181
-      INFLUX_DATABASE: tennis
-      INFLUX_TABLE: events
     ports:
       - "8000:8000"
     restart: always
@@ -71,7 +68,7 @@ services:
         condition: service_healthy
     volumes:
       - ./dataset:/app/dataset:ro
-    restart: unless-stopped
+    restart: on-failure
 
 volumes:
   influxdb3_data:
