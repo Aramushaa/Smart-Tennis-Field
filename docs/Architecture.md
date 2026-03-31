@@ -1,77 +1,253 @@
-# 🏗 Smart Tennis Field — System Architecture
+# 🏗 Smart Tennis Field — System Architecture (Post-Phase 2)
 
-This document describes the structural layout, component boundaries, data paths, and technology choices within the Smart Tennis Field system.
+## 1. Current Phase Context
 
-## 1. High-Level Concept
+**Current Phase:** Phase 2 — Dataset Validation (Completed)
 
-The objective is to ingest high-frequency telemetry data from various endpoints (sensor simulators, vision systems, IoT devices), transport it reliably, persist it as time-series data, and eventually process it for Activity Recognition natively in the cloud/edge. 
+### Implemented
 
-### Core Flow
-1. **Producer**: Sensor data is generated (e.g., from `siddha-sensor-sim` reading a `.parquet` file).
-2. **Broker**: Data is pushed via the MQTT protocol to a central broker (`EMQX`).
-3. **Ingest Service**: A FastAPI listener subscribes to wildcard topics, unpacks the dataset payload, adds backend reception timestamps, and formats it as Line Protocol.
-4. **Time-Series DB**: the `ingest-service` persists the event directly into `InfluxDB v3`.
-5. **Consumption**: Users or microservices (like a future `har-service`) query this data over REST from the API.
+* MQTT infrastructure (EMQX)
+* Ingest microservice (FastAPI)
+* Structured time-series storage (InfluxDB 3)
+* Siddha dataset simulator (real data)
+* Batch ingestion pipeline
+* Timestamp collision resolution
 
-## 2. Components Overview
+### Active Services
 
-### **EMQX (Message Broker)**
-- **Role**: High-availability MQTT broker to handle sensor telemetry.
-- **Port**: 1883 for clients, 18083 for Management Dashboard.
-- **Responsibility**: Sub-second reliable message fan-out and pub/sub routing.
+* emqx (MQTT broker)
+* ingest-service (FastAPI + MQTT consumer)
+* influxdb3 (time-series DB)
+* siddha-sensor-sim (dataset replay)
 
-### **InfluxDB 3 Core (Time Series Database)**
-- **Role**: Specialized DB optimized for high-volume time-stamped sensor data.
-- **Port**: 8181
-- **Storage**: Highly compressed columnar format via Parquet underlying storage format.
-- **Data Model**: Follows Line Protocol (`measurement,tag1=val field="json_string" timestamp`).
+### Data Flow
 
-### **Ingest Service (REST API & MQTT Subscriber)**
-- **Role**: Bridging microservice.
-- **Technology**: Python (FastAPI, paho-mqtt).
-- **Behavior**:
-  - Connects to EMQX on startup via background thread.
-  - Subscribes to `tennis/sensor/+/events` and `tennis/camera/+/ball`.
-  - Catches messages and injects them to InfluxDB.
-  - Exposes `GET /events` with safe ISO-8601 query translation, acting as the front-door for querying stored telemetry without exposing the raw InfluxDB to the client.
-
-### **Siddha Sensor Simulator**
-- **Role**: Mocks a physical hardware device using the actual Siddha dataset. 
-- **Technology**: Python (Pandas, Parquet, MQTT).
-- **Behavior**:
-  - Parses `data.parquet` and iterates via dataset chunks securely.
-  - Computes `time.sleep()` dynamically to natively replicate 1x (real-time) playback speeds or config-based speedups.
-  - Handles continuous loop replays so testing streams don't abruptly end.
-
-## 3. Data Schema and Contracts
-
-### MQTT Topic Layout
-
-We utilize hierarchical MQTT routing:
 ```
-tennis/sensor/<device_id>/events
-tennis/camera/<camera_id>/ball
-```
-*Note: Wildcarding (`tennis/sensor/+/events`) effectively enables the ingest service to consume all active devices concurrently.*
-
-### Payload Structure
-
-All payloads use JSON and adhere to a schema matching `DatasetContract.md`. Example:
-
-```json
-{
-  "device": "phone",
-  "recording_id": "48",
-  "activity_gt": "A",
-  "dataset_ts": 0.05,
-  "acc_x": -0.029474,
-  "acc_y": -0.186824,
-  "acc_z": -0.06387,
-  "gyro_x": -0.571848,
-  "gyro_y": 3.644636,
-  "gyro_z": -9.897467,
-  "ts": "2026-03-23T10:00:00Z"
-}
+Siddha Dataset (Parquet)
+        ↓
+siddha-sensor-sim
+        ↓
+EMQX (MQTT Broker)
+        ↓
+ingest-service
+        ↓
+InfluxDB 3 (imu_raw)
 ```
 
-*Important Metric:* The difference between `dataset_ts` (recording time) and `ts` (wall-clock publish time) and database insertion time allows calculating **end-to-end ingest latency.**
+---
+
+## 2. Architectural Overview
+
+The system follows a **distributed, event-driven microservice architecture** designed for reproducibility and measurable performance.
+
+Core pipeline:
+
+```
+Data → Broker → Storage → Processing → Storage → API
+```
+
+### Why this architecture?
+
+* **Decoupling:** producers, ingestion, and processing are independent
+* **Reproducibility:** full system runs via Docker Compose
+* **Scalability:** new consumers (HAR, vision) can be added without changing ingestion
+* **Observability:** each stage can be measured independently
+
+---
+
+## 3. Component Breakdown
+
+### 3.1 EMQX (MQTT Broker)
+
+**Role:** Event transport layer
+
+* Handles all sensor message routing
+* Supports wildcard topic subscriptions
+* Ensures decoupling between producers and consumers
+
+**Topics:**
+
+```
+tennis/sensor/<device>/events
+tennis/camera/<id>/ball
+```
+
+**Design reasoning:**
+
+MQTT is preferred over HTTP polling because:
+
+| Option       | Pros                             | Cons                      |
+| ------------ | -------------------------------- | ------------------------- |
+| MQTT         | low latency, decoupled, scalable | requires broker           |
+| HTTP polling | simple                           | inefficient, high latency |
+
+✅ MQTT chosen for real-time IoT system design
+
+---
+
+### 3.2 siddha-sensor-sim (Dataset Simulator)
+
+**Role:** Simulated sensor producer using real dataset
+
+* Reads Parquet dataset
+* Publishes IMU samples as MQTT events
+* Supports replay modes (realtime / fast)
+* Deterministic ordering
+
+**Why simulator instead of direct DB load?**
+
+| Option          | Pros                | Cons                         |
+| --------------- | ------------------- | ---------------------------- |
+| Direct DB load  | fast                | bypasses system architecture |
+| MQTT simulation | realistic, testable | slower                       |
+
+✅ MQTT simulation chosen for thesis validity
+
+---
+
+### 3.3 ingest-service (FastAPI Microservice)
+
+**Role:** Bridge between MQTT and database
+
+Responsibilities:
+
+* Subscribe to MQTT topics
+* Parse and validate payloads
+* Convert to line protocol
+* Batch-write to InfluxDB
+
+---
+
+#### Batch Writer Design
+
+**Problem:** 1 HTTP request per message → extremely slow
+
+**Solution:**
+
+* Queue incoming messages
+* Flush in batches via background thread
+
+**Why batching matters:**
+
+| Approach          | Pros            | Cons         |
+| ----------------- | --------------- | ------------ |
+| per-message write | simple          | very slow    |
+| batch write       | high throughput | more complex |
+
+✅ Batch writer chosen for scalability + measurable performance
+
+---
+
+### 3.4 InfluxDB 3 Core
+
+**Role:** Time-series storage layer
+
+Stores structured IMU data in measurement:
+
+```
+imu_raw
+```
+
+#### Schema
+
+**Tags:**
+
+* device
+* recording_id
+
+**Fields:**
+
+* acc_x, acc_y, acc_z
+* gyro_x, gyro_y, gyro_z
+* dataset_ts
+* activity_gt
+
+**Timestamp:**
+
+* ingestion time (with nanosecond offsets)
+
+---
+
+## 4. Critical Design Decisions
+
+### 4.1 Structured vs JSON Storage
+
+| Option         | Pros                | Cons            |
+| -------------- | ------------------- | --------------- |
+| JSON-only      | simple              | unusable for ML |
+| Structured IMU | ML-ready, queryable | more complex    |
+
+✅ Structured storage chosen
+
+---
+
+### 4.2 Timestamp Strategy
+
+Three timestamps exist:
+
+| Type             | Meaning              |
+| ---------------- | -------------------- |
+| dataset_ts       | original signal time |
+| ts               | publish time         |
+| Influx timestamp | ingestion time       |
+
+**Problem:** duplicate timestamps → overwrite
+
+**Solution:** nanosecond offsets
+
+---
+
+### 4.3 Microservice Separation
+
+| Option        | Pros            | Cons         |
+| ------------- | --------------- | ------------ |
+| Monolith      | simple          | not scalable |
+| Microservices | scalable, clean | more setup   |
+
+✅ Microservices chosen for thesis clarity
+
+---
+
+## 5. Current Limitations
+
+* HAR processing not implemented yet
+* No real hardware sensors
+* No visualization layer yet
+
+These are intentional to ensure infrastructure is validated first.
+
+---
+
+## 6. Next Step — Phase 3
+
+### HAR Service (Planned)
+
+Responsibilities:
+
+* Query sliding windows from InfluxDB
+* Run ONNX model
+* Write predictions back
+
+New architecture:
+
+```
+InfluxDB (raw)
+      ↓
+HAR Service
+      ↓
+InfluxDB (predictions)
+```
+
+---
+
+## 7. Summary
+
+The system is now:
+
+* Fully Dockerized
+* Event-driven
+* Structurally decoupled
+* Validated with real dataset
+* Ready for ML processing integration
+
+This architecture provides a solid, thesis-defensible foundation for Phase 3.

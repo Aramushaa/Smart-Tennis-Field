@@ -1,261 +1,362 @@
-# 🎾 Phases — Smart Tennis Field Roadmap (Updated — Infrastructure-First Version)
+# 🎾 Phases — Smart Tennis Field Roadmap (Updated After Phase 2 Validation)
 
-This file defines the evolution from MQTT MVP to a thesis-grade distributed IoT + AI processing system.
+This document defines the evolution of the Smart Tennis Field thesis project from an MQTT transport MVP to a thesis-grade distributed IoT + AI processing system.
 
 Each phase includes:
-- Goal
-- Deliverables
-- Definition of Done
-- Notes (Thesis Rationale)
+
+- goal
+- deliverables
+- definition of done
+- thesis rationale
+
+The project follows an infrastructure-first strategy:
+
+**Data → Broker → Storage → Processing → Storage → API**
+
+This ordering is intentional. Transport must be validated before persistence, persistence must be validated before AI processing, and the whole pipeline must remain measurable and reproducible.
+
+---
 
 ## ✅ Phase 0 — MQTT Infrastructure (Completed)
 
-Goal: Validate reliable end-to-end event transport using MQTT in a Dockerized environment.
+### Goal
 
-Deliverables:
+Validate reliable end-to-end event transport using MQTT in a Dockerized environment.
+
+### Deliverables
+
 - EMQX broker (Dockerized)
-- Dummy publisher -> `tennis/sensor/1/events`
+- Dummy publisher → `tennis/sensor/1/events`
 - Subscriber confirming message receipt
 - Topic naming convention defined
 - JSON payload schema defined
-- QoS understanding documented
+- Basic QoS behavior understood
 
-Definition of Done:
-- Publisher -> broker -> subscriber verified
+### Definition of Done
+
+- Publisher → broker → subscriber verified
 - Message integrity validated
 - Topic structure documented
 - Docker Compose reproducibility confirmed
 
-Notes (Thesis Rationale):
-- This phase validates transport-layer reliability before persistence or AI logic.
-- It establishes MQTT as the system’s event backbone.
+### Thesis Rationale
+
+This phase establishes the transport layer of the system. It proves that the project has a working event backbone before adding storage or processing logic.
+
+---
 
 ## ✅ Phase 1 — Ingest Service + Time-Series Persistence (Completed)
 
-Goal: Transform MQTT messages into durable, queryable time-series data.
+### Goal
 
-Deliverables:
+Transform MQTT messages into durable, queryable time-series data.
+
+### Deliverables
+
 - FastAPI ingest microservice
-- Background MQTT worker (lifecycle managed via FastAPI lifespan)
+- Background MQTT worker
 - Event normalization envelope
+- In-memory ring buffer for debugging
+- InfluxDB 3 Core integration via `/api/v3/write_lp`
+- SQL query support via `/api/v3/query_sql`
+- Token-based authentication
+- Docker Compose orchestration
+- REST endpoints:
+  - `GET /health`
+  - `GET /events`
+  - `POST /publish`
+
+### Event Envelope
+
 ```json
 {
   "ts": "...",
   "topic": "...",
   "source": "mqtt",
-  "payload": {"...": "..."}
+  "payload": { "...": "..." }
 }
 ```
-- In-memory ring buffer (debug)
-- InfluxDB 3 Core integration via `/api/v3/write_lp`
-- SQL query via `/api/v3/query_sql`
-- Token-based authentication
-- Docker Compose orchestration
 
-Definition of Done:
+### Definition of Done
+
 - MQTT events written to InfluxDB 3
 - Data persists across container restarts
-- Time-range queries return correct data
+- Time-range queries work correctly
 - Token-based authentication verified
-- Schema with tags: `stream`, `source_id`
-- Field: `payload` (JSON string)
+- Generic event schema established:
+  - tags: `stream`, `source_id`
+  - field: `payload`
 
-Notes (Thesis Rationale):
-- This phase establishes decoupled ingestion, durable storage, and queryable time-series architecture.
-- It transforms the project into a real distributed ingestion system.
+### Thesis Rationale
 
-## 🚀 Phase 2 — Dataset Validation Pipeline (New Core Phase)
+This phase transforms the project from a transport demo into a real ingestion and persistence system. It establishes durable storage, queryability, and a proper API-facing ingest layer.
 
-This replaces the previous “Real Producers” phase.
+---
 
-Goal: Validate the infrastructure using a real multi-sensor dataset instead of synthetic data. This is the first thesis-critical validation step.
+## ✅ Phase 2 — Dataset Validation Pipeline (Completed)
 
-### ✅ Phase 2A — Siddha Dataset Sensor Simulation (Completed)
+### Goal
 
-Goal: Simulate real sensor streams using the Siddha dataset.
+Validate the distributed infrastructure using a real multi-sensor dataset instead of synthetic messages.
 
-Deliverables:
-- New microservice: `siddha-sensor-sim` (Done)
-- Reads Siddha dataset (offline source) (Done)
-- Publishes rows via MQTT (Done)
-- Simulates realistic timing (streamed, not bulk dump) (Done)
-- Configurable publish rate and device filters (Done)
-- Auto-restart dataset loop (Done)
+This is the first thesis-critical validation phase.
 
-Pipeline:
-```
-Siddha Dataset
-      ↓
+### Phase 2 Pipeline
+
+```text
+Siddha Dataset (Parquet)
+        ↓
+siddha-sensor-sim
+        ↓
 EMQX (MQTT Broker)
-      ↓
-Ingest Service
-      ↓
-InfluxDB 3
+        ↓
+ingest-service
+        ↓
+InfluxDB 3 (structured IMU storage)
 ```
 
-Definition of Done:
-- Real dataset fully ingested (Validated)
-- Data queryable via REST (Validated)
-- Throughput and playback speed control (Validated)
-- No message loss (Validated)
-- End-to-end latency measurable (Validated)
+### Deliverables
 
-Notes (Thesis Rationale):
-- This phase proves the pipeline is not demo-only.
-- It handles real structured multi-sensor data.
-- It is reproducible and measurable.
-- This transforms the project into a validated IoT ingestion infrastructure.
+#### Siddha simulator
 
-## 🚀 Phase 3 — HAR Processing Microservice (New Processing Layer)
+- New microservice: `siddha-sensor-sim`
+- Reads Siddha dataset from Parquet
+- Validates required columns
+- Deterministic ordering by recording and timestamp
+- Publishes rows via MQTT
+- Supports replay modes (`realtime`, `fast`)
+- Supports optional filters:
+  - device
+  - activity
+  - recording_id
 
-Goal: Introduce a second microservice that consumes time-series data and performs activity recognition.
+- Supports loop / one-pass replay control
+- Uses Docker volume mount for dataset access
 
-### Phase 3A — HAR Service
+#### Ingest pipeline improvements
 
-Deliverables:
-- `har-service` Docker container
+- Structured IMU storage in InfluxDB
+- Separate raw measurement for sensor data
+- Batch writer thread for line protocol writes
+- Configurable batch size and flush interval
+- Timestamp collision handling using nanosecond offsets
+- Improved throughput under dataset load
+
+### Structured IMU schema
+
+Measurement:
+
+- `imu_raw` (or project-wide unified equivalent)
+
+Tags:
+
+- `device`
+- `recording_id`
+
+Fields:
+
+- `acc_x`, `acc_y`, `acc_z`
+- `gyro_x`, `gyro_y`, `gyro_z`
+- `dataset_ts`
+- `activity_gt`
+
+### Definition of Done
+
+- Real dataset ingested end-to-end
+- Structured raw IMU samples stored in InfluxDB
+- Data queryable by device / recording / time
+- Replay order preserved
+- Full dataset pass successfully stored
+- Throughput significantly improved through batching
+- Published count and stored count reconciled
+- Pipeline deterministic and reproducible
+
+### Thesis Rationale
+
+This phase proves that the project is not just a demo with fake messages. It validates the infrastructure with real structured sensor data and exposes the kinds of engineering issues that appear only under realistic load:
+
+- schema mismatches
+- write throughput bottlenecks
+- blocking publish behavior
+- timestamp collisions
+- replay strategy tradeoffs
+
+By solving these, the project becomes a validated ingestion infrastructure rather than a prototype.
+
+---
+
+## 🚀 Phase 3 — HAR Processing Microservice (Next Phase)
+
+### Goal
+
+Introduce a second microservice that consumes structured raw IMU data and performs human activity recognition using a provided ONNX model.
+
+### Important principle
+
+The HAR model is already provided.
+
+This phase is **not** about training a new model.
+It is about integrating an existing ML component into the distributed architecture in a clean and measurable way.
+
+### Required Inputs
+
+- `L2MU_plain_leaky.onnx`
+- `labels.txt`
+- `inference_engine.py`
+
+### Planned Deliverables
+
+- `har_service` Docker container
 - Reads sliding windows from InfluxDB
-- Runs activity recognition algorithm
-- Writes predicted labels back to InfluxDB
-- Results queryable via REST
+- Converts rows into model input dictionaries:
 
-Processing Loop:
+```python
+accelerometer = {"x": [...], "y": [...], "z": [...]}
+gyroscope = {"x": [...], "y": [...], "z": [...]}
 ```
+
+- Runs ONNX inference
+- Writes predicted labels back into InfluxDB
+- Exposes prediction results through the broader API layer if needed
+
+### Planned Processing Loop
+
+```text
 InfluxDB (raw sensor data)
           ↓
-   HAR Service
+      har-service
           ↓
-InfluxDB (labeled results)
+InfluxDB (predictions)
 ```
 
-Definition of Done:
-- Activity labels generated from real dataset
-- Labels stored in DB
-- Processing latency measured
-- Sliding window logic documented
-- System remains decoupled
+### Definition of Done
 
-Notes (Thesis Rationale):
-- This phase demonstrates data -> storage -> processing -> storage loop.
-- It validates microservice separation.
-- It integrates AI without coupling to ingestion.
-- This is the core distributed systems contribution.
+- ONNX model runs inside Docker
+- Sliding window queries implemented
+- Model input conversion validated
+- Predictions stored in a separate measurement/table
+- Processing latency measurable
+- HAR remains fully decoupled from ingest-service
 
-## 🔮 Phase 4 — Real Edge Gateways (Deferred After Validation)
+### Thesis Rationale
 
-Now that infrastructure is validated, we introduce physical/AI producers.
+This phase demonstrates the core thesis loop:
 
-### Phase 4A — Sensor Gateway (ST AIoT Craft)
+**Storage → Processing → Storage**
 
-Deliverables:
-- `sensor-gateway` service
-- Reads real hardware output (BLE/UART/etc.)
+It proves that the architecture supports AI integration without coupling ML logic into the ingestion service.
+
+---
+
+## 🔮 Phase 4 — Real Edge Gateways (Deferred Until After HAR)
+
+This phase introduces real producers only after the infrastructure and processing pipeline are stable.
+
+### Phase 4A — Sensor Gateway
+
+#### Goal
+
+Replace the dataset simulator with real physical sensor integration.
+
+#### Deliverables
+
+- `sensor_gateway` microservice
+- Reads from real hardware (BLE / UART / etc.)
 - Publishes to `tennis/sensor/<id>/events`
 
-Definition of Done:
-- Real sensor data stored in DB
-- Timestamp synchronization validated
-- Edge vs server timestamp strategy documented
+#### Definition of Done
 
-### Phase 4B — Vision Gateway (YOLO)
+- Real sensor data stored in InfluxDB
+- Timestamp synchronization strategy documented
+- Gateway behaves as a proper producer in the same architecture
 
-Deliverables:
-- `vision-gateway` service
-- Reads RTSP / USB / video file
-- YOLO-based ball detection
+### Phase 4B — Vision Gateway
+
+#### Goal
+
+Add computer vision-based event producers.
+
+#### Deliverables
+
+- `vision_gateway` microservice
+- Reads RTSP / USB / video source
+- Performs YOLO-based ball detection
 - Publishes to `tennis/camera/<id>/ball`
 
-Definition of Done:
+#### Definition of Done
+
 - Ball detections stored in DB
-- Publish rate stable
 - Frame processing latency measured
-- GPU/CPU usage documented
+- Publish rate stable under test
 
-Notes (Thesis Rationale):
-- Vision and hardware are added only after infrastructure stability, dataset validation, and processing microservice proof.
-- This avoids coupling experimental AI to unstable infrastructure.
+### Thesis Rationale
 
-## 🔬 Phase 5 — Domain Semantics Layer (Rules Engine)
+Edge gateways are intentionally deferred until after the infrastructure is validated, so experimental AI and hardware do not get mixed into an unstable core pipeline.
 
-Goal: Convert telemetry + HAR output into tennis-level events.
+---
 
-Deliverables:
+## 🔬 Phase 5 — Domain Semantics / Rules Layer (Future)
+
+### Goal
+
+Convert low-level telemetry and predictions into tennis-level semantic events.
+
+### Potential Deliverables
+
 - `rules-engine` microservice
-- Multi-stream time correlation
-- Detect: bounce, serve valid/fault, out
-- Publishes alerts to `tennis/alerts/<type>`
+- Multi-stream correlation
+- Detection of tennis semantics such as:
+  - bounce
+  - valid serve / fault
+  - out event
+  - alert generation
 
-Definition of Done:
-- Deterministic rule evaluation
-- Reproducible alerts
-- Multi-stream window alignment documented
+### Thesis Rationale
 
-Notes (Thesis Rationale):
-- This is where distributed correlation and time-window alignment are studied.
+This phase would study distributed time-window alignment and semantic event derivation across multiple streams.
 
-## 🧭 Phase 6 — Control Unit (System Orchestration)
+---
 
-Goal: Introduce system-level state and control plane.
+## 📊 Phase 6 — Observability and Evaluation (Cross-Cutting)
 
-Deliverables:
-- `control-unit` service
-- Match states: idle, warmup, match, maintenance
-- Publishes commands
-- Heartbeat monitoring
+This phase is partly continuous and partly final-thesis evaluation.
 
-Definition of Done:
-- Services respond to commands
-- System mode changes behavior
-- Failure scenarios handled
+### Core metrics to measure
 
-## 📊 Phase 7 — Observability Layer
+- end-to-end latency
+- ingestion throughput
+- HAR inference latency
+- broker restart recovery
+- DB reconnection behavior
+- CPU usage of processing services
+- replay mode comparison (`realtime` vs `fast`)
+- container isolation behavior
 
-Goal: Make the system measurable and visible.
+### Why this phase matters
 
-### Phase 7A — Grafana MVP
+The thesis contribution depends not only on architecture existing, but on it being measurable and reproducible.
 
-Deliverables:
-- InfluxDB datasource
-- Panels: events per minute, stream breakdown, HAR label distribution, latency metrics
+---
 
-Definition of Done:
-- Real-time ingestion visible
-- Historical exploration possible
+## 🧭 Summary of Current Status
 
-### Phase 7B — Custom Dashboard (Optional)
+| Phase                                | Status       |
+| ------------------------------------ | ------------ |
+| Phase 0 — MQTT Infrastructure        | ✅ Completed |
+| Phase 1 — Ingest + Persistence       | ✅ Completed |
+| Phase 2 — Dataset Validation         | ✅ Completed |
+| Phase 3 — HAR Microservice           | 🚀 Next      |
+| Phase 4 — Real Edge Gateways         | ⏳ Deferred  |
+| Phase 5 — Domain Semantics           | ⏳ Future    |
+| Phase 6 — Observability / Evaluation | 🔄 Ongoing   |
 
-Deliverables:
-- React/Next.js UI
-- WebSocket live feed
-- Event replay
+---
 
-## 🔐 Phase 8 — Security Layer
+## Final Note
 
-Goal: Secure distributed microservices.
+The system has already crossed an important threshold:
 
-Deliverables:
-- JWT authentication
-- Role-based access
-- MQTT ACL (optional)
-- Secured REST endpoints
+It is no longer just an MQTT prototype.
+It is now a **validated distributed ingestion infrastructure**.
 
-Definition of Done:
-- Unauthorized access blocked
-- Roles enforced
-
-## 🧪 Phase 9 — Thesis Evaluation and Validation
-
-Goal: Produce measurable, reproducible academic results.
-
-Deliverables:
-- Infrastructure metrics: end-to-end latency, throughput under load, broker restart behavior, DB reconnection logic, service restart recovery
-- Processing metrics: HAR inference time, sliding window size impact, CPU usage, memory usage
-- Edge AI metrics (if implemented): YOLO FPS, GPU utilization, publish rate stability
-- Documentation: architecture diagrams, event schema specification, Docker deployment guide, limitations and tradeoffs, future work
-
-Definition of Done:
-- Fully reproducible Docker deployment
-- Measured performance metrics
-- Infrastructure validated on real dataset
-- Processing microservice validated
-- Academic documentation ready
+That means the focus can now shift from debugging ingestion basics to integrating and evaluating processing services in a controlled way.
