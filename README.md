@@ -154,6 +154,15 @@ Notes:
 - Each service has its own Dockerfile
 - The dataset is mounted through Docker, not hardcoded into the containers
 
+## Documentation Guide
+
+If you want to understand the project beyond the quickstart, start with the documents in [`docs/`](docs/). Each one answers a different question and is meant to be read independently.
+
+- If you want the system-level view, open [`docs/Architecture.md`](docs/Architecture.md). It explains the main components, how data moves across the pipeline, and how the services are meant to interact.
+- If you want the dataset and payload contract, open [`docs/DatasetContract.md`](docs/DatasetContract.md). It defines the structure of the Siddha-derived sensor data and the fields expected by the pipeline.
+- If you want the roadmap and thesis direction, open [`docs/Phases.md`](docs/Phases.md). It lays out the implementation phases from infrastructure validation to processing, orchestration, and evaluation.
+- If you want the development narrative, decisions, and progress log, open [`docs/Journal.md`](docs/Journal.md). It is the best place to follow what changed, why it changed, and how the system evolved over time.
+
 ## Quickstart
 
 ### 1. Start the system
