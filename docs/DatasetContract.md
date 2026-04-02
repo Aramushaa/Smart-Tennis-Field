@@ -74,7 +74,7 @@ The Siddha simulator reads rows from the Parquet dataset using required columns 
 
 ## 4. Internal Normalized Sample Model
 
-Inside `siddha-sensor-sim`, one row is converted into a `SensorSample` object with the following fields: `device`, `activity_gt`, `recording_id`, `dataset_ts`, `acc_x`, `acc_y`, `acc_z`, `gyro_x`, `gyro_y`, `gyro_z`. fileciteturn9file0
+Inside `siddha-sensor-sim`, one row is converted into a `SensorSample` object with the following fields: `device`, `activity_gt`, `recording_id`, `dataset_ts`, `acc_x`, `acc_y`, `acc_z`, `gyro_x`, `gyro_y`, `gyro_z`. 
 
 This internal normalization is important because it creates a stable handoff between:
 
@@ -106,7 +106,7 @@ This topic design was chosen because it:
 * allows wildcard subscription by ingest-service
 * scales to multiple devices without changing consumer logic
 
-The ingest-service subscribes using wildcard topics, including `tennis/sensor/+/events`. fileciteturn9file6
+The ingest-service subscribes using wildcard topics, including `tennis/sensor/+/events`. 
 
 ---
 
@@ -241,7 +241,7 @@ The stored InfluxDB timestamp is not the raw `dataset_ts` alone. A synthetic epo
 * the logical `dataset_ts`
 * a tiny nanosecond offset for collisions
 
-This is necessary because InfluxDB point identity is based on measurement + tags + timestamp. Without collision handling, multiple rows sharing the same measurement, tags, and timestamp would overwrite one another. This logic is implemented in `_next_imu_timestamp_ns(...)` and `write_imu_raw_to_influx(...)`. fileciteturn9file4
+This is necessary because InfluxDB point identity is based on measurement + tags + timestamp. Without collision handling, multiple rows sharing the same measurement, tags, and timestamp would overwrite one another. This logic is implemented in `_next_imu_timestamp_ns(...)` and `write_imu_raw_to_influx(...)`. 
 
 ---
 
