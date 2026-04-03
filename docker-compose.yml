@@ -44,17 +44,6 @@ services:
       - "8000:8000"
     restart: always
 
-  # sensor-sim:
-  #   build:
-  #     context: ./quickstarts/mqtt
-  #     dockerfile: Dockerfile.sensor
-  #   container_name: sensor-sim
-  #   depends_on:
-  #     - emqx
-  #   environment:
-  #     MQTT_HOST: emqx
-  #     MQTT_PORT: "1883"
-  #   restart: always
 
   siddha-sensor-sim:
     build:
