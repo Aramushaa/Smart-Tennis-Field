@@ -152,19 +152,24 @@ imu_raw
 
 **Tags:**
 
-* device
-* recording_id
+* `device`
+* `recording_id`
 
 **Fields:**
 
-* acc_x, acc_y, acc_z
-* gyro_x, gyro_y, gyro_z
-* dataset_ts
-* activity_gt
+* `acc_x`, `acc_y`, `acc_z` — accelerometer axes (float)
+* `gyro_x`, `gyro_y`, `gyro_z` — gyroscope axes (float)
+* `dataset_ts` — original signal time from the Siddha recording (float)
+* `activity_gt` — ground-truth activity label (string)
+
+> ⚠️ `activity_gt` is treated as **metadata (field)**, not as part of the point identity. It does not participate in deduplication or overwrite logic.
 
 **Timestamp:**
 
-* ingestion time (with nanosecond offsets)
+* Derived from `dataset_ts`, not wall-clock time
+* Anchored to a fixed base epoch (`2024-01-01T00:00:00Z`)
+* Adjusted with nanosecond offsets when multiple rows share the same `(device, recording_id, dataset_ts)`
+* Precision: nanoseconds
 
 ---
 
@@ -183,17 +188,23 @@ imu_raw
 
 ### 4.2 Timestamp Strategy
 
-Three timestamps exist:
+Three timestamps exist in the system:
 
-| Type             | Meaning              |
-| ---------------- | -------------------- |
-| dataset_ts       | original signal time |
-| ts               | publish time         |
-| Influx timestamp | ingestion time       |
+| Type             | Meaning                          | Source                    |
+| ---------------- | -------------------------------- | ------------------------- |
+| `dataset_ts`     | Original signal time in recording | Siddha dataset            |
+| `ts`             | Wall-clock publish time           | Simulator at send time    |
+| Influx timestamp | Storage identity timestamp        | Derived from `dataset_ts` |
 
-**Problem:** duplicate timestamps → overwrite
+**Key distinction:**
 
-**Solution:** nanosecond offsets
+* `dataset_ts` represents **semantic sensor time** — it is used for ordering, ML windowing, and signal analysis
+* The InfluxDB timestamp is **derived from** `dataset_ts` but adjusted with a nanosecond offset to ensure uniqueness
+* `ts` is the wall-clock publish time for distributed-system tracing and latency measurement
+
+**Problem:** The Siddha dataset contains multiple samples that share the same `(device, recording_id, dataset_ts)`. Since InfluxDB identifies points using `measurement + tags + timestamp`, these duplicates silently overwrite each other.
+
+**Solution:** A per-key nanosecond offset is applied via `_next_imu_timestamp_ns()`. Each duplicate at the same base timestamp receives +1ns, +2ns, etc. This preserves all rows without affecting chronological ordering.
 
 ---
 
@@ -206,9 +217,56 @@ Three timestamps exist:
 
 ✅ Microservices chosen for thesis clarity
 
+### 4.4 Design Decision: Decoupling Semantics from Storage
+
+The system explicitly separates three independent concerns:
+
+| Concern                | Mechanism                             | Purpose                              |
+| ---------------------- | ------------------------------------- | ------------------------------------ |
+| Semantic time          | `dataset_ts` field                     | Preserves original recording timeline |
+| Storage identity       | InfluxDB timestamp (ns with offset)    | Ensures unique point identity         |
+| Transport reliability  | MQTT QoS + `wait_for_publish`          | Controls delivery guarantees          |
+
+This separation ensures:
+
+* correct ML processing (uses `dataset_ts`, not storage timestamp)
+* no data overwrite (unique InfluxDB timestamps)
+* reproducible ingestion (controlled MQTT behavior)
+
 ---
 
-## 5. Current Limitations
+## 5. Data Integrity & Reliability Considerations
+
+The system distinguishes between two independent concerns that both affect data correctness:
+
+### 5.1 Data Identity (Storage Layer)
+
+* Raw IMU samples from the Siddha dataset may share the same `dataset_ts` within a single `(device, recording_id)` group
+* InfluxDB identifies points using: `measurement + tags + timestamp`
+* To prevent overwriting, a nanosecond offset is applied to duplicate timestamps
+* This is handled by `_next_imu_timestamp_ns()` in the ingest service
+
+### 5.2 Data Delivery (Transport Layer)
+
+* Under high-throughput replay (`fast` mode), MQTT QoS 0 with non-blocking publish can lead to significant data loss
+* The EMQX broker drops messages when its per-client queue overflows
+* Reliable ingestion requires:
+  * **QoS 1** — broker-acknowledged delivery
+  * **Blocking publish** (`wait_for_publish=true`) — simulator waits for delivery confirmation
+* These settings are configurable per experiment via `.env`
+
+### 5.3 Validated Configurations
+
+| Case | Replay Mode | QoS | Wait for Publish | Result           |
+| ---- | ----------- | --- | ---------------- | ---------------- |
+| A    | `fast`      | 0   | `false`          | ❌ ~88% data loss |
+| B    | `fast`      | 1   | `true`           | ✅ 100% correct   |
+| C    | `realtime`  | 0   | `false`          | ✅ 100% correct   |
+| D    | `realtime`  | 1   | `true`           | ✅ 100% correct   |
+
+---
+
+## 6. Current Limitations
 
 * HAR processing not implemented yet
 * No real hardware sensors
@@ -218,7 +276,7 @@ These are intentional to ensure infrastructure is validated first.
 
 ---
 
-## 6. Next Step — Phase 3
+## 7. Next Step — Phase 3
 
 ### HAR Service (Planned)
 
@@ -240,7 +298,7 @@ InfluxDB (predictions)
 
 ---
 
-## 7. Summary
+## 8. Summary
 
 The system is now:
 
@@ -248,6 +306,8 @@ The system is now:
 * Event-driven
 * Structurally decoupled
 * Validated with real dataset
+* Data integrity verified (timestamp collisions resolved)
+* Transport reliability validated (MQTT QoS impact measured)
 * Ready for ML processing integration
 
 This architecture provides a solid, thesis-defensible foundation for Phase 3.

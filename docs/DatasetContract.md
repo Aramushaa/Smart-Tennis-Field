@@ -156,6 +156,41 @@ This distinction is critical because the system needs both:
 * signal-relative ordering for HAR windows
 * distributed-system timing for tracing and latency reasoning
 
+### `dataset_ts` vs stored timestamp
+
+These two timestamps serve different purposes and must not be confused:
+
+* **`dataset_ts`**
+  * Original timestamp from the Siddha recording
+  * Represents when the sensor reading was captured relative to the start of the session
+  * Used for ordering, ML window extraction, and signal analysis
+  * Preserved as a field in InfluxDB for downstream processing
+
+* **InfluxDB timestamp**
+  * Derived from `dataset_ts` (anchored to `2024-01-01T00:00:00Z`)
+  * Includes a nanosecond offset when duplicates exist within the same `(device, recording_id)` group
+  * Used solely for point identity and deduplication in the storage layer
+
+**Why not use `dataset_ts` directly as the InfluxDB timestamp?**
+
+Because multiple rows share the same `dataset_ts` within a recording (up to ~18 per timestamp), and InfluxDB would silently overwrite all but the last one.
+
+### Duplicate Timestamp Behavior
+
+The Siddha dataset contains multiple samples with identical:
+
+* `device`
+* `recording_id` (mapped from `id`)
+* `dataset_ts` (mapped from `timestamp`)
+
+These samples differ in their sensor values (`acc_x`, `gyro_x`, etc.) and activity labels (`activity_gt`).
+
+**Implication:**
+Without disambiguation, these rows would overwrite each other in InfluxDB, since point identity is determined by `measurement + tags + timestamp`.
+
+**Resolution:**
+The ingest service applies a per-key nanosecond offset (`_next_imu_timestamp_ns`) to ensure every row receives a unique InfluxDB timestamp while preserving the original `dataset_ts` as a queryable field.
+
 ---
 
 ## 7. Ingest Event Envelope Contract
@@ -237,11 +272,13 @@ imu_raw
 
 The stored InfluxDB timestamp is not the raw `dataset_ts` alone. A synthetic epoch-based nanosecond timestamp is built from:
 
-* a fixed base epoch
-* the logical `dataset_ts`
-* a tiny nanosecond offset for collisions
+* a fixed base epoch (`2024-01-01T00:00:00Z`)
+* the logical `dataset_ts` converted to nanoseconds
+* a tiny nanosecond offset for collisions within the same `(device, recording_id, dataset_ts)` group
 
-This is necessary because InfluxDB point identity is based on measurement + tags + timestamp. Without collision handling, multiple rows sharing the same measurement, tags, and timestamp would overwrite one another. This logic is implemented in `_next_imu_timestamp_ns(...)` and `write_imu_raw_to_influx(...)`. 
+This is necessary because InfluxDB point identity is based on `measurement + tags + timestamp`. Without collision handling, multiple rows sharing the same measurement, tags, and timestamp would overwrite one another. This logic is implemented in `_next_imu_timestamp_ns(...)` and `write_imu_raw_to_influx(...)`.
+
+> ⚠️ **Important:** `activity_gt` is treated as **metadata (field)**, not as part of the identity of the raw sensor sample. It does not participate in InfluxDB's deduplication or overwrite logic. This is intentional — the ground-truth activity label describes the sample but does not define its uniqueness.
 
 ---
 
@@ -298,6 +335,18 @@ This contract keeps the simulator useful for two different purposes:
 * stress / replay-speed experiments
 
 That separation is important for academic evaluation because correctness experiments and throughput experiments should not be conflated.
+
+### Transport Reliability and Replay
+
+Replay mode interacts directly with transport reliability:
+
+| Configuration                      | Data Consistency |
+| ---------------------------------- | ---------------- |
+| `fast` + QoS 0 + no wait          | ❌ Data loss      |
+| `fast` + QoS 1 + `wait_for_publish`| ✅ 100% correct   |
+| `realtime` (any QoS)              | ✅ 100% correct   |
+
+For deterministic validation, the recommended configuration is `fast` mode with QoS 1 and `wait_for_publish=true`. This ensures complete data delivery while minimizing total replay time.
 
 ---
 

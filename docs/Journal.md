@@ -455,6 +455,58 @@ This preserved every row while leaving `dataset_ts` intact as the logical signal
 
 This fix was essential. Without it, the raw measurement could never reflect the actual number of ingested samples.
 
+### Timestamp Collision Investigation — Summary
+
+This was one of the most important debugging episodes of Phase 2. The investigation followed this path:
+
+1. **Observation:** Mismatch between expected dataset rows and stored rows (e.g., 64,700 expected, only 99–154 stored)
+2. **Initial hypothesis:** MQTT message loss — but simulator logs confirmed all messages were published
+3. **Second hypothesis:** InfluxDB write failures — but no HTTP errors in ingest logs
+4. **Root cause found:** Multiple rows share the same `(device, recording_id, dataset_ts)`. Example: ~18 rows per timestamp in some cases. InfluxDB treated these as the same point and silently overwrote them
+5. **Solution:** Introduced `_next_imu_timestamp_ns()` which adds a per-key nanosecond offset to ensure unique timestamps
+
+This type of silent data corruption is particularly dangerous because no error is raised — the system appears to work correctly while losing most of its data.
+
+### Fast Replay Data Loss Issue
+
+**Observation:**
+When running the simulator in `fast` mode (no inter-message delay) with MQTT QoS 0 and non-blocking publish, significantly fewer rows appeared in InfluxDB than were published by the simulator.
+
+**Experiment:**
+
+| Case | Replay Mode | QoS | Wait for Publish | Result           |
+| ---- | ----------- | --- | ---------------- | ---------------- |
+| A    | `fast`      | 0   | `false`          | ❌ ~88% data loss |
+| B    | `fast`      | 1   | `true`           | ✅ 100% correct   |
+| C    | `realtime`  | 0   | `false`          | ✅ 100% correct   |
+
+**Root cause analysis:**
+
+1. With QoS 0, MQTT does not guarantee delivery. Messages are fire-and-forget.
+2. The simulator in `fast` mode publishes thousands of messages per second.
+3. The ingest service's MQTT network callback was blocked by synchronous HTTP writes to InfluxDB, causing the paho-mqtt internal buffer to fill up.
+4. EMQX dropped overflow messages from its per-client queue.
+5. The simulator finished and disconnected before all in-flight messages were delivered.
+
+**Resolution:**
+
+* Ingest service was refactored to use a `ThreadPoolExecutor` for non-blocking InfluxDB writes
+* A batch writer thread was introduced to amortize HTTP overhead
+* MQTT QoS and `wait_for_publish` were made configurable in the simulator
+* The recommended configuration for data-critical runs is QoS 1 + `wait_for_publish=true`
+
+### Key Insight: Two Independent Problems
+
+The Phase 2 debugging process revealed **two independent problems** that both manifested as "fewer rows than expected":
+
+| Layer     | Problem                    | Symptom                      | Fix                          |
+| --------- | -------------------------- | ---------------------------- | ---------------------------- |
+| Storage   | Timestamp collision        | Silent point overwrite       | Nanosecond offset            |
+| Transport | Fast replay data loss      | Messages never delivered     | QoS 1 + blocking publish     |
+| System    | Non-reproducible results   | Different counts per run     | Controlled `.env` config     |
+
+These two problems are orthogonal — fixing one does not fix the other. Both must be addressed for a reliable pipeline. This distinction is academically significant because it demonstrates understanding of the difference between storage-layer correctness and transport-layer reliability in distributed systems.
+
 ### Problem 8 — invalid database naming
 
 At one point InfluxDB returned HTTP 400 errors because the configured database name contained a dot, which was not valid.
@@ -471,9 +523,11 @@ This demonstrated:
 
 * end-to-end ingestion works
 * structured raw storage works
-* row preservation works
+* row preservation works (no silent overwrites)
 * performance is acceptable with batching
 * the pipeline is deterministic and reproducible
+* transport reliability is validated under controlled MQTT configurations
+* timestamp collision handling produces correct row counts
 
 This is the point where the project stopped being “just infrastructure setup” and became a validated distributed ingestion system.
 
@@ -507,11 +561,20 @@ Batching was not added just because it is “faster.” It was added because the
 
 The distinction between:
 
-* dataset time
-* publish time
-* database timestamp
+* dataset time (`dataset_ts`)
+* publish time (`ts`)
+* database timestamp (derived, with offset)
 
 turned out to be central. Without explicit handling of these time concepts, both analysis and debugging become unreliable.
+
+## 6.6 Transport reliability is a separate concern from storage correctness
+
+Data loss can occur at two independent layers:
+
+* **Storage layer:** timestamp collisions cause silent overwrites regardless of how reliably messages are delivered
+* **Transport layer:** MQTT QoS 0 under high throughput causes message drops regardless of how correctly the storage handles timestamps
+
+Both must be addressed independently. This is a strong thesis finding because it demonstrates that distributed system correctness requires reasoning about each layer in isolation.
 
 ---
 
