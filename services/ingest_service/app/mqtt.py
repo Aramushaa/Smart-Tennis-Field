@@ -9,7 +9,14 @@ from typing import Any, Deque, Dict, Optional
 
 import paho.mqtt.client as mqtt
 
-from .config import MQTT_HOST, MQTT_PORT, SUB_TOPICS, EVENT_BUFFER_MAX, INFLUX_ENABLED
+from .config import (
+    MQTT_HOST,
+    MQTT_PORT,
+    SUB_TOPICS,
+    EVENT_BUFFER_MAX,
+    INFLUX_ENABLED,
+    INFLUX_WRITE_GENERIC_EVENTS,
+)
 from .influx import write_event_to_influx, write_imu_raw_to_influx
 
 
@@ -43,7 +50,8 @@ def on_connect(client, userdata, flags, rc, properties=None):
 
 def _process_influx_async(ev: Dict[str, Any], payload_obj: Any):
     try:
-        write_event_to_influx(ev)
+        if INFLUX_WRITE_GENERIC_EVENTS:
+            write_event_to_influx(ev)
 
         required_imu_fields = {"acc_x", "acc_y", "acc_z", "gyro_x", "gyro_y", "gyro_z"}
         if isinstance(payload_obj, dict) and required_imu_fields.issubset(payload_obj.keys()):

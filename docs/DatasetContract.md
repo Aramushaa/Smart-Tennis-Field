@@ -1,4 +1,4 @@
-# 📦 Siddha Dataset Contract (Post-Phase 2)
+# Siddha Dataset Contract (Post-Phase 2)
 
 ## 1. Purpose
 
@@ -6,13 +6,13 @@ This document defines how Siddha dataset rows are mapped into MQTT events and In
 
 The contract exists to keep the system reproducible and consistent across:
 
-* dataset replay
-* MQTT transport
-* ingestion
-* time-series storage
-* future HAR processing
+- dataset replay
+- MQTT transport
+- ingestion
+- time-series storage
+- future HAR processing
 
-Without an explicit contract, different services could interpret the same data differently, which would weaken both maintainability and thesis defensibility.
+Without an explicit contract, different services could interpret the same data differently. That would weaken maintainability, observability, and thesis defensibility.
 
 ---
 
@@ -22,13 +22,13 @@ Without an explicit contract, different services could interpret the same data d
 
 ### Implemented
 
-* Siddha dataset replay through `siddha-sensor-sim`
-* MQTT transport through EMQX
-* ingest-service persistence into InfluxDB 3
-* structured IMU storage
-* validated full pass ingestion
+- Siddha dataset replay through `siddha-sensor-sim`
+- MQTT transport through EMQX
+- `ingest-service` persistence into InfluxDB 3
+- structured IMU storage
+- validated end-to-end ingestion
 
-### Current data flow
+### Current Data Flow
 
 ```text
 Siddha Parquet
@@ -44,49 +44,76 @@ InfluxDB 3
 
 ---
 
-## 3. Source Dataset Schema
+## 3. Contract Scope
 
-The Siddha simulator reads rows from the Parquet dataset using required columns validated in the loader. The loader currently expects these fields: `device`, `activity`, `id`, `gyro_x`, `gyro_y`, `gyro_z`, `acc_x`, `acc_y`, `acc_z`, and `timestamp`. fileciteturn9file0
+The Siddha contract spans four transformation layers:
 
-### Source columns
+1. source dataset row (`Parquet`)
+2. internal normalized sample (`SensorSample`)
+3. MQTT transport payload
+4. persistence contract in InfluxDB (`events` and `imu_raw`)
 
-* `device`
-* `activity`
-* `id`
-* `acc_x`
-* `acc_y`
-* `acc_z`
-* `gyro_x`
-* `gyro_y`
-* `gyro_z`
-* `timestamp`
-
-### Meaning of each source column
-
-* `device`: acquisition source, e.g. `phone` or `watch`
-* `activity`: ground-truth activity label from Siddha
-* `id`: recording/session identifier used for ordered replay
-* `acc_x`, `acc_y`, `acc_z`: accelerometer axes
-* `gyro_x`, `gyro_y`, `gyro_z`: gyroscope axes
-* `timestamp`: logical dataset time inside the recording
+This document defines the mapping rules across all four layers so that replay, storage, and future HAR processing interpret the same row consistently.
 
 ---
 
-## 4. Internal Normalized Sample Model
+## 4. Source Dataset Schema
 
-Inside `siddha-sensor-sim`, one row is converted into a `SensorSample` object with the following fields: `device`, `activity_gt`, `recording_id`, `dataset_ts`, `acc_x`, `acc_y`, `acc_z`, `gyro_x`, `gyro_y`, `gyro_z`. 
+The Siddha simulator reads rows from the Parquet dataset using a validated source schema.
+
+### Source Columns
+
+- `device`
+- `activity`
+- `id`
+- `acc_x`
+- `acc_y`
+- `acc_z`
+- `gyro_x`
+- `gyro_y`
+- `gyro_z`
+- `timestamp`
+
+### Meaning of Each Source Column
+
+- `device`: acquisition source, for example `phone` or `watch`
+- `activity`: ground-truth activity label from Siddha
+- `id`: recording or session identifier used for ordered replay
+- `acc_x`, `acc_y`, `acc_z`: accelerometer axes
+- `gyro_x`, `gyro_y`, `gyro_z`: gyroscope axes
+- `timestamp`: logical dataset time inside the recording
+
+---
+
+## 5. Internal Normalized Sample Model
+
+Inside `siddha-sensor-sim`, each validated dataset row is converted into a `SensorSample` dataclass with the fields:
+
+- `device`
+- `activity_gt`
+- `recording_id`
+- `dataset_ts`
+- `acc_x`
+- `acc_y`
+- `acc_z`
+- `gyro_x`
+- `gyro_y`
+- `gyro_z`
+
+This normalized in-memory model is the stable contract between dataset parsing and MQTT publishing.
 
 This internal normalization is important because it creates a stable handoff between:
 
-* file parsing
-* MQTT publishing
-* future processing logic
+- file parsing
+- replay ordering
+- MQTT publishing
+- future processing logic
 
 ---
 
-## 5. MQTT Topic Contract
+## 6. MQTT Topic Contract
 
-### Topic pattern
+### Topic Pattern
 
 ```text
 tennis/sensor/<device>/events
@@ -98,37 +125,37 @@ tennis/sensor/<device>/events
 tennis/sensor/phone/events
 ```
 
-### Why this topic shape
+### Why This Topic Shape
 
 This topic design was chosen because it:
 
-* keeps the namespace hierarchical
-* allows wildcard subscription by ingest-service
-* scales to multiple devices without changing consumer logic
+- keeps the namespace hierarchical
+- allows wildcard subscription by `ingest-service`
+- scales to multiple devices without changing consumer logic
 
-The ingest-service subscribes using wildcard topics, including `tennis/sensor/+/events`. 
+The ingest layer subscribes using wildcard topics, including `tennis/sensor/+/events`.
 
 ---
 
-## 6. MQTT Payload Contract
+## 7. MQTT Payload Contract
 
-The simulator publishes JSON payloads built from each normalized sample. The publisher currently includes: `device`, `recording_id`, `activity_gt`, `dataset_ts`, `acc_x`, `acc_y`, `acc_z`, `gyro_x`, `gyro_y`, `gyro_z`, and `ts`. fileciteturn9file9
+The simulator publishes JSON payloads built from each normalized sample.
 
-### Payload fields
+### Payload Fields
 
-* `device`
-* `recording_id`
-* `activity_gt`
-* `dataset_ts`
-* `acc_x`
-* `acc_y`
-* `acc_z`
-* `gyro_x`
-* `gyro_y`
-* `gyro_z`
-* `ts`
+- `device`
+- `recording_id`
+- `activity_gt`
+- `dataset_ts`
+- `acc_x`
+- `acc_y`
+- `acc_z`
+- `gyro_x`
+- `gyro_y`
+- `gyro_z`
+- `ts`
 
-### Example payload
+### Example Payload
 
 ```json
 {
@@ -146,56 +173,86 @@ The simulator publishes JSON payloads built from each normalized sample. The pub
 }
 ```
 
-### Timestamp semantics in MQTT
+### Time Semantics Contract
 
-* `dataset_ts`: original signal time from the Siddha recording
-* `ts`: wall-clock publish time generated by the simulator
+The project uses three distinct time concepts:
 
-This distinction is critical because the system needs both:
+| Name | Meaning | Lifecycle role |
+| --- | --- | --- |
+| `dataset_ts` | logical signal time inside the Siddha recording | ordering, querying, and future HAR window extraction |
+| `ts` | wall-clock MQTT publish time | tracing and distributed-system timing |
+| InfluxDB `time` | generated point timestamp used by the database | storage identity and ordering |
 
-* signal-relative ordering for HAR windows
-* distributed-system timing for tracing and latency reasoning
+For structured IMU rows, InfluxDB `time` is not copied directly from the MQTT payload. Instead, it is generated from:
 
-### `dataset_ts` vs stored timestamp
+- a fixed base epoch (`2024-01-01T00:00:00Z`)
+- `dataset_ts` converted to nanoseconds
+- a per-key nanosecond collision offset
 
-These two timestamps serve different purposes and must not be confused:
-
-* **`dataset_ts`**
-  * Original timestamp from the Siddha recording
-  * Represents when the sensor reading was captured relative to the start of the session
-  * Used for ordering, ML window extraction, and signal analysis
-  * Preserved as a field in InfluxDB for downstream processing
-
-* **InfluxDB timestamp**
-  * Derived from `dataset_ts` (anchored to `2024-01-01T00:00:00Z`)
-  * Includes a nanosecond offset when duplicates exist within the same `(device, recording_id)` group
-  * Used solely for point identity and deduplication in the storage layer
-
-**Why not use `dataset_ts` directly as the InfluxDB timestamp?**
-
-Because multiple rows share the same `dataset_ts` within a recording (up to ~18 per timestamp), and InfluxDB would silently overwrite all but the last one.
-
-### Duplicate Timestamp Behavior
-
-The Siddha dataset contains multiple samples with identical:
-
-* `device`
-* `recording_id` (mapped from `id`)
-* `dataset_ts` (mapped from `timestamp`)
-
-These samples differ in their sensor values (`acc_x`, `gyro_x`, etc.) and activity labels (`activity_gt`).
-
-**Implication:**
-Without disambiguation, these rows would overwrite each other in InfluxDB, since point identity is determined by `measurement + tags + timestamp`.
-
-**Resolution:**
-The ingest service applies a per-key nanosecond offset (`_next_imu_timestamp_ns`) to ensure every row receives a unique InfluxDB timestamp while preserving the original `dataset_ts` as a queryable field.
+This preserves the semantic meaning of `dataset_ts` while ensuring that no rows are silently overwritten in storage.
 
 ---
 
-## 7. Ingest Event Envelope Contract
+## 8. Identity vs Metadata
 
-Before persistence, ingest-service wraps received MQTT messages into a normalized envelope:
+Not every field in the contract contributes to storage identity.
+
+For structured IMU storage in InfluxDB:
+
+- identity is determined by:
+  - measurement
+  - tags: `device`, `recording_id`
+  - generated InfluxDB timestamp
+
+- metadata includes:
+  - `activity_gt`
+  - `dataset_ts`
+  - IMU axis values
+
+This distinction is important because `activity_gt` describes the sample but does not determine whether two points are considered the same by InfluxDB.
+
+---
+
+## 9. Duplicate Timestamp Behavior
+
+The Siddha dataset contains multiple samples with identical:
+
+- `device`
+- `recording_id`
+- `dataset_ts`
+
+These samples differ in sensor values and may also differ in activity labels.
+
+### Storage Problem
+
+InfluxDB point identity is based on:
+
+```text
+measurement + tags + timestamp
+```
+
+Without disambiguation, rows sharing the same measurement, tags, and timestamp would overwrite one another.
+
+### Resolution
+
+The stored InfluxDB point timestamp for `imu_raw` is generated as:
+
+```text
+base_epoch_ns + adjusted_dataset_ts_ns
+```
+
+where:
+
+- `base_epoch_ns` is fixed to `2024-01-01T00:00:00Z`
+- `adjusted_dataset_ts_ns` is the dataset timestamp converted to nanoseconds and incremented by a per-key collision offset when required
+
+The ingest service applies a per-key nanosecond offset to the generated InfluxDB point timestamp so that rows sharing the same logical `(device, recording_id, dataset_ts)` remain distinct in storage while preserving the original `dataset_ts` as a field.
+
+---
+
+## 10. Ingest Event Envelope Contract
+
+Before persistence, `ingest-service` wraps received MQTT messages into a normalized envelope:
 
 ```json
 {
@@ -206,20 +263,23 @@ Before persistence, ingest-service wraps received MQTT messages into a normalize
 }
 ```
 
-This envelope is created in the MQTT consumer and stored both:
+This envelope is stored:
 
-* in memory for debugging
-* in the generic `events` measurement in InfluxDB
+- in memory for debugging
+- in the generic `events` measurement in InfluxDB
 
-The envelope provides a generic event log independent of the structured IMU measurement. The MQTT consumer and normalized event creation are implemented in `mqtt.py`. fileciteturn9file6
+The envelope provides a generic event log independent of the structured IMU measurement.
 
 ---
 
-## 8. InfluxDB Storage Contract
+## 11. InfluxDB Storage Contract
 
-The system currently uses two persistence paths:
+The ingest layer maintains two parallel persistence contracts for the same incoming MQTT sample:
 
-### 8.1 Generic event storage
+- a generic event contract in `events` for tracing and debugging
+- a structured signal contract in `imu_raw` for analytics and future HAR processing
+
+### 11.1 Generic Event Storage
 
 Measurement:
 
@@ -229,20 +289,16 @@ events
 
 Purpose:
 
-* preserve normalized event history
-* provide a generic debug/query layer
+- preserve normalized event history
+- provide a generic debug and query layer
 
 Stored structure:
 
-* tags: `stream`, `source_id`
-* field: `payload` as escaped JSON string
-* timestamp: normalized event timestamp (`ts`) converted to epoch nanoseconds
+- tags: `stream`, `source_id`
+- field: `payload` as escaped JSON string
+- timestamp: normalized event timestamp (`ts`) converted to epoch nanoseconds
 
-This logic is implemented in `write_event_to_influx(...)`. fileciteturn9file4
-
----
-
-### 8.2 Structured IMU storage
+### 11.2 Structured IMU Storage
 
 Measurement:
 
@@ -250,107 +306,137 @@ Measurement:
 imu_raw
 ```
 
-⚠️ Note: measurement naming must remain consistent across docs, config, and code. If the project later standardizes on `imu_data`, all references must be updated together. At the moment, the configured default is `imu_raw`. fileciteturn9file3turn9file4
+Measurement naming must remain consistent across docs, config, and code. If the project later standardizes on another name, all references must be updated together.
 
 #### Tags
 
-* `device`
-* `recording_id`
+- `device`
+- `recording_id`
 
 #### Fields
 
-* `acc_x`
-* `acc_y`
-* `acc_z`
-* `gyro_x`
-* `gyro_y`
-* `gyro_z`
-* `dataset_ts`
-* `activity_gt`
+- `acc_x`
+- `acc_y`
+- `acc_z`
+- `gyro_x`
+- `gyro_y`
+- `gyro_z`
+- `dataset_ts`
+- `activity_gt`
 
 #### Timestamp
 
-The stored InfluxDB timestamp is not the raw `dataset_ts` alone. A synthetic epoch-based nanosecond timestamp is built from:
+The stored InfluxDB timestamp is not copied directly from either `dataset_ts` or `ts`.
 
-* a fixed base epoch (`2024-01-01T00:00:00Z`)
-* the logical `dataset_ts` converted to nanoseconds
-* a tiny nanosecond offset for collisions within the same `(device, recording_id, dataset_ts)` group
+It is generated from:
 
-This is necessary because InfluxDB point identity is based on `measurement + tags + timestamp`. Without collision handling, multiple rows sharing the same measurement, tags, and timestamp would overwrite one another. This logic is implemented in `_next_imu_timestamp_ns(...)` and `write_imu_raw_to_influx(...)`.
+- a fixed base epoch (`2024-01-01T00:00:00Z`)
+- `dataset_ts` converted to nanoseconds
+- a nanosecond collision offset for rows that would otherwise share the same point identity
 
-> ⚠️ **Important:** `activity_gt` is treated as **metadata (field)**, not as part of the identity of the raw sensor sample. It does not participate in InfluxDB's deduplication or overwrite logic. This is intentional — the ground-truth activity label describes the sample but does not define its uniqueness.
+This is necessary because InfluxDB point identity is based on `measurement + tags + timestamp`.
+
+Important:
+
+- `activity_gt` is treated as metadata, not identity
+- `dataset_ts` is preserved as a field for later querying and ML processing
 
 ---
 
-## 9. Why the Contract Uses Structured IMU Fields
+## 12. Why the Contract Uses Structured IMU Fields
 
 ### Alternative 1 — JSON-only storage
 
-**Pros**
+Pros:
 
-* simpler to implement
+- simpler to implement
 
-**Cons**
+Cons:
 
-* poor queryability
-* bad fit for sliding-window ML
-* requires JSON parsing later
+- poor queryability
+- poor fit for sliding-window ML
+- requires JSON parsing later
 
-### Alternative 2 — structured numeric storage
+### Alternative 2 — Structured Numeric Storage
 
-**Pros**
+Pros:
 
-* queryable by SQL
-* directly usable for HAR
-* cleaner schema discipline
+- queryable by SQL
+- directly usable for HAR
+- cleaner schema discipline
 
-**Cons**
+Cons:
 
-* requires more design effort
+- requires more design effort
 
-✅ Chosen approach: **structured numeric IMU storage**
+Chosen approach:
 
-This is the stronger option for the thesis because the project is not only about storing messages, but about creating a processing-ready distributed pipeline.
+- structured numeric IMU storage
+
+This is the stronger option because the project is not only about storing messages, but about creating a processing-ready distributed pipeline.
 
 ---
 
-## 10. Replay and Ordering Contract
+## 13. Replay and Ordering Contract
 
-The Siddha simulator yields rows in deterministic order by `id` and `timestamp`. Optional filters for `device`, `activity`, and `recording_id` are applied before replay. fileciteturn9file0turn9file7turn9file8
+The Siddha simulator replays rows in deterministic order by `recording_id` and `dataset_ts`, after applying optional filters.
 
-### Replay controls currently supported
+### Replay Controls
 
-* `replay_mode` (`realtime` or `fast`)
-* `replay_speed`
-* `loop_forever`
-* `default_device_filter`
-* `default_activity_filter`
-* `default_recording_id_filter`
+- `replay_mode` (`realtime` or `fast`)
+- `replay_speed`
+- `loop_forever`
+- `default_device_filter`
+- `default_activity_filter`
+- `default_recording_id_filter`
+- `mqtt_qos`
+- `mqtt_wait_for_publish`
 
-### Why this matters
+Empty-string filter values are normalized to `None` before replay so that missing filter configuration does not accidentally exclude all rows.
+
+### Ordering Note
+
+The simulator enforces deterministic replay ordering by `recording_id` and `dataset_ts`. This ordering is intended for reproducibility and controlled experiments. It should be interpreted as a replay contract, not necessarily as a claim about absolute real-world simultaneity across all original acquisition sources.
+
+### Why This Matters
 
 This contract keeps the simulator useful for two different purposes:
 
-* deterministic validation runs
-* stress / replay-speed experiments
+- deterministic validation runs
+- stress and replay-speed experiments
 
-That separation is important for academic evaluation because correctness experiments and throughput experiments should not be conflated.
+Correctness experiments and throughput experiments should not be conflated.
 
 ### Transport Reliability and Replay
 
-Replay mode interacts directly with transport reliability:
+Observed validation results showed that realtime replay was able to complete without loss under the tested configurations, while fast replay required stronger delivery controls.
 
-| Configuration                      | Data Consistency |
-| ---------------------------------- | ---------------- |
-| `fast` + QoS 0 + no wait          | ❌ Data loss      |
-| `fast` + QoS 1 + `wait_for_publish`| ✅ 100% correct   |
-| `realtime` (any QoS)              | ✅ 100% correct   |
+| Configuration | Observed result in validation runs |
+| --- | --- |
+| `fast` + QoS 0 + no wait | data loss observed |
+| `fast` + QoS 1 + `wait_for_publish=true` | 100% correct in validation runs |
+| `realtime` under tested settings | completed without observed loss |
 
-For deterministic validation, the recommended configuration is `fast` mode with QoS 1 and `wait_for_publish=true`. This ensures complete data delivery while minimizing total replay time.
+For deterministic validation, the recommended configuration is `fast` mode with QoS 1 and `wait_for_publish=true`.
 
 ---
 
-## 11. Contract for Future HAR Integration
+## 14. Contract Verification
+
+The contract can be verified at runtime through the following checks:
+
+- source schema validation in the Siddha dataset loader
+- deterministic replay ordering by `recording_id` and `dataset_ts`
+- MQTT payload inspection in simulator logs or broker consumers
+- schema inspection through `GET /events/schema`
+- IMU row inspection through `GET /imu`
+- count and device summaries through `GET /stats`
+
+These checks help ensure that the documented contract matches the live system behavior.
+
+---
+
+## 15. Contract for Future HAR Integration
 
 The HAR service will not consume arbitrary JSON directly from MQTT. It will consume structured windows derived from the raw IMU measurement.
 
@@ -363,17 +449,17 @@ gyroscope = {"x": [...], "y": [...], "z": [...]}
 
 This means the current dataset contract must preserve:
 
-* ordered numeric channels
-* stable grouping keys
-* logical signal time (`dataset_ts`)
+- ordered numeric channels
+- stable grouping keys
+- logical signal time (`dataset_ts`)
 
 Without that, Phase 3 would become fragile and non-reproducible.
 
 ---
 
-## 12. Summary
+## 16. Summary
 
-This dataset contract ensures that one Siddha row is transformed consistently across all stages of the pipeline:
+This contract ensures that one Siddha row is transformed consistently across all stages of the pipeline:
 
 ```text
 Parquet row
@@ -384,12 +470,14 @@ MQTT JSON payload
    ↓
 Ingest event envelope
    ↓
-InfluxDB generic event log + structured IMU measurement
+Dual persistence:
+  - events
+  - imu_raw
 ```
 
 This explicit contract is essential because it keeps the project:
 
-* reproducible
-* measurable
-* maintainable
-* ready for Phase 3 HAR processing
+- reproducible
+- measurable
+- maintainable
+- ready for Phase 3 HAR processing

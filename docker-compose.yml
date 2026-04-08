@@ -44,6 +44,14 @@ services:
       - "8000:8000"
     restart: always
 
+  influxdb3-explorer:
+    image: influxdata/influxdb3-ui:1.6.2
+    container_name: influxdb3-explorer
+    ports:
+      - "8888:80"
+    restart: unless-stopped
+    depends_on:
+      - influxdb3
 
   siddha-sensor-sim:
     build:

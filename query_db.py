@@ -8,7 +8,7 @@ from urllib.parse import urlencode
 # Default fallback values
 INFLUX_TOKEN = ""
 INFLUX_HOST = "http://localhost:8181"
-INFLUX_DATABASE = "tennis_collision_realtime_Qos0"
+INFLUX_DATABASE = "tennis_2m_with_ts"
 
 # Attempt to read from .env file manually to avoid pip install python-dotenv
 if os.path.exists(".env"):
@@ -57,6 +57,6 @@ if __name__ == "__main__":
 
     query_influx("SELECT device, COUNT(*) AS n_rows FROM imu_raw GROUP BY device ORDER BY n_rows DESC;")
 
-    query_influx("SELECT time, device, recording_id, activity_gt, dataset_ts, acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z FROM imu_raw WHERE device = 'watch' AND recording_id = '18' AND dataset_ts = 0.15;")
+    # query_influx("SELECT time, device, recording_id, activity_gt, dataset_ts, acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z FROM imu_raw WHERE device = 'watch' AND recording_id = '1' AND dataset_ts = 0.15;")
 
     # query_influx("SELECT time, device, recording_id, activity_gt, dataset_ts, acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z FROM imu_raw WHERE device = 'phone' AND recording_id = '11' AND activity_gt = 'A' ORDER BY dataset_ts ASC LIMIT 30;")

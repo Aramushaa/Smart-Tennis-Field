@@ -19,6 +19,8 @@ PUB_TOPIC = os.getenv("PUB_TOPIC", "tennis/sensor/1/events")
 
 EVENT_BUFFER_MAX = int(os.getenv("EVENT_BUFFER_MAX", "100"))
 
+INFLUX_WRITE_GENERIC_EVENTS = os.getenv("INFLUX_WRITE_GENERIC_EVENTS", "1") == "1"
+
 INFLUX_ENABLED = os.getenv("INFLUX_ENABLED", "0") == "1"
 INFLUX_HOST = os.getenv("INFLUX_HOST", "http://localhost:8181")
 INFLUX_TOKEN = os.getenv("INFLUX_TOKEN", "")

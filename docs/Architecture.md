@@ -1,4 +1,4 @@
-# 🏗 Smart Tennis Field — System Architecture (Post-Phase 2)
+# Smart Tennis Field — System Architecture (Post-Phase 2)
 
 ## 1. Current Phase Context
 
@@ -18,6 +18,7 @@
 * emqx (MQTT broker)
 * ingest-service (FastAPI + MQTT consumer)
 * influxdb3 (time-series DB)
+* influxdb3-explorer (query and inspection UI)
 * siddha-sensor-sim (dataset replay)
 
 ### Data Flow
@@ -31,7 +32,7 @@ EMQX (MQTT Broker)
         ↓
 ingest-service
         ↓
-InfluxDB 3 (imu_raw)
+InfluxDB 3 (imu_raw)  ←──── Explorer UI (query + inspection)
 ```
 
 ---
@@ -63,7 +64,9 @@ Data → Broker → Storage → Processing → Storage → API
 
 * Handles all sensor message routing
 * Supports wildcard topic subscriptions
-* Ensures decoupling between producers and consumers
+* Ensures temporal and logical decoupling between producers and consumers:
+  * producers do not depend on consumers being available
+  * consumers can be added or removed without affecting publishers
 
 **Topics:**
 
@@ -111,10 +114,14 @@ MQTT is preferred over HTTP polling because:
 
 Responsibilities:
 
-* Subscribe to MQTT topics
-* Parse and validate payloads
-* Convert to line protocol
-* Batch-write to InfluxDB
+* Subscribe to MQTT topics using wildcard patterns
+* Normalize incoming messages into a consistent event envelope
+* Store recent events in an in-memory buffer for debugging
+* Route payloads into:
+  * generic event storage (`events`)
+  * structured IMU storage (`imu_raw`) when fields are present
+* Enqueue line protocol writes into a shared write queue
+* Flush writes via a background batch writer thread
 
 ---
 
@@ -166,10 +173,26 @@ imu_raw
 
 **Timestamp:**
 
-* Derived from `dataset_ts`, not wall-clock time
-* Anchored to a fixed base epoch (`2024-01-01T00:00:00Z`)
-* Adjusted with nanosecond offsets when multiple rows share the same `(device, recording_id, dataset_ts)`
+* Derived from:
+  * a fixed base epoch (`2024-01-01T00:00:00Z`)
+  * `dataset_ts` converted to nanoseconds
+  * a per-key nanosecond collision offset
 * Precision: nanoseconds
+
+### 3.5 Dual Persistence Model (Event vs Signal)
+
+The system maintains two parallel storage paths:
+
+| Layer | Measurement | Purpose |
+| --- | --- | --- |
+| Event layer | `events` | Generic logging, debugging, full payload trace |
+| Signal layer | `imu_raw` | Structured IMU data for ML processing |
+
+This separation ensures:
+
+* observability through event logs
+* ML-readiness through structured numeric storage
+* decoupling of debugging concerns from processing concerns
 
 ---
 
@@ -192,14 +215,14 @@ Three timestamps exist in the system:
 
 | Type             | Meaning                          | Source                    |
 | ---------------- | -------------------------------- | ------------------------- |
-| `dataset_ts`     | Original signal time in recording | Siddha dataset            |
-| `ts`             | Wall-clock publish time           | Simulator at send time    |
-| Influx timestamp | Storage identity timestamp        | Derived from `dataset_ts` |
+| `dataset_ts`     | Original signal time in recording | Siddha dataset |
+| `ts`             | Wall-clock publish time | Simulator at send time |
+| Influx timestamp | Storage identity timestamp | Generated from fixed base epoch + `dataset_ts` + collision offset |
 
 **Key distinction:**
 
 * `dataset_ts` represents **semantic sensor time** — it is used for ordering, ML windowing, and signal analysis
-* The InfluxDB timestamp is **derived from** `dataset_ts` but adjusted with a nanosecond offset to ensure uniqueness
+* The InfluxDB timestamp is synthetic but deterministic: fixed base epoch + `dataset_ts` + nanosecond collision offset
 * `ts` is the wall-clock publish time for distributed-system tracing and latency measurement
 
 **Problem:** The Siddha dataset contains multiple samples that share the same `(device, recording_id, dataset_ts)`. Since InfluxDB identifies points using `measurement + tags + timestamp`, these duplicates silently overwrite each other.
@@ -264,15 +287,51 @@ The system distinguishes between two independent concerns that both affect data 
 | C    | `realtime`  | 0   | `false`          | ✅ 100% correct   |
 | D    | `realtime`  | 1   | `true`           | ✅ 100% correct   |
 
+### 5.4 Failure Modes Identified
+
+During validation, the following failure modes were observed:
+
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| Silent data overwrite | duplicate timestamps | nanosecond offset |
+| Data loss in fast replay | QoS 0 + async publish | QoS 1 + `wait_for_publish` |
+| Throughput bottleneck | per-message HTTP writes | batch writer |
+| Broker overload | ingest slower than publish | batching + QoS tuning |
+
+These findings were critical in transforming the system from a prototype into a validated ingestion pipeline.
+
 ---
 
 ## 6. Current Limitations
 
 * HAR processing not implemented yet
 * No real hardware sensors
-* No visualization layer yet
+* No custom visualization or dashboard yet (Grafana or frontend)
+* Basic observability is available through the InfluxDB 3 Explorer UI
 
 These are intentional to ensure infrastructure is validated first.
+
+### 6.1 How to Verify the Architecture
+
+To validate the system behavior:
+
+1. Check ingestion:
+   * `GET /stats` to verify IMU row count
+2. Check schema:
+   * `GET /events/schema`
+3. Inspect data:
+   * InfluxDB Explorer at `http://localhost:8888`
+4. Validate ordering:
+   * query `/imu?order_by=dataset_ts`
+5. Validate reliability:
+   * compare published versus stored rows under different QoS settings
+
+### 6.2 Security Considerations
+
+* InfluxDB tokens are stored in `.env` and never hardcoded
+* API inputs such as timestamps are validated before SQL execution
+* Internal services communicate via Docker network service names
+* Only necessary ports are exposed for development
 
 ---
 
