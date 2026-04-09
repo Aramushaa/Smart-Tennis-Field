@@ -205,6 +205,7 @@ def write_imu_raw_to_influx(payload: dict) -> None:
     try:
         device = payload.get("device", "unknown")
         recording_id = payload.get("recording_id", "unknown")
+        sample_idx = int(payload.get("sample_idx", 0))
 
         acc_x = float(payload["acc_x"])
         acc_y = float(payload["acc_y"])
@@ -218,11 +219,11 @@ def write_imu_raw_to_influx(payload: dict) -> None:
 
         base_epoch_ns = 1704067200_000_000_000
         dataset_ts_ns = int(dataset_ts * 1_000_000_000)
-        ts_epoch = base_epoch_ns + _next_imu_timestamp_ns(device, recording_id, dataset_ts_ns)
+        ts_epoch = base_epoch_ns + dataset_ts_ns
 
         escaped_activity_gt = str(activity_gt).replace("\\", "\\\\").replace('"', '\\"')
         line = (
-            f"{INFLUX_IMU_TABLE},device={device},recording_id={recording_id} "
+            f"{INFLUX_IMU_TABLE},device={device},recording_id={recording_id},sample_idx={sample_idx} "
             f"acc_x={acc_x},acc_y={acc_y},acc_z={acc_z},"
             f"gyro_x={gyro_x},gyro_y={gyro_y},gyro_z={gyro_z},"
             f'dataset_ts={dataset_ts},activity_gt="{escaped_activity_gt}" {ts_epoch}'

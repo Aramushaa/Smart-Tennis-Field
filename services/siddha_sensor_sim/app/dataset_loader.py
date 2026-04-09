@@ -13,13 +13,13 @@ class SensorSample:
     activity_gt: str
     recording_id: str
     dataset_ts: float
+    sample_idx: int
     acc_x: float
     acc_y: float
     acc_z: float
     gyro_x: float
     gyro_y: float
     gyro_z: float
-
 
 class SiddhaDatasetLoader:
     """
@@ -96,8 +96,25 @@ class SiddhaDatasetLoader:
         if recording_id_filter is not None:
             df = df[df["id"].astype(str) == str(recording_id_filter)]
 
-        # Deterministic replay order matters for reproducibility.
-        df = df.sort_values(by=["id", "timestamp"], ascending=[True, True])
+        # Keep a stable original order fallback
+        df = df.reset_index(drop=False).rename(columns={"index": "source_row"})
+
+        # Deterministic order for duplicate handling
+        df = df.sort_values(
+            by=["id", "device", "timestamp", "activity", "source_row"],
+            ascending=[True, True, True, True, True],
+        )
+
+        # Explicit duplicate rank inside each logical timestamp group
+        df["sample_idx"] = (
+            df.groupby(["device", "id", "timestamp"]).cumcount()
+        )
+
+        # Replay order stays deterministic
+        df = df.sort_values(
+            by=["id", "device", "timestamp", "sample_idx"],
+            ascending=[True, True, True, True],
+        )
 
         for _, row in df.iterrows():
             yield SensorSample(
@@ -105,6 +122,7 @@ class SiddhaDatasetLoader:
                 activity_gt=str(row["activity"]),
                 recording_id=str(row["id"]),
                 dataset_ts=float(row["timestamp"]),
+                sample_idx=int(row["sample_idx"]),
                 acc_x=float(row["acc_x"]),
                 acc_y=float(row["acc_y"]),
                 acc_z=float(row["acc_z"]),

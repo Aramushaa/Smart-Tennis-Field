@@ -69,6 +69,7 @@ class MqttPublisher:
             "recording_id": sample.recording_id,
             "activity_gt": sample.activity_gt,
             "dataset_ts": sample.dataset_ts,
+            "sample_idx": sample.sample_idx,
             "acc_x": sample.acc_x,
             "acc_y": sample.acc_y,
             "acc_z": sample.acc_z,
