@@ -30,17 +30,7 @@ Without an explicit contract, different services could interpret the same data d
 
 ### Current Data Flow
 
-```text
-Siddha Parquet
-    ↓
-siddha-sensor-sim
-    ↓
-EMQX
-    ↓
-ingest-service
-    ↓
-InfluxDB 3
-```
+![Dataset contract data flow](dataset_contract_data_flow.svg)
 
 ---
 

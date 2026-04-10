@@ -138,24 +138,7 @@ This is the first thesis-critical validation phase.
 
 ### Phase 2 Pipeline
 
-```text
-Siddha Dataset (Parquet)
-        |
-        v
-SiddhaDatasetLoader
-        |
-        v
-siddha-sensor-sim
-        |
-        v
-EMQX (MQTT Broker)
-        |
-        v
-ingest-service
-        |
-        v
-InfluxDB 3 (structured IMU storage)
-```
+![Smart Tennis Field data flow](smart_tennis_field_data_flow.svg)
 
 ### Deliverables
 
