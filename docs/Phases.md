@@ -1,4 +1,4 @@
-# Phases — Smart Tennis Field Roadmap (Updated After Phase 2 Validation)
+# Phases - Smart Tennis Field Roadmap (Updated After Phase 2 Validation)
 
 This document defines the evolution of the Smart Tennis Field thesis project from an MQTT transport MVP to a thesis-grade distributed IoT and AI processing system.
 
@@ -47,7 +47,7 @@ This dependency model keeps scope controlled and prevents later phases from mask
 
 ---
 
-## Phase 0 — MQTT Infrastructure (Completed)
+## Phase 0 - MQTT Infrastructure (Completed)
 
 ### Goal
 
@@ -56,17 +56,17 @@ Validate reliable end-to-end event transport using MQTT in a Dockerized environm
 ### Deliverables
 
 - EMQX broker (Dockerized)
-- Dummy publisher -> `tennis/sensor/1/events`
-- Subscriber confirming message receipt
-- Topic naming convention defined
+- dummy publisher -> `tennis/sensor/1/events`
+- subscriber confirming message receipt
+- topic naming convention defined
 - JSON payload schema defined
-- Basic QoS behavior understood
+- basic QoS behavior understood
 
 ### Definition of Done
 
-- Publisher -> broker -> subscriber verified
-- Message integrity validated
-- Topic structure documented
+- publisher -> broker -> subscriber verified
+- message integrity validated
+- topic structure documented
 - Docker Compose reproducibility confirmed
 
 ### Thesis Rationale
@@ -75,7 +75,7 @@ This phase establishes the transport layer of the system. It proves that the pro
 
 ---
 
-## Phase 1 — Ingest Service + Time-Series Persistence (Completed)
+## Phase 1 - Ingest Service + Time-Series Persistence (Completed)
 
 ### Goal
 
@@ -84,12 +84,12 @@ Transform MQTT messages into durable, queryable time-series data.
 ### Deliverables
 
 - FastAPI ingest microservice
-- Background MQTT worker
-- Event normalization envelope
-- In-memory ring buffer for debugging
+- background MQTT worker
+- event normalization envelope
+- in-memory ring buffer for debugging
 - InfluxDB 3 Core integration via `/api/v3/write_lp`
 - SQL query support via `/api/v3/query_sql`
-- Token-based authentication
+- token-based authentication
 - Docker Compose orchestration
 - REST endpoints:
   - `GET /health`
@@ -110,12 +110,17 @@ Transform MQTT messages into durable, queryable time-series data.
 ### Definition of Done
 
 - MQTT events written to InfluxDB 3
-- Data persists across container restarts
-- Time-range queries work correctly
-- Token-based authentication verified
-- Generic event schema established:
+- data persists across container restarts
+- time-range queries work correctly
+- token-based authentication verified
+- generic event schema established:
   - tags: `stream`, `source_id`
   - field: `payload`
+
+### Note
+
+At this stage, data identity was not yet fully addressed.
+This was later resolved in Phase 2 with the introduction of `sample_idx`.
 
 ### Thesis Rationale
 
@@ -123,7 +128,7 @@ This phase transforms the project from a transport demo into a real ingestion an
 
 ---
 
-## Phase 2 — Dataset Validation Pipeline (Completed)
+## Phase 2 - Dataset Validation Pipeline (Completed)
 
 ### Goal
 
@@ -135,19 +140,26 @@ This is the first thesis-critical validation phase.
 
 ```text
 Siddha Dataset (Parquet)
-        ↓
+        |
+        v
+SiddhaDatasetLoader
+        |
+        v
 siddha-sensor-sim
-        ↓
+        |
+        v
 EMQX (MQTT Broker)
-        ↓
+        |
+        v
 ingest-service
-        ↓
+        |
+        v
 InfluxDB 3 (structured IMU storage)
 ```
 
 ### Deliverables
 
-#### Siddha simulator
+#### Dataset integration and simulator
 
 - new microservice: `siddha-sensor-sim`
 - reads Siddha dataset from Parquet
@@ -162,13 +174,12 @@ InfluxDB 3 (structured IMU storage)
 - supports loop and one-pass replay control
 - uses Docker volume mount for dataset access
 
-#### Ingest pipeline improvements
+#### Ingest pipeline validation
 
 - structured IMU storage in InfluxDB
 - separate raw measurement for sensor data
 - batch writer thread for line protocol writes
 - configurable batch size and flush interval
-- timestamp collision handling using nanosecond offsets
 - improved throughput under dataset load
 
 ### Structured IMU Schema
@@ -181,6 +192,7 @@ Tags:
 
 - `device`
 - `recording_id`
+- `sample_idx`
 
 Fields:
 
@@ -189,11 +201,101 @@ Fields:
 - `dataset_ts`
 - `activity_gt`
 
+### Data Identity Issue and Resolution
+
+During large-scale dataset ingestion, a critical issue was identified:
+
+- multiple samples shared the same:
+  - device
+  - recording_id
+  - dataset timestamp (`dataset_ts`)
+
+This caused silent overwriting in InfluxDB, because point identity is defined by:
+
+```text
+measurement + tags + time
+```
+
+At this stage, the identity model:
+
+```text
+(device, recording_id, dataset_ts)
+```
+
+was insufficient.
+
+### Initial Attempt: Timestamp Offset (Rejected)
+
+A temporary workaround was introduced by adding small nanosecond offsets to the timestamp.
+
+While this prevented overwrites, it introduced several problems:
+
+- artificial modification of time values
+- loss of semantic clarity
+- difficulty in debugging and reasoning about data
+
+This approach was therefore rejected as a final solution.
+
+### Final Solution: Explicit Sample Index
+
+To correctly model duplicate samples, a new field was introduced:
+
+- `sample_idx`
+
+This index is assigned per group of rows sharing the same:
+
+- device
+- recording_id
+- `dataset_ts`
+
+Implementation details:
+
+- dataset is sorted deterministically
+- duplicates are grouped
+- `sample_idx` is assigned using cumulative counting
+
+Final identity becomes:
+
+```text
+(device, recording_id, dataset_ts, sample_idx)
+```
+
+This value is:
+
+- propagated through MQTT
+- stored as a tag in InfluxDB
+
+### Validation
+
+The new identity model was tested using a dataset subset of approximately 2 million rows.
+
+Results:
+
+- all rows were successfully stored
+- no overwriting occurred
+- queries returned consistent results
+
+This confirmed that the explicit indexing approach resolves the collision issue.
+
+### Key Lesson
+
+This phase highlighted that:
+
+timestamp alone is not always sufficient to identify data points in time-series systems.
+
+Explicit modeling of data identity is necessary when:
+
+- multiple sensors are involved
+- data is sampled in parallel
+- datasets contain duplicated timestamps
+
+This insight directly influenced the final architecture.
+
 ### Definition of Done
 
 - structured IMU data stored in InfluxDB
 - no data loss under validated configurations: QoS 1 with `wait_for_publish=true`, or validated realtime replay runs
-- duplicate timestamps handled via nanosecond offset
+- duplicate samples modeled explicitly with `sample_idx`
 - full dataset subset reproducible with row count matching source under validated configurations
 - transport reliability validated under different MQTT configurations
 - data queryable by device, recording, and time
@@ -217,7 +319,7 @@ This separation ensures that ingestion infrastructure is validated independently
 
 This phase produced the following key findings:
 
-- timestamp collision causes silent overwrite in InfluxDB
+- silent overwrite can occur when data identity is modeled incorrectly
 - per-message writes cause severe throughput bottlenecks
 - MQTT QoS and publish behavior directly affect data integrity
 - fast replay exposes transport-layer limits
@@ -229,23 +331,40 @@ These findings represent core contributions of the infrastructure validation pha
 
 Beyond functional validation, Phase 2 produced the following empirical findings:
 
-- **Timestamp collision detection and resolution:** The Siddha dataset contains multiple rows per `(device, recording_id, dataset_ts)`. Without the nanosecond offset, InfluxDB silently overwrites duplicates. This was measured and resolved.
-- **Replay mode comparison:** Fast mode reveals transport-layer limitations that realtime mode can mask through natural inter-message delay.
+- **Identity-model failure detection:** multiple Siddha rows shared the same `(device, recording_id, dataset_ts)` and required an explicit identity extension.
+- **Replay mode comparison:** fast mode reveals transport-layer limitations that realtime mode can mask through natural inter-message delay.
 - **MQTT QoS impact on data integrity:** QoS 0 under high throughput caused major data loss in validation runs. QoS 1 with `wait_for_publish=true` achieved full consistency in the validated runs.
 
 ### Phase 2 Conclusion
 
 The ingestion pipeline is now:
 
-- **Functionally correct** under validated configurations
-- **Reproducible** through deterministic replay and controlled configuration
-- **Robust under controlled conditions** across multiple MQTT and replay combinations
+- **functionally correct** under validated configurations
+- **reproducible** through deterministic replay and controlled configuration
+- **robust under controlled conditions** across multiple MQTT and replay combinations
 
 Remaining consideration:
 
 - high-throughput reliability still depends on MQTT configuration, especially QoS and publish flow control
 
-The system is ready for Phase 3.
+### Transition to Phase 3
+
+With the ingestion pipeline fully validated and data identity correctly modeled, the system is now ready for the next stage:
+
+- data processing and inference
+
+Phase 3 will introduce a Human Activity Recognition (HAR) microservice, which will:
+
+- query time-series data from InfluxDB
+- apply sliding window processing
+- run ONNX-based inference
+- store predictions back into the system
+
+The architecture now supports this extension due to:
+
+- reliable ingestion
+- deterministic data ordering
+- complete data preservation
 
 ### Thesis Rationale
 
@@ -254,14 +373,14 @@ This phase proves that the project is not just a demo with fake messages. It val
 - schema mismatches
 - write throughput bottlenecks
 - blocking publish behavior
-- timestamp collisions
+- data identity failures
 - replay strategy tradeoffs
 
 By solving these, the project becomes a validated ingestion infrastructure rather than a prototype.
 
 ---
 
-## Phase 3 — HAR Processing Microservice (Next)
+## Phase 3 - HAR Processing Microservice (Next)
 
 ### Goal
 
@@ -317,9 +436,11 @@ Reason:
 
 ```text
 InfluxDB (raw sensor data)
-          ↓
+          |
+          v
       har-service
-          ↓
+          |
+          v
 InfluxDB (predictions)
 ```
 
@@ -355,13 +476,13 @@ It proves that the architecture supports AI integration without coupling ML logi
 
 ---
 
-## Phase 4 — Real Edge Gateways (Deferred Until After HAR)
+## Phase 4 - Real Edge Gateways (Deferred Until After HAR)
 
 This phase introduces real producers only after the infrastructure and processing pipeline are stable.
 
 The Siddha simulator remains part of the system even after real sensors are introduced, as it provides a deterministic baseline for testing and evaluation.
 
-### Phase 4A — Sensor Gateway
+### Phase 4A - Sensor Gateway
 
 #### Goal
 
@@ -379,7 +500,7 @@ Integrate real sensor producers alongside the simulator.
 - timestamp synchronization strategy documented
 - gateway behaves as a proper producer in the same architecture
 
-### Phase 4B — Vision Gateway
+### Phase 4B - Vision Gateway
 
 #### Goal
 
@@ -404,7 +525,7 @@ Edge gateways are intentionally deferred until after the infrastructure is valid
 
 ---
 
-## Phase 5 — Domain Semantics / Rules Layer (Future)
+## Phase 5 - Domain Semantics / Rules Layer (Future)
 
 ### Goal
 
@@ -426,11 +547,11 @@ This phase studies distributed time-window alignment and semantic event derivati
 
 ---
 
-## Phase 6 — Observability and Evaluation (Validated / Ongoing)
+## Phase 6 - Observability And Evaluation (Validated / Ongoing)
 
 This phase is partly continuous and partly final-thesis evaluation.
 
-### Core Metrics to Measure
+### Core Metrics To Measure
 
 - end-to-end latency from publish to storage
 - ingestion throughput at various replay speeds
@@ -442,7 +563,7 @@ This phase is partly continuous and partly final-thesis evaluation.
 - container isolation behavior
 - data consistency: published count vs stored count
 - MQTT QoS impact on delivery reliability
-- timestamp collision rate in dataset
+- duplicate timestamp rate in dataset
 
 ### Evaluation Methodology
 
@@ -483,17 +604,17 @@ After Phase 2, the system is no longer just a prototype but a validated distribu
 
 ---
 
-## Summary of Current Status
+## Summary Of Current Status
 
 | Phase | Status |
 | --- | --- |
-| Phase 0 — MQTT Infrastructure | Completed |
-| Phase 1 — Ingest + Persistence | Completed |
-| Phase 2 — Dataset Validation | Completed |
-| Phase 3 — HAR Microservice | Next |
-| Phase 4 — Real Edge Gateways | Deferred |
-| Phase 5 — Domain Semantics | Future |
-| Phase 6 — Observability / Evaluation | Validated / Ongoing |
+| Phase 0 - MQTT Infrastructure | Completed |
+| Phase 1 - Ingest + Persistence | Completed |
+| Phase 2 - Dataset Validation | Completed |
+| Phase 3 - HAR Microservice | Next |
+| Phase 4 - Real Edge Gateways | Deferred |
+| Phase 5 - Domain Semantics | Future |
+| Phase 6 - Observability / Evaluation | Validated / Ongoing |
 
 ---
 
