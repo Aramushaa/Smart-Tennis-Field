@@ -23,24 +23,7 @@
 
 ### Data Flow
 
-```text
-Siddha Dataset (Parquet)
-        |
-        v
-SiddhaDatasetLoader
-        |
-        v
-siddha-sensor-sim
-        |
-        v
-EMQX (MQTT Broker)
-        |
-        v
-ingest-service
-        |
-        v
-InfluxDB 3 (imu_raw) <---- Explorer UI
-```
+![Smart Tennis Field data flow](smart_tennis_field_data_flow.svg)
 
 ---
 
