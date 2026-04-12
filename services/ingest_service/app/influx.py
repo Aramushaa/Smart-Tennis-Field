@@ -1,8 +1,10 @@
 # services/ingest_service/app/influx.py
 import json
 import threading
+from collections import deque
+from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Deque, Dict, Optional
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
@@ -18,13 +20,24 @@ from .config import (
 )
 
 
-_WRITE_QUEUE: list[str] = []
+MAX_RETRIES = 3
+
+
+@dataclass
+class QueueItem:
+    line: str
+    retries: int = 0
+
+
+_WRITE_QUEUE: Deque[QueueItem] = deque()
 _QUEUE_LOCK = threading.Lock()
 _FLUSH_SIGNAL = threading.Event()
 _STOP_SIGNAL = threading.Event()
 _WRITER_THREAD: Optional[threading.Thread] = None
-_IMU_TS_LOCK = threading.Lock()
-_IMU_TS_OFFSETS: dict[tuple[str, str, int], int] = {}
+
+_FAILED_BATCH_COUNT = 0
+_RETRIED_LINE_COUNT = 0
+_DROPPED_LINE_COUNT = 0
 
 
 def now_iso() -> str:
@@ -76,45 +89,69 @@ def _write_lp_v3(line_protocol: str, db: str, precision: str = "s") -> None:
 
 def _enqueue_line(line: str) -> None:
     with _QUEUE_LOCK:
-        _WRITE_QUEUE.append(line)
+        _WRITE_QUEUE.append(QueueItem(line=line))
         if len(_WRITE_QUEUE) >= INFLUX_BATCH_SIZE:
             _FLUSH_SIGNAL.set()
 
 
-def _drain_lines(limit: Optional[int] = None) -> list[str]:
+def _drain_lines(limit: Optional[int] = None) -> list[QueueItem]:
     with _QUEUE_LOCK:
         if not _WRITE_QUEUE:
             return []
-        if limit is None or limit >= len(_WRITE_QUEUE):
-            lines = list(_WRITE_QUEUE)
-            _WRITE_QUEUE.clear()
-            return lines
 
-        lines = _WRITE_QUEUE[:limit]
-        del _WRITE_QUEUE[:limit]
-        return lines
+        if limit is None:
+            limit = len(_WRITE_QUEUE)
+
+        items: list[QueueItem] = []
+        for _ in range(min(limit, len(_WRITE_QUEUE))):
+            items.append(_WRITE_QUEUE.popleft())
+
+        return items
 
 
-def _flush_lines(lines: list[str]) -> None:
-    if not lines:
+def _requeue_failed_items(items: list[QueueItem]) -> None:
+    """
+    Put retryable items back at the FRONT of the queue so they are not delayed
+    behind newer data. Drop items that exceeded MAX_RETRIES.
+    """
+    global _RETRIED_LINE_COUNT, _DROPPED_LINE_COUNT
+
+    retryable: list[QueueItem] = []
+    dropped = 0
+
+    for item in items:
+        if item.retries < MAX_RETRIES:
+            item.retries += 1
+            retryable.append(item)
+        else:
+            dropped += 1
+
+    if retryable:
+        with _QUEUE_LOCK:
+            # appendleft reverses order, so we insert in reversed order
+            for item in reversed(retryable):
+                _WRITE_QUEUE.appendleft(item)
+        _RETRIED_LINE_COUNT += len(retryable)
+        _FLUSH_SIGNAL.set()
+
+    if dropped > 0:
+        _DROPPED_LINE_COUNT += dropped
+        print(
+            f"[INFLUX] CRITICAL: dropped {dropped} lines after {MAX_RETRIES} retries"
+        )
+
+
+def _flush_lines(items: list[QueueItem]) -> None:
+    if not items:
         return
-    _write_lp_v3("\n".join(lines), db=INFLUX_DATABASE, precision="ns")
 
-
-def _next_imu_timestamp_ns(device: str, recording_id: str, dataset_ts_ns: int) -> int:
-    """
-    Influx point identity is measurement + tags + timestamp.
-    The Siddha dataset contains many rows that share the same dataset_ts within
-    one recording, so we add a tiny per-key nanosecond offset to preserve all rows.
-    """
-    key = (device, recording_id, dataset_ts_ns)
-    with _IMU_TS_LOCK:
-        offset = _IMU_TS_OFFSETS.get(key, 0)
-        _IMU_TS_OFFSETS[key] = offset + 1
-    return dataset_ts_ns + offset
+    payload = "\n".join(item.line for item in items)
+    _write_lp_v3(payload, db=INFLUX_DATABASE, precision="ns")
 
 
 def _writer_loop() -> None:
+    global _FAILED_BATCH_COUNT
+
     flush_interval = max(INFLUX_FLUSH_INTERVAL_MS, 1) / 1000.0
 
     while not _STOP_SIGNAL.is_set():
@@ -122,22 +159,31 @@ def _writer_loop() -> None:
         _FLUSH_SIGNAL.clear()
 
         while True:
-            lines = _drain_lines(INFLUX_BATCH_SIZE)
-            if not lines:
+            items = _drain_lines(INFLUX_BATCH_SIZE)
+            if not items:
                 break
-            try:
-                _flush_lines(lines)
-            except Exception as e:
-                print(f"[INFLUX] batch write error: {e}")
 
+            try:
+                _flush_lines(items)
+            except Exception as e:
+                _FAILED_BATCH_COUNT += 1
+                print(f"[INFLUX] batch write error ({len(items)} lines): {e}")
+                _requeue_failed_items(items)
+                break
+
+    # Final drain on shutdown
     while True:
-        lines = _drain_lines(INFLUX_BATCH_SIZE)
-        if not lines:
+        items = _drain_lines(INFLUX_BATCH_SIZE)
+        if not items:
             break
+
         try:
-            _flush_lines(lines)
+            _flush_lines(items)
         except Exception as e:
-            print(f"[INFLUX] final batch write error: {e}")
+            _FAILED_BATCH_COUNT += 1
+            print(f"[INFLUX] final batch write error ({len(items)} lines): {e}")
+            _requeue_failed_items(items)
+            break
 
 
 def start_influx_writer() -> None:
@@ -150,7 +196,11 @@ def start_influx_writer() -> None:
 
     _STOP_SIGNAL.clear()
     _FLUSH_SIGNAL.clear()
-    _WRITER_THREAD = threading.Thread(target=_writer_loop, daemon=True, name="influx-writer")
+    _WRITER_THREAD = threading.Thread(
+        target=_writer_loop,
+        daemon=True,
+        name="influx-writer",
+    )
     _WRITER_THREAD.start()
 
 
@@ -176,7 +226,10 @@ def write_event_to_influx(ev: Dict[str, Any]) -> None:
 
     payload_str = json.dumps(ev.get("payload", {}), ensure_ascii=False)
     escaped_payload = payload_str.replace("\\", "\\\\").replace('"', '\\"')
-    line = f'{INFLUX_TABLE},stream={stream},source_id={source_id} payload="{escaped_payload}" {ts_epoch}'
+    line = (
+        f'{INFLUX_TABLE},stream={stream},source_id={source_id} '
+        f'payload="{escaped_payload}" {ts_epoch}'
+    )
     _enqueue_line(line)
 
 
@@ -221,7 +274,10 @@ def write_imu_raw_to_influx(payload: dict) -> None:
         dataset_ts_ns = int(dataset_ts * 1_000_000_000)
         ts_epoch = base_epoch_ns + dataset_ts_ns
 
-        escaped_activity_gt = str(activity_gt).replace("\\", "\\\\").replace('"', '\\"')
+        escaped_activity_gt = (
+            str(activity_gt).replace("\\", "\\\\").replace('"', '\\"')
+        )
+
         line = (
             f"{INFLUX_IMU_TABLE},device={device},recording_id={recording_id},sample_idx={sample_idx} "
             f"acc_x={acc_x},acc_y={acc_y},acc_z={acc_z},"

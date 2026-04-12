@@ -225,19 +225,6 @@ Without disambiguation, rows sharing the same measurement, tags, and timestamp w
 
 ### Resolution
 
-The stored InfluxDB point timestamp for `imu_raw` is generated as:
-
-```text
-base_epoch_ns + adjusted_dataset_ts_ns
-```
-
-where:
-
-- `base_epoch_ns` is fixed to `2024-01-01T00:00:00Z`
-- `adjusted_dataset_ts_ns` is the dataset timestamp converted to nanoseconds and incremented by a per-key collision offset when required
-
-The ingest service applies a per-key nanosecond offset to the generated InfluxDB point timestamp so that rows sharing the same logical `(device, recording_id, dataset_ts)` remain distinct in storage while preserving the original `dataset_ts` as a field.
-
 ---
 
 ## 10. Ingest Event Envelope Contract
