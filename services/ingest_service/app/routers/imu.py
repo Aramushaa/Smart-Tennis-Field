@@ -5,21 +5,11 @@ from fastapi import APIRouter, HTTPException, Query
 
 from ..config import INFLUX_IMU_TABLE
 from ..influx import query_influx_sql
+from ..utils.validators import validate_iso_timestamp
 
 router = APIRouter(tags=["imu"])
 
 
-def _validate_timestamp(value: str, name: str) -> str:
-    """Validate and normalize an ISO-8601 timestamp."""
-    try:
-        ts = value.replace("Z", "+00:00")
-        dt = datetime.fromisoformat(ts)
-        return dt.isoformat()
-    except (ValueError, TypeError):
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid timestamp for '{name}': {value!r}. Expected ISO-8601 format.",
-        )
 
 
 @router.get("/imu")
@@ -55,10 +45,10 @@ def get_imu(
     if activity_gt:
         where.append(f"activity_gt = '{activity_gt}'")
     if from_ts:
-        safe_from = _validate_timestamp(from_ts, "from")
+        safe_from = validate_iso_timestamp(from_ts, "from")
         where.append(f"time >= '{safe_from}'")
     if to_ts:
-        safe_to = _validate_timestamp(to_ts, "to")
+        safe_to = validate_iso_timestamp(to_ts, "to")
         where.append(f"time <= '{safe_to}'")
 
     where_sql = f"WHERE {' AND '.join(where)}" if where else ""

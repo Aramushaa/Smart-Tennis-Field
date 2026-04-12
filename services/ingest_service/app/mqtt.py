@@ -4,8 +4,8 @@ import json
 import threading
 import time
 from collections import deque
-from datetime import datetime, timezone
 from typing import Any, Deque, Dict, Optional
+from .utils.time_utils import now_iso
 
 import paho.mqtt.client as mqtt
 
@@ -27,8 +27,6 @@ mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id="ingest-se
 mqtt_thread: Optional[threading.Thread] = None
 
 
-def now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
 
 
 def normalize_event(topic: str, payload_obj: Any) -> Dict[str, Any]:

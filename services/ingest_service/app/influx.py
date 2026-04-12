@@ -4,6 +4,7 @@ import threading
 from collections import deque
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from .utils.time_utils import now_iso
 from typing import Any, Deque, Dict, Optional
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -38,10 +39,6 @@ _WRITER_THREAD: Optional[threading.Thread] = None
 _FAILED_BATCH_COUNT = 0
 _RETRIED_LINE_COUNT = 0
 _DROPPED_LINE_COUNT = 0
-
-
-def now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
 
 
 def iso_to_epoch_nanos(ts: str) -> int:
@@ -246,6 +243,20 @@ def query_influx_sql(sql: str) -> list[dict]:
     with urlopen(req, timeout=10) as resp:
         body = resp.read().decode("utf-8")
     return json.loads(body)
+
+
+def get_influx_writer_stats() -> dict:
+    with _QUEUE_LOCK:
+        queue_depth = len(_WRITE_QUEUE)
+
+    return {
+        "queue_depth": queue_depth,
+        "failed_batch_count": _FAILED_BATCH_COUNT,
+        "retried_line_count": _RETRIED_LINE_COUNT,
+        "dropped_line_count": _DROPPED_LINE_COUNT,
+        "writer_thread_alive": _WRITER_THREAD.is_alive() if _WRITER_THREAD else False,
+        "max_retries": MAX_RETRIES,
+    }
 
 
 def write_imu_raw_to_influx(payload: dict) -> None:

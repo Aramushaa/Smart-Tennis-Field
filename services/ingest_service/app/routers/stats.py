@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
-from ..config import INFLUX_IMU_TABLE, INFLUX_TABLE
-from ..influx import query_influx_sql
+from ..config import INFLUX_IMU_TABLE, INFLUX_TABLE, INFLUX_ENABLED
+from ..influx import query_influx_sql, get_influx_writer_stats
 
 router = APIRouter(tags=["stats"])
 
@@ -27,10 +27,13 @@ def get_stats():
     events_count = events_rows[0]["n"] if events_rows else 0
     imu_count = imu_rows[0]["n"] if imu_rows else 0
 
+    writer_stats = get_influx_writer_stats() if INFLUX_ENABLED else None
+
     return {
         "events_measurement": INFLUX_TABLE,
         "imu_measurement": INFLUX_IMU_TABLE,
         "events_count": events_count,
         "imu_count": imu_count,
         "devices": device_rows,
+        "influx_writer": writer_stats,
     }

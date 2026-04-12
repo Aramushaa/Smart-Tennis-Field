@@ -1,12 +1,18 @@
 from fastapi import APIRouter
+
 from ..config import INFLUX_ENABLED
+from ..influx import get_influx_writer_stats
 
 router = APIRouter(tags=["health"])
 
+
 @router.get("/health")
 def health():
+    writer_stats = get_influx_writer_stats() if INFLUX_ENABLED else None
+
     return {
         "status": "ok",
         "service": "ingest-service",
         "influx_enabled": INFLUX_ENABLED,
+        "influx_writer": writer_stats,
     }
