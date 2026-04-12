@@ -1,646 +1,163 @@
-# Smart Tennis Field - Implementation Journal
+# Smart Tennis Field — Implementation Journal
 
-## Purpose of This Document
+This document records the implementation journey from Phase 0 to the end of Phase 2: what was built, what broke, and how the system evolved.
 
-This document records the implementation journey of the Smart Tennis Field thesis project from Phase 0 to the end of Phase 2.
-
-It explains:
-
-- what was built
-- why each step was necessary
-- how the system evolved
-- what broke
-- why it broke
-- what was changed to stabilize it
-
-The goal is not only to document the final system, but also to preserve the engineering reasoning, debugging path, and lessons learned along the way.
-
----
-
-## Scope And Status
-
-This journal records the implemented and validated evolution of the system from Phase 0 through Phase 2.
-
-It is not a speculative roadmap document. Planned work beyond Phase 2 is mentioned only to explain architectural direction, not to claim implementation.
+For the final-state technical reference, see [Architecture.md](Architecture.md). For the roadmap, see [Phases.md](Phases.md).
 
 ---
 
 ## 1. Project Context
 
-The thesis focuses on designing a Docker-based distributed infrastructure for collecting, storing, and later processing multi-sensor data in a Smart Tennis Field scenario.
+The thesis focuses on building a Docker-based distributed infrastructure for collecting, storing, and processing multi-sensor data. The central loop is:
 
-The core contribution is not only message transport or storage in isolation, but the construction of a complete pipeline that can support future intelligent services.
+**Data → Broker → Storage → Processing → Storage → API**
 
-The central system loop is:
-
-**Data -> Broker -> Storage -> Processing -> Storage -> API**
-
-This meant the work had to be approached incrementally. Before adding machine learning or advanced logic, the system first had to prove that it could:
-
-- reliably move data between services
-- persist data without silent corruption
-- expose data in a measurable and reproducible way
+Before adding ML or advanced logic, the system first had to prove reliable data transport, correct persistence, and reproducible replay.
 
 ---
 
-## 2. High-Level Development Strategy
+## 2. Phase 0 — MQTT Infrastructure
 
-The implementation was intentionally split into phases so that each layer could be validated before adding the next one.
-
-- **Phase 0** focused on MQTT transport
-- **Phase 1** focused on ingestion and persistence
-- **Phase 2** focused on validating the infrastructure with a real dataset instead of synthetic messages
-- **Phase 3** will focus on integrating an existing HAR model as a separate microservice
-
-This sequence matters.
-
-If transport is unstable, storage cannot be trusted. If storage is not structured correctly, processing becomes fragile. Every step was designed to reduce ambiguity and increase reproducibility.
-
----
-
-## 3. Phase 0 - MQTT Infrastructure
-
-### 3.1 Objective
-
-The objective of Phase 0 was to validate the most basic distributed behavior of the system: a producer publishes an event, a broker routes it, and a consumer receives it correctly.
-
-The goal was not sophistication. The goal was to establish a reliable event backbone before introducing databases or AI logic.
-
-### 3.2 What Was Implemented
-
-The following components were set up:
+### What Was Built
 
 - EMQX broker in Docker
-- simple sensor publisher
-- subscriber validating message reception
-- initial topic naming conventions
-- JSON message transport
+- Simple publisher → subscriber validation
+- Topic structure: `tennis/sensor/+/events`, `tennis/camera/+/ball`
 
-The MQTT topic structure adopted during this phase used hierarchical topics such as:
+### Problems Encountered
 
-- `tennis/sensor/+/events`
-- `tennis/camera/+/ball`
+**Docker networking confusion.** Services could not connect to the broker because `localhost` inside a container is not the same as `localhost` on the host. The project adopted a consistent rule: use service names inside Docker (`emqx`), use mapped ports from the host (`localhost:2883`).
 
-This choice made wildcard subscription easier and kept the topic space organized.
+**Port mapping confusion.** MQTT runs on container port `1883` but host port `2883`. Clarified and documented.
 
-### 3.3 Why This Design Was Chosen
+### Outcome
 
-MQTT was selected because the project required a lightweight event-driven communication pattern suitable for IoT devices and distributed services.
-
-The use of a broker allows later expansion to:
-
-- multiple producers
-- multiple independent consumers
-- resilience experiments
-- topic-based routing by modality or source
-
-### 3.4 Problems Encountered In Phase 0
-
-#### Problem 1 - Docker networking versus `localhost`
-
-A recurring conceptual issue early on was the difference between:
-
-- `localhost` on the host machine
-- `localhost` inside a container
-- service-to-service communication through Docker Compose service names
-
-This caused confusion when services could not connect to the broker even though ports looked correct.
-
-#### Resolution
-
-The project moved toward a consistent rule:
-
-- use service names inside Docker, such as `emqx`
-- use host ports such as `localhost:2883` only from the host machine
-
-This became important later for InfluxDB and the simulator as well.
-
-#### Problem 2 - Port mapping confusion
-
-The broker exposed MQTT on container port `1883`, while the host used port `2883`. This created confusion depending on whether the client was inside Docker or outside Docker.
-
-#### Resolution
-
-The communication model was clarified and documented:
-
-- inside Docker: connect to `emqx:1883`
-- from the host machine: connect to `localhost:2883`
-
-### 3.5 Outcome Of Phase 0
-
-Phase 0 proved that the system could support event-driven communication.
-
-That may sound simple, but academically it established the message backbone for the rest of the thesis. Without this phase, later work on persistence and AI would be built on an unverified transport layer.
+Established a reliable event backbone. Simple but necessary — later work on persistence and AI would be built on an unverified transport layer without it.
 
 ---
 
-## 4. Phase 1 - Ingest Service And Time-Series Persistence
+## 3. Phase 1 — Ingest Service and Persistence
 
-### 4.1 Objective
+### What Was Built
 
-After validating MQTT transport, the next step was to make messages durable and queryable.
+- FastAPI `ingest-service` with background MQTT worker
+- Event normalization envelope
+- In-memory debug buffer
+- InfluxDB 3 persistence with generic event schema
+- REST endpoints: `GET /health`, `GET /events`, `POST /publish`
+- InfluxDB 3 Explorer added for schema visibility
 
-The objective of Phase 1 was to build a dedicated ingest microservice that could:
+### Problems Encountered
 
-- subscribe to MQTT topics
-- normalize incoming events
-- persist them in InfluxDB 3
-- expose them through a REST API
+**InfluxDB token lifecycle.** When the InfluxDB container was recreated, tokens became invalid. Adopted a repeatable workflow: create token → store in `.env` → restart services.
 
-### 4.2 What Was Implemented
+**Database inspection friction.** InfluxDB was harder to inspect than tools like pgAdmin. Initially relied on API queries; later added Explorer UI.
 
-A new microservice called `ingest-service` was created using FastAPI.
+**SQL query safety.** The `GET /events` route supported time filters via direct string interpolation. Added ISO-8601 timestamp validation before constructing SQL conditions.
 
-Its responsibilities included:
+### Outcome
 
-- starting an MQTT background worker
-- subscribing to wildcard topics
-- normalizing incoming events into a consistent envelope
-- storing recent events in an in-memory debug buffer
-- persisting events into InfluxDB 3
-- exposing REST endpoints
-
-The normalized event structure adopted was:
-
-```json
-{
-  "ts": "...",
-  "topic": "...",
-  "source": "mqtt",
-  "payload": {}
-}
-```
-
-This envelope separated:
-
-- transport metadata
-- reception and publish timing
-- original sensor payload
-
-### 4.3 Why FastAPI Was Used
-
-FastAPI was chosen because the ingest component needed to act as both:
-
-- an always-on background subscriber
-- an HTTP API surface for diagnostics and later consumption
-
-FastAPI made that combination convenient while keeping the service lightweight.
-
-### 4.4 Why InfluxDB 3 Was Used
-
-InfluxDB 3 was selected as the persistence layer because the system needed a database optimized for time-series data.
-
-Sensor data is fundamentally temporal, and the project needed:
-
-- time-oriented storage
-- efficient time-range queries
-- schema suited for telemetry
-- Docker-based reproducibility
-
-Using a relational database would have been possible, but less aligned with the structure of the data and weaker from a time-series system design perspective.
-
-### 4.5 Initial Persistence Model
-
-Initially, messages were stored in a generic measurement using an event-style schema:
-
-- tags: `stream`, `source_id`
-- field: `payload` as JSON string
-
-This was acceptable for Phase 1 because the goal was durable generic event logging, not yet ML-ready structured storage.
-
-### 4.6 REST Endpoints Added
-
-The service exposed endpoints such as:
-
-- `GET /health`
-- `GET /events`
-- `POST /publish`
-
-These endpoints made the system easier to debug, inspect, and demonstrate.
-
-### 4.7 Problems Encountered In Phase 1
-
-#### Problem 1 - InfluxDB token handling
-
-InfluxDB 3 uses token-based authentication. A repeated issue was that when the InfluxDB container or storage was recreated, tokens were no longer valid or had to be regenerated.
-
-#### Resolution
-
-A repeatable workflow was adopted:
-
-1. create an admin token inside the container
-2. store it in `.env`
-3. restart dependent services
-
-This made the process reproducible instead of ad hoc.
-
-#### Problem 2 - Database inspection friction
-
-Compared to tools like pgAdmin, InfluxDB initially felt harder to inspect directly. This slowed early debugging because it was not obvious whether messages were actually being stored.
-
-#### Resolution
-
-The project initially relied on API queries and direct SQL calls for inspection. Later, InfluxDB 3 Explorer was added as a separate UI container to improve schema visibility and manual debugging.
-
-#### Problem 3 - SQL query safety
-
-The `GET /events` route supported time filters, which introduced the risk of unsafe direct interpolation into SQL.
-
-#### Resolution
-
-Timestamp validation was added using ISO-8601 parsing before constructing SQL conditions. This made the route safer and more robust.
-
-### 4.8 Outcome Of Phase 1
-
-By the end of Phase 1, the project had evolved from a transport demo into a distributed ingestion system with durable storage and query capability.
-
-This was the first major transformation of the project into something thesis-worthy.
+The project evolved from a transport demo into a distributed ingestion system with durable storage and query capability.
 
 ---
 
-## 5. Architectural Shift Introduced In Phase 2
+## 4. Phase 2 — Dataset Validation
 
-Phase 2 changed the role of the system in a fundamental way.
+Phase 2 was the most engineering-intensive phase. It changed the system from a generic event logger into an ML-ready ingestion infrastructure.
 
-Before Phase 2, the project behaved mainly as a generic event ingestion system.
+### Simulator Design
 
-After Phase 2, it became a structured, ML-ready ingestion infrastructure with two distinct persistence layers:
+Instead of loading the Siddha dataset directly into the database, a new service (`siddha-sensor-sim`) was introduced as a virtual sensor producer. This preserves the architectural contribution: real data still flows through the broker and ingest pipeline.
 
-- generic event storage (`events`) for tracing and debugging
-- structured IMU storage (`imu_raw`) for analytics and future HAR processing
+### Structured Storage Transition
 
-This was more than a schema adjustment. It changed the system model from "log messages durably" to "preserve signals in a form suitable for later computation."
+Initially, Siddha samples were written only as JSON payloads in the generic `events` measurement. This was insufficient for future HAR processing, which needs direct numeric access to sensor channels. A dedicated `imu_raw` measurement was added with structured tags and fields. This was the transition from "log messages durably" to "preserve signals in a form suitable for computation."
 
----
+### Debugging Path
 
-## 6. Phase 2 - Dataset Validation Pipeline
+#### Filter bug
 
-### 6.1 Objective
+Empty-string env vars (`SIDDHA_DEFAULT_DEVICE_FILTER=`) were parsed as `""` instead of `None`, causing filters like `device == ""` which matched nothing. Fixed by normalizing empty strings to `None` in the simulator config.
 
-The objective of Phase 2 was to validate the infrastructure using a real sensor dataset instead of synthetic MQTT messages.
+#### Startup readiness
 
-The Siddha dataset was chosen because it contains structured IMU data with:
+Services attempted MQTT connections before EMQX was ready, even with Docker Compose dependencies. Added retry logic and an EMQX healthcheck at the Compose level.
 
-- accelerometer axes
-- gyroscope axes
-- device information
-- activity labels
-- timestamps
+#### Throughput bottleneck
 
-This phase mattered because it tested the system under realistic data volume and revealed failure modes that do not appear with toy messages.
+The simulator published tens of thousands of samples, but the database contained only a fraction. Initially assumed to be a pure transport problem. Deeper investigation revealed two independent issues:
 
-### 6.2 Simulator Design And Rationale
-
-Instead of loading the dataset directly into the database, the project introduced a new service: `siddha-sensor-sim`.
-
-The simulator behaves like a virtual sensor producer:
-
-- reads rows from the dataset
-- transforms them into MQTT payloads
-- publishes them through EMQX
-
-This design was chosen because it preserves the architectural contribution of the thesis:
-
-**real data still flows through the broker and the ingest path**
-
-That is academically stronger than bypassing the messaging layer.
-
-### 6.3 Why Parquet Was Used
-
-The Siddha dataset was available in multiple forms, including Parquet and lower-level binary structures.
-
-Parquet was chosen because it offers a strong balance between transparency and structure.
-
-Compared with lower-level binary formats, it is easier to inspect, validate, filter, and replay in Python. This was especially valuable during Phase 2, where correctness and reproducibility were more important than low-level parsing performance.
-
-### 6.4 Structured Storage Transition
-
-Initially, Siddha sensor samples were still being written only as JSON payloads inside the generic `events` measurement.
-
-That was sufficient for generic storage, but not for future HAR processing.
-
-HAR requires direct access to numeric channels such as:
-
-- `acc_x`
-- `acc_y`
-- `acc_z`
-- `gyro_x`
-- `gyro_y`
-- `gyro_z`
-
-#### Resolution
-
-A dedicated structured IMU write path was added so Siddha samples could also be stored in a separate measurement.
-
-The raw IMU measurement uses:
-
-Tags:
-
-- `device`
-- `recording_id`
-- `sample_idx`
-
-Fields:
-
-- `acc_x`
-- `acc_y`
-- `acc_z`
-- `gyro_x`
-- `gyro_y`
-- `gyro_z`
-- `dataset_ts`
-- `activity_gt`
-
-This was the point where the project changed from a generic event logger into an ML-ready ingestion pipeline.
-
-### 6.5 Debugging Path
-
-#### 6.5.1 Filter bug
-
-Environment variables such as:
-
-- `SIDDHA_DEFAULT_DEVICE_FILTER=`
-- `SIDDHA_DEFAULT_ACTIVITY_FILTER=`
-- `SIDDHA_DEFAULT_RECORDING_ID_FILTER=`
-
-were initially parsed as empty strings instead of `None`.
-
-That caused the loader to apply filters like:
-
-- `device == ""`
-
-which matched nothing.
-
-##### Resolution
-
-A validation step was added in the simulator config to normalize empty strings to `None` before applying filters.
-
-#### 6.5.2 Startup readiness
-
-Even with Docker Compose dependencies, the simulator or ingest service could attempt to connect before EMQX was actually ready.
-
-##### Resolution
-
-Retry logic was added to services that depend on MQTT, and an EMQX healthcheck was added at the Compose level.
-
-#### 6.5.3 Replay ambiguity
-
-Looping forever was useful for long-running tests, but confusing for deterministic evaluation because the same dataset kept replaying and mixing with previous data.
-
-##### Resolution
-
-Replay behavior was made configurable:
-
-- one-pass mode for deterministic validation
-- loop mode for long-running or resilience tests
-
-#### 6.5.4 Throughput bottleneck
-
-Once structured storage worked, a serious performance problem appeared. The simulator reported publishing tens of thousands of samples, but the database contained only a small fraction of them.
-
-At first, the discrepancy appeared to be a pure transport problem. Deeper investigation showed that two independent issues were involved: transport-layer delivery loss and storage-layer identity errors.
-
-##### Resolution
+1. **Transport-layer delivery loss:** MQTT QoS 0 under high throughput drops messages
+2. **Storage-layer identity errors:** duplicate samples silently overwriting each other
 
 The ingest service was refactored to decouple MQTT reception from persistence by introducing a queue-based batch writer.
 
-Incoming line protocol writes are enqueued and flushed from a dedicated background writer thread.
+#### Schema mismatch
 
-This reduced HTTP overhead and removed the main throughput bottleneck of per-message writes.
+`activity_gt` had been written inconsistently as a tag in one version and a field in another, causing InfluxDB schema conflicts. Unified as a string field.
 
-#### 6.5.5 Schema mismatch
+#### Timestamp collision investigation
 
-A schema conflict occurred because `activity_gt` had been written inconsistently as a tag in one version and as a field in another.
+A dataset subset of ~64,000 rows resulted in only ~5,000 stored rows. Multiple samples shared identical `(device, recording_id, dataset_ts)`, and since InfluxDB uses `measurement + tags + time` as identity, they were overwriting each other.
 
-##### Resolution
+**Initial attempt (rejected):** Nanosecond offsets on the storage timestamp. Prevented overwrites but introduced artificial time distortion and made debugging harder.
 
-The schema was unified so that `activity_gt` remained a string field in the structured IMU measurement.
+**Final solution:** Explicit `sample_idx` assigned per duplicate group during dataset loading. Propagated through MQTT → ingest → InfluxDB tags. Validated with ~2M rows: all rows stored, no collisions, consistent queries.
 
-#### 6.5.6 Timestamp Collision Investigation
+The full identity model is documented in [Architecture.md — Data Identity Model](Architecture.md#5-data-identity-model).
 
-During dataset ingestion testing, it was observed that a subset of the data was missing after insertion into InfluxDB.
+#### Fast replay data loss
 
-Initial analysis showed that:
+Running `fast` mode with QoS 0 and non-blocking publish caused significant row loss. Made QoS and `wait_for_publish` configurable. Recommended data-critical configuration: QoS 1 + `wait_for_publish=true`.
 
-- the dataset contained approximately 64,000 rows for a specific subset
-- only approximately 5,000 were stored in the database
+#### Database naming error
 
-Further investigation revealed that multiple samples shared identical:
+InfluxDB returned HTTP 400 because the database name contained a dot. Changed to underscore-based naming.
 
-- `device`
-- `recording_id`
-- `dataset_ts`
+### False Leads
 
-Since InfluxDB uses `measurement + tags + time` as identity, these rows were overwriting each other.
+Some early hypotheses were incomplete or wrong:
 
-The key insight from this stage was that the issue was not caused only by transport reliability. It was also a data identity problem.
+- Assuming low row counts were caused only by MQTT loss (it was also a data identity problem)
+- Assuming all published samples were uniquely identifiable without explicit indexing
+- Assuming generic JSON storage was sufficient for future processing
 
-#### 6.5.7 Initial Solution: Timestamp Offset
+These false leads forced a clearer separation between transport reliability, data identity, and processing readiness.
 
-A temporary solution was implemented by adding nanosecond offsets to the storage timestamp.
+### Validated Final State
 
-This resolved collisions by making each timestamp unique.
-
-However, this approach had limitations:
-
-- it introduced artificial time distortion
-- it hid the real structure of the dataset
-- it made debugging and reasoning more difficult
-
-Therefore, it was treated as a workaround rather than a final solution.
-
-#### 6.5.8 Final Solution: Explicit Sample Index
-
-A new approach was implemented based on explicit indexing:
-
-- duplicate rows were grouped by `(device, recording_id, dataset_ts)`
-- a cumulative index (`sample_idx`) was assigned
-
-This index was then:
-
-- added to the `SensorSample` model
-- included in MQTT payloads
-- stored as a tag in InfluxDB
-
-This resulted in:
-
-- full data preservation validated with approximately 2 million rows
-- removal of timestamp offsets from the final data model
-- improved clarity and correctness of the storage contract
-
-#### 6.5.9 Validation
-
-The new model was tested using a subset of approximately 2 million rows.
-
-Results:
-
-- all rows were successfully stored in InfluxDB
-- no collisions or overwrites occurred
-- data remained consistent and queryable
-
-This confirmed that the `sample_idx` approach correctly resolves the identity issue.
-
-#### 6.5.10 Fast replay data loss
-
-When running the simulator in `fast` mode with MQTT QoS 0 and non-blocking publish, significantly fewer rows appeared in InfluxDB than were published by the simulator.
-
-##### Resolution
-
-MQTT QoS and `wait_for_publish` were made configurable in the simulator, and the recommended data-critical configuration became:
-
-- QoS 1
-- `wait_for_publish=true`
-
-Combined with the batch writer, this produced reliable ingestion for validated runs.
-
-#### 6.5.11 Database naming error
-
-At one point InfluxDB returned HTTP 400 errors because the configured database name contained a dot, which was not valid.
-
-##### Resolution
-
-The database name was changed to a valid underscore-based form and the service was restarted.
-
-### 6.6 False Leads During Investigation
-
-Some early hypotheses turned out to be incomplete or wrong, including:
-
-- assuming low row counts were caused only by MQTT loss
-- assuming all published samples were uniquely identifiable in InfluxDB without explicit indexing
-- assuming generic payload logging was sufficient for future HAR processing
-
-These false leads were useful because they forced a clearer separation between:
-
-- transport reliability
-- data identity
-- processing readiness
-
-### 6.7 Key Conceptual Clarification: Time And Identity
-
-A key conceptual clarification during Phase 2 was that the system contains three different time concepts and one additional identity dimension:
-
-- `dataset_ts`: logical signal time from the Siddha recording
-- `ts`: wall-clock publish time in MQTT payloads
-- `time`: InfluxDB storage timestamp
-- `sample_idx`: duplicate index used for explicit point identity
-
-A major part of the debugging process was realizing that these values serve different purposes and cannot be treated as interchangeable.
-
-## Key Insight
-
-The issue was not related only to transport reliability, but to data identity modeling.
-
-This highlights an important principle:
-
-In time-series systems, timestamp alone is not always sufficient to uniquely identify data points.
-
-Explicit modeling of data identity is required when multiple samples share the same timestamp.
-
-### 6.8 Final Validated State
-
-At the end of stabilization, the validated replay pass produced the expected stored row count for the tested dataset configuration, confirming that row preservation, batching, and replay controls were working together correctly.
-
-This demonstrated:
-
-- end-to-end ingestion works
-- structured raw storage works
-- row preservation works without silent overwrites
-- performance is acceptable with batching
-- the pipeline is deterministic and reproducible
-- transport reliability is validated under controlled MQTT configurations
-
-### 6.9 Why Phase 2 Became Thesis-Significant
-
-Phase 2 was not only a validation step. It exposed several distributed-systems issues that are academically meaningful:
-
-- correctness can fail silently at the storage layer
-- throughput bottlenecks can masquerade as transport problems
-- replay fidelity and delivery reliability are not the same thing
-- explicit identity modeling is necessary once duplicate timestamps appear
-- structured storage is necessary once the system moves toward processing
-
-This phase therefore transformed the project from an infrastructure prototype into a validated experimental system.
+The validated replay pass produced the expected stored row count, confirming that row preservation, batching, and replay controls work together correctly.
 
 ---
 
-## 7. Key Lessons Learned From Phases 0-2
+## 5. Key Lessons Learned
 
-### 7.1 Simple architectures break under real data
+### Simple architectures break under real data
 
-What works with a handful of toy messages does not necessarily work with large volumes of real sensor samples. Phase 2 exposed issues that would never have appeared in a minimal demo.
+What works with toy messages does not necessarily work with large volumes of real sensor samples. Phase 2 exposed issues that would never appear in a minimal demo.
 
-### 7.2 Reproducibility requires more than Docker
+### Reproducibility requires more than Docker
 
-Docker alone is not enough. Reproducibility also depends on:
+It also depends on consistent schema, stable configuration, explicit tokens, controlled replay behavior, and explicit data identity handling.
 
-- consistent schema
-- stable configuration
-- explicit tokens
-- controlled replay behavior
-- explicit data identity handling
+### Generic JSON storage is not enough for processing
 
-### 7.3 Generic JSON storage is not enough for processing
+A raw payload log is useful for debugging but not for ML consumption. Structured numeric storage is necessary once the system moves toward processing.
 
-A raw payload log is useful for debugging, but not enough for ML consumption. Structured numeric storage is necessary once the system moves toward processing.
+### Throughput optimization must be justified
 
-### 7.4 Throughput optimization must be justified
+Batching was not added because it is faster. It was added because per-message writes fundamentally limited the system's ability to validate real data ingestion under load.
 
-Batching was not added just because it is faster. It was added because the previous design fundamentally limited the system's ability to validate real data ingestion under load.
+### Transport reliability is separate from storage correctness
 
-### 7.5 Time semantics matter
-
-The distinction between:
-
-- dataset time (`dataset_ts`)
-- publish time (`ts`)
-- database time (`time`)
-- duplicate identity (`sample_idx`)
-
-turned out to be central. Without explicit handling of these concepts, both analysis and debugging become unreliable.
-
-### 7.6 Transport reliability is separate from storage correctness
-
-Data loss can occur at two independent layers:
-
-- **storage layer:** incorrect identity modeling can cause silent overwrites regardless of how reliably messages are delivered
-- **transport layer:** MQTT QoS 0 under high throughput can cause message drops regardless of how correctly storage handles identity
-
-Both must be addressed independently. This is a strong thesis finding because it demonstrates that distributed system correctness requires reasoning about each layer separately.
+Data loss can occur at two independent layers: storage (silent overwrites from incorrect identity modeling) and transport (QoS 0 message drops). Both must be addressed independently.
 
 ---
 
-## 8. Current Status After Phase 2
-
-The project currently has a stable validated ingestion infrastructure with:
-
-- Dockerized services
-- MQTT transport
-- structured time-series persistence
-- real dataset validation
-- measurable performance improvements
-- Explorer-based observability
-- explicit duplicate-sample identity
-
-The next logical step is **Phase 3**, where a separate `har_service` will query sliding windows from the raw IMU measurement and run inference using the provided ONNX model and inference engine.
-
-The key rule going forward is:
-
-**processing must remain decoupled from ingestion**
-
-That separation is one of the core architectural strengths of the thesis.
-
----
-
-## 9. Conclusion
+## 6. Conclusion
 
 From Phase 0 to Phase 2, the project evolved from a simple MQTT transport experiment into a validated distributed infrastructure capable of ingesting, storing, and preparing real sensor data for downstream AI processing.
 
-The most important outcome is not just that data moved through the system, but that the pipeline became:
+The most important outcome is not just that data moved through the system, but that the pipeline became structured, measurable, reproducible, and explicitly modeled in terms of data identity.
 
-- structured
-- measurable
-- reproducible
-- explicitly modeled in terms of data identity
-- defensible as a thesis contribution
-
-This creates the correct foundation for Phase 3, where the focus will shift from ingestion reliability to decoupled HAR processing.
+This creates the foundation for Phase 3, where the focus shifts from ingestion reliability to decoupled HAR processing.

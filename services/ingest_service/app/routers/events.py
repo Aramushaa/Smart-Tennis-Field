@@ -1,5 +1,4 @@
 import json
-from datetime import datetime
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, HTTPException, Query
@@ -9,8 +8,8 @@ from ..config import INFLUX_ENABLED, INFLUX_TOKEN, INFLUX_TABLE, PUB_TOPIC
 from ..influx import query_influx_sql
 from ..mqtt import get_memory_events, mqtt_client
 from ..utils.validators import validate_iso_timestamp
-router = APIRouter(tags=["events"])
 
+router = APIRouter(tags=["events"])
 
 
 @router.get("/events")

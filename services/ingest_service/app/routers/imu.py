@@ -1,15 +1,12 @@
-from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
 
 from ..config import INFLUX_IMU_TABLE
 from ..influx import query_influx_sql
-from ..utils.validators import validate_iso_timestamp
+from ..utils.validators import validate_iso_timestamp, validate_sql_literal
 
 router = APIRouter(tags=["imu"])
-
-
 
 
 @router.get("/imu")
@@ -39,14 +36,21 @@ def get_imu(
     where = []
 
     if device:
-        where.append(f"device = '{device}'")
+        safe_device = validate_sql_literal(device, "device")
+        where.append(f"device = '{safe_device}'")
+
     if recording_id:
-        where.append(f"recording_id = '{recording_id}'")
+        safe_recording_id = validate_sql_literal(recording_id, "recording_id")
+        where.append(f"recording_id = '{safe_recording_id}'")
+
     if activity_gt:
-        where.append(f"activity_gt = '{activity_gt}'")
+        safe_activity_gt = validate_sql_literal(activity_gt, "activity_gt")
+        where.append(f"activity_gt = '{safe_activity_gt}'")
+
     if from_ts:
         safe_from = validate_iso_timestamp(from_ts, "from")
         where.append(f"time >= '{safe_from}'")
+
     if to_ts:
         safe_to = validate_iso_timestamp(to_ts, "to")
         where.append(f"time <= '{safe_to}'")

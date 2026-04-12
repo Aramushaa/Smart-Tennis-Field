@@ -2,6 +2,8 @@
 import os
 from dotenv import load_dotenv
 
+from .utils.validators import validate_table_name
+
 load_dotenv()
 
 MQTT_HOST = os.getenv("MQTT_HOST", "localhost")
@@ -25,7 +27,15 @@ INFLUX_ENABLED = os.getenv("INFLUX_ENABLED", "0") == "1"
 INFLUX_HOST = os.getenv("INFLUX_HOST", "http://localhost:8181")
 INFLUX_TOKEN = os.getenv("INFLUX_TOKEN", "")
 INFLUX_DATABASE = os.getenv("INFLUX_DATABASE", "tennis")
-INFLUX_TABLE = os.getenv("INFLUX_TABLE", "events")
-INFLUX_IMU_TABLE = os.getenv("INFLUX_IMU_TABLE", "imu_raw")
+
+INFLUX_TABLE = validate_table_name(
+    os.getenv("INFLUX_TABLE", "events"),
+    "INFLUX_TABLE",
+)
+INFLUX_IMU_TABLE = validate_table_name(
+    os.getenv("INFLUX_IMU_TABLE", "imu_raw"),
+    "INFLUX_IMU_TABLE",
+)
+
 INFLUX_BATCH_SIZE = int(os.getenv("INFLUX_BATCH_SIZE", "500"))
 INFLUX_FLUSH_INTERVAL_MS = int(os.getenv("INFLUX_FLUSH_INTERVAL_MS", "200"))

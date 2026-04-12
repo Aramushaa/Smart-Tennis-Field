@@ -1,122 +1,70 @@
-# Smart Tennis Field - System Architecture (Post-Phase 2)
+# Smart Tennis Field — System Architecture
 
-## 1. Current Phase Context
+## 1. Overview
 
-**Current Phase:** Phase 2 - Dataset Validation (Completed)
-
-### Implemented
-
-- MQTT infrastructure (EMQX)
-- Ingest microservice (FastAPI)
-- Structured time-series storage (InfluxDB 3)
-- Siddha dataset simulator using real data
-- Batch ingestion pipeline
-- Explicit duplicate-sample identity handling
-
-### Active Services
-
-- `emqx` (MQTT broker)
-- `ingest-service` (FastAPI + MQTT consumer)
-- `influxdb3` (time-series database)
-- `influxdb3-explorer` (query and inspection UI)
-- `siddha-sensor-sim` (dataset replay)
-
-### Data Flow
-
-![Smart Tennis Field data flow](smart_tennis_field_data_flow.svg)
-
----
-
-## 2. Architectural Overview
-
-The system follows a distributed, event-driven microservice architecture designed for reproducibility and measurable performance.
-
-Core pipeline:
+The system follows a distributed, event-driven microservice architecture:
 
 ```text
 Data -> Broker -> Storage -> Processing -> Storage -> API
 ```
 
-### Why this architecture?
+Producers, ingestion, and processing are fully decoupled. The full system runs reproducibly via Docker Compose, and each stage can be measured independently.
 
-- **Decoupling:** producers, ingestion, and processing are independent
-- **Reproducibility:** the full system runs via Docker Compose
-- **Scalability:** new consumers such as HAR or vision services can be added without changing ingestion
-- **Observability:** each stage can be measured independently
+![Smart Tennis Field data flow](smart_tennis_field_data_flow.svg)
 
 ---
 
-## 3. Component Breakdown
+## 2. Components
 
-### 3.1 EMQX (MQTT Broker)
+### 2.1 EMQX (MQTT Broker)
 
-**Role:** event transport layer
+Event transport layer. Routes all sensor messages and supports wildcard topic subscriptions.
 
-- routes all sensor messages
-- supports wildcard topic subscriptions
-- decouples publishers from consumers
-
-**Topics**
+Topics:
 
 ```text
 tennis/sensor/<device>/events
 tennis/camera/<id>/ball
 ```
 
-**Design reasoning**
+### 2.2 siddha-sensor-sim (Dataset Simulator)
 
-MQTT is preferred over HTTP polling because it provides low-latency, decoupled communication that fits an IoT architecture.
+Simulated sensor producer using the Siddha dataset. Reads Parquet data, publishes IMU samples as MQTT events, and supports `realtime` and `fast` replay modes with deterministic ordering.
 
-### 3.2 siddha-sensor-sim (Dataset Simulator)
+The simulator exists so that real data flows through the broker and ingest pipeline, preserving the architectural contribution over direct database loading.
 
-**Role:** simulated sensor producer using the Siddha dataset
+### 2.3 ingest-service (FastAPI Microservice)
 
-- reads Parquet data
-- publishes IMU samples as MQTT events
-- supports `realtime` and `fast` replay
-- preserves deterministic ordering
+Bridge between MQTT and database. Responsibilities:
 
-The simulator is used instead of direct database loading so that real data still passes through the broker and ingest pipeline.
+- Subscribe to MQTT topics using wildcard patterns
+- Normalize incoming messages into event envelopes
+- Store recent events in memory for debugging
+- Route payloads into generic event storage (`events`) and structured IMU storage (`imu_raw`)
+- Enqueue line protocol writes into a batch writer thread
 
-### 3.3 ingest-service (FastAPI Microservice)
+### 2.4 InfluxDB 3
 
-**Role:** bridge between MQTT and database
+Time-series storage layer. Stores structured IMU data and generic event logs.
 
-Responsibilities:
+### 2.5 InfluxDB 3 Explorer
 
-- subscribe to MQTT topics using wildcard patterns
-- normalize incoming messages into a consistent event envelope
-- store recent events in memory for debugging
-- route payloads into:
-  - generic event storage (`events`)
-  - structured IMU storage (`imu_raw`)
-- enqueue line protocol writes into a shared write queue
-- flush writes via a background batch writer thread
+Query and inspection UI for manual debugging and schema validation.
 
-#### Batch Writer Design
+---
 
-**Problem:** one HTTP request per message is too slow
+## 3. Data Model
 
-**Solution:**
+### 3.1 Dual Persistence
 
-- queue incoming writes
-- flush in batches from a background thread
+The ingest layer maintains two parallel storage paths:
 
-Batching improves throughput while keeping MQTT consumption and persistence decoupled.
+| Layer | Measurement | Purpose |
+| --- | --- | --- |
+| Event layer | `events` | Generic logging, debugging, full payload trace |
+| Signal layer | `imu_raw` | Structured IMU data for ML processing |
 
-### 3.4 InfluxDB 3 Core
-
-**Role:** time-series storage layer
-
-Stores structured IMU data in measurement:
-
-```text
-imu_raw
-```
-
-### InfluxDB Schema (`imu_raw`)
-
-Measurement: `imu_raw`
+### 3.2 `imu_raw` Schema
 
 Tags:
 
@@ -129,267 +77,136 @@ Fields:
 - `acc_x`, `acc_y`, `acc_z`
 - `gyro_x`, `gyro_y`, `gyro_z`
 - `dataset_ts`
-- `activity_gt`
+- `activity_gt` (metadata, not part of point identity)
 
-Time:
+Timestamp:
 
-- derived directly from `dataset_ts`
+- Derived from `dataset_ts`: `base_epoch_ns (2024-01-01T00:00:00Z) + dataset_ts_in_nanoseconds`
 
-Important:
-
-InfluxDB identifies a point using:
+Example line protocol:
 
 ```text
-measurement + tags + time
+imu_raw,device=phone,recording_id=11,sample_idx=2 acc_x=...,acc_y=...,gyro_x=...,dataset_ts=12.35,activity_gt="A" 1704067212350000000
 ```
 
-Since `dataset_ts` can be duplicated, `sample_idx` is required to distinguish samples.
+### 3.3 `events` Schema
 
-This allows multiple points with identical timestamps to coexist without collision.
-
-> `activity_gt` is treated as metadata stored as a field. It is not part of the point identity.
-
-### 3.5 Dual Persistence Model (Event vs Signal)
-
-The system maintains two parallel storage paths:
-
-| Layer | Measurement | Purpose |
-| --- | --- | --- |
-| Event layer | `events` | Generic logging, debugging, full payload trace |
-| Signal layer | `imu_raw` | Structured IMU data for ML processing |
-
-This separation ensures:
-
-- observability through event logs
-- ML readiness through structured numeric storage
-- decoupling of debugging concerns from processing concerns
+Tags: `stream`, `source_id`
+Field: `payload` (escaped JSON string)
+Timestamp: normalized event timestamp converted to epoch nanoseconds
 
 ---
 
-## 4. Critical Design Decisions
+## 4. Timestamp Semantics
 
-### 4.1 Structured vs JSON Storage
+The system uses three distinct time concepts plus one identity dimension:
 
-| Option | Pros | Cons |
-| --- | --- | --- |
-| JSON-only | simple | unusable for ML |
-| Structured IMU | ML-ready, queryable | more complex |
+| Name | Meaning | Source | Used for |
+| --- | --- | --- | --- |
+| `dataset_ts` | Original signal time inside the Siddha recording | Parquet dataset | Signal ordering, HAR windows |
+| `ts` | Wall-clock publish timestamp | Simulator at MQTT publish time | Transport tracing, latency analysis |
+| `time` | InfluxDB point timestamp | Derived from `dataset_ts` by ingest service | Storage ordering |
+| `sample_idx` | Duplicate index within a timestamp group | Dataset loader | Point identity disambiguation |
 
-Structured storage was selected because later HAR processing requires direct numeric access to sensor channels.
+These values serve different purposes and are not interchangeable.
 
-### 4.2 Data Identity Model
+---
 
-The Siddha dataset contains multiple samples sharing the same:
+## 5. Data Identity Model
 
-- device
-- recording_id
-- dataset timestamp (`dataset_ts`)
+### 5.1 The Problem
 
-Therefore, the tuple:
+The Siddha dataset contains multiple samples sharing the same `device`, `recording_id`, and `dataset_ts`. Since InfluxDB identifies points using `measurement + tags + time`, samples with identical identity would silently overwrite each other.
 
-```text
-(device, recording_id, dataset_ts)
-```
+### 5.2 The Solution
 
-is not sufficient to uniquely identify a data point.
+An explicit duplicate index (`sample_idx`) is assigned per group during dataset loading:
 
-To address this, the system introduces an additional dimension:
+- `0` → first sample at a given timestamp
+- `1` → second sample
+- `...`
 
-- `sample_idx`
-
-This index is assigned during dataset loading using a deterministic grouping and ranking strategy.
-
-Final identity:
+Each sample is uniquely identified by:
 
 ```text
 (device, recording_id, dataset_ts, sample_idx)
 ```
 
-This ensures:
+### 5.3 Why Explicit Indexing Over Timestamp Offsets
 
-- no data loss
-- explicit representation of duplicate samples
-- deterministic and reproducible replay
+An earlier iteration considered nanosecond offsets to prevent collisions. That approach was rejected because:
 
-### 4.3 Timestamp Semantics
+- It introduces artificial time distortion
+- It hides the real structure of the data
+- It makes debugging harder
 
-Three time-related values exist in the system:
+Explicit indexing preserves semantic time, makes identity visible, and aligns with time-series modeling best practices.
 
-| Type | Meaning | Source |
+---
+
+## 6. Batch Writer Design
+
+**Problem:** One HTTP write per MQTT message is too slow for high-throughput replay.
+
+**Solution:** Incoming writes are enqueued and flushed from a background writer thread, controlled by `INFLUX_BATCH_SIZE` and `INFLUX_FLUSH_INTERVAL_MS`.
+
+This decouples MQTT consumption from persistence and significantly improves throughput.
+
+---
+
+## 7. Data Integrity and Transport Reliability
+
+These are two independent concerns:
+
+| Concern | Risk | Mitigation |
 | --- | --- | --- |
-| `dataset_ts` | Original signal time in the Siddha recording | Dataset |
-| `ts` | Wall-clock publish time | Simulator at send time |
-| `time` | InfluxDB storage timestamp derived from `dataset_ts` | Ingest pipeline |
+| Storage identity | Duplicate samples overwrite each other | `sample_idx` tag |
+| Transport delivery | MQTT QoS 0 drops messages under load | QoS 1 + `wait_for_publish` |
+| Write throughput | Per-message HTTP writes bottleneck | Batch writer |
+| Broker overload | Ingest slower than publish rate | Batching + QoS tuning |
 
-Key distinction:
+### Validated Configurations
 
-- `dataset_ts` is semantic sensor time
-- `ts` is transport-time metadata for tracing and latency analysis
-- `time` is the database storage timestamp
+| Replay Mode | QoS | Wait for Publish | Result |
+| --- | --- | --- | --- |
+| `fast` | 0 | `false` | Data loss observed |
+| `fast` | 1 | `true` | Correct ingestion |
+| `realtime` | 0 | `false` | Correct ingestion |
+| `realtime` | 1 | `true` | Correct ingestion |
 
-These values serve different purposes and are not interchangeable.
+Recommended for batch validation runs: `fast` + QoS 1 + `wait_for_publish=true`.
 
-### 4.4 Duplicate Handling in Pipeline
+---
 
-Duplicate timestamps are resolved at the earliest stage, inside the dataset loader:
+## 8. Design Decisions
 
-1. the dataset is sorted deterministically
-2. rows are grouped by:
-   - `device`
-   - `recording_id`
-   - `timestamp`
-3. `sample_idx` is assigned using cumulative count
-
-This value is propagated through:
-
-- MQTT payload
-- ingest service
-- InfluxDB storage
-
-This design avoids collision at the storage level and preserves all samples.
-
-### 4.5 Design Decision: Explicit vs Implicit Uniqueness
-
-Two approaches were considered:
-
-1. timestamp modification through nanosecond offsets
-2. explicit indexing through `sample_idx`
-
-The second approach was selected because:
-
-- it preserves the semantic meaning of time
-- it avoids hidden transformations
-- it improves observability and debugging
-- it ensures deterministic behavior
-- it aligns with time-series modeling best practices
-
-### 4.6 Microservice Separation
+### 8.1 Structured vs JSON Storage
 
 | Option | Pros | Cons |
 | --- | --- | --- |
-| Monolith | simple | not scalable |
-| Microservices | scalable, clean separation | more setup |
+| JSON-only | Simple | Not queryable for ML |
+| Structured numeric | SQL-queryable, ML-ready | More design effort |
 
-Microservices were chosen because they make thesis evaluation clearer and keep ingestion independent from later processing stages.
+Structured storage was selected because HAR processing requires direct numeric access to sensor channels.
 
-### 4.7 Separation of Identity and Delivery Guarantees
+### 8.2 Microservice Separation
 
-The system explicitly separates:
+Ingestion and processing are separate services so that each can be developed, tested, and scaled independently. This also makes thesis evaluation clearer by isolating concerns.
 
-| Concern | Mechanism | Purpose |
-| --- | --- | --- |
-| Semantic time | `dataset_ts` | Preserve original recording timeline |
-| Sample identity | `sample_idx` | Distinguish duplicate samples |
-| Storage time | InfluxDB `time` | Support ordered storage |
-| Transport reliability | MQTT QoS + `wait_for_publish` | Control delivery guarantees |
+### 8.3 Separation of Concerns
 
-This separation makes it possible to reason independently about replay fidelity, storage correctness, and transport reliability.
-
----
-
-## 5. Data Integrity And Reliability Considerations
-
-The system distinguishes between two independent concerns that affect correctness.
-
-### 5.1 Data Identity (Storage Layer)
-
-- raw IMU samples may share the same `dataset_ts` within one `(device, recording_id)` group
-- InfluxDB identifies points using `measurement + tags + time`
-- `sample_idx` is required so duplicate samples remain distinct
-- identity is established before data reaches the database
-
-### 5.2 Data Delivery (Transport Layer)
-
-- under high-throughput replay, MQTT QoS 0 with non-blocking publish can lead to data loss
-- EMQX may drop messages when client queues overflow
-- reliable ingestion requires:
-  - QoS 1
-  - `wait_for_publish=true`
-
-### 5.3 Validated Configurations
-
-| Case | Replay Mode | QoS | Wait for Publish | Result |
-| --- | --- | --- | --- | --- |
-| A | `fast` | 0 | `false` | high data loss |
-| B | `fast` | 1 | `true` | correct ingestion |
-| C | `realtime` | 0 | `false` | correct ingestion |
-| D | `realtime` | 1 | `true` | correct ingestion |
-
-### 5.4 Failure Modes Identified
-
-| Failure | Cause | Resolution |
-| --- | --- | --- |
-| Silent data overwrite | duplicate samples with shared timestamp identity | explicit `sample_idx` |
-| Data loss in fast replay | QoS 0 + async publish | QoS 1 + `wait_for_publish` |
-| Throughput bottleneck | per-message HTTP writes | batch writer |
-| Broker overload | ingest slower than publish | batching + QoS tuning |
-
-These findings were critical in transforming the system from a prototype into a validated ingestion pipeline.
+| Concern | Mechanism |
+| --- | --- |
+| Semantic time | `dataset_ts` field |
+| Sample identity | `sample_idx` tag |
+| Storage ordering | InfluxDB `time` |
+| Transport reliability | MQTT QoS + `wait_for_publish` |
 
 ---
 
-## 6. Current Limitations
-
-- HAR processing is not implemented yet
-- real hardware sensors are not integrated yet
-- no custom visualization dashboard exists yet
-- observability currently depends on API endpoints and InfluxDB Explorer
-
-These limitations are intentional because the infrastructure was validated first.
-
-### 6.1 How to Verify the Architecture
-
-To validate system behavior:
-
-1. check ingestion with `GET /stats`
-2. inspect schema with `GET /events/schema`
-3. inspect data in InfluxDB Explorer at `http://localhost:8888`
-4. validate ordering with `/imu?order_by=dataset_ts`
-5. compare published versus stored rows under different QoS settings
-
-### 6.2 Security Considerations
+## 9. Security Considerations
 
 - InfluxDB tokens are stored in `.env` and never hardcoded
-- API inputs are validated before SQL execution
-- internal services communicate via Docker service names
-- only necessary ports are exposed during development
-
----
-
-## 7. Next Step - Phase 3
-
-### HAR Service (Planned)
-
-Responsibilities:
-
-- query sliding windows from InfluxDB
-- run ONNX inference
-- write predictions back
-
-Planned architecture:
-
-```text
-InfluxDB (raw)
-      |
-      v
-HAR Service
-      |
-      v
-InfluxDB (predictions)
-```
-
----
-
-## 8. Summary
-
-The system is now:
-
-- fully Dockerized
-- event-driven
-- structurally decoupled
-- validated with a real dataset
-- protected against silent overwrite through explicit sample identity
-- validated for transport reliability through MQTT experiments
-- ready for ML processing integration
-
-This architecture provides a clean and thesis-defensible foundation for Phase 3.
+- API query parameters are validated before SQL interpolation
+- Internal services communicate via Docker service names
+- Only necessary ports are exposed during development
