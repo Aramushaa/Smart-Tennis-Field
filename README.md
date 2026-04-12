@@ -182,7 +182,8 @@ After startup:
 
 - Do not hardcode InfluxDB tokens in source files
 - Keep secrets in `.env` and never commit real tokens
-- API query parameters are validated before SQL interpolation
+- All query parameters used in SQL construction are validated using strict allowlists to prevent SQL injection
+- Timestamp parameters are validated as ISO-8601 before interpolation
 - Internal services communicate via Docker service names
 
 ---
@@ -217,6 +218,7 @@ docker compose logs emqx ingest-service
 
 - QoS 0 does not guarantee delivery
 - Use `SIDDHA_MQTT_WAIT_FOR_PUBLISH=true` for strict runs
+- The ingest service uses bounded retries for failed batch writes. If failures persist beyond the retry limit, lines are dropped and counted. Check `/health` for `failed_batch_count` and `dropped_line_count`
 - Inspect ingest logs for batch write errors
 
 ---

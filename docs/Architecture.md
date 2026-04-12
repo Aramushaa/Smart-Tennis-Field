@@ -152,6 +152,23 @@ Explicit indexing preserves semantic time, makes identity visible, and aligns wi
 
 This decouples MQTT consumption from persistence and significantly improves throughput.
 
+### Failure Handling
+
+Write failures are handled with bounded retry logic. Failed batches are re-enqueued with a retry counter. After exceeding a maximum retry threshold, data is dropped and reported.
+
+This prevents silent data loss while avoiding infinite retry loops.
+
+### Runtime Metrics
+
+The batch writer exposes runtime metrics:
+
+- `queue_depth` — current number of lines waiting to be written
+- `failed_batch_count` — total batches that failed at least once
+- `retried_line_count` — total lines re-enqueued for retry
+- `dropped_line_count` — total lines dropped after exceeding max retries
+
+These are available via `/health` and `/stats` endpoints and are used to validate ingestion reliability.
+
 ---
 
 ## 7. Data Integrity and Transport Reliability
@@ -207,6 +224,8 @@ Ingestion and processing are separate services so that each can be developed, te
 ## 9. Security Considerations
 
 - InfluxDB tokens are stored in `.env` and never hardcoded
-- API query parameters are validated before SQL interpolation
+- All query parameters used in SQL construction are validated using strict allowlists (alphanumeric, underscore, hyphen) to prevent SQL injection
+- Timestamp parameters are validated as ISO-8601 before interpolation
+- Table and measurement names from environment variables are validated at startup
 - Internal services communicate via Docker service names
 - Only necessary ports are exposed during development

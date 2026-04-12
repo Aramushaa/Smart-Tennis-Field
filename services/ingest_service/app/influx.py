@@ -178,7 +178,8 @@ def _writer_loop() -> None:
             _flush_lines(items)
         except Exception as e:
             _FAILED_BATCH_COUNT += 1
-            print(f"[INFLUX] final batch write error ({len(items)} lines): {e}")
+            print(f"[INFLUX] batch write error | lines={len(items)} | error={e}")
+            print("[INFLUX] retrying failed batch immediately")
             _requeue_failed_items(items)
             break
 
