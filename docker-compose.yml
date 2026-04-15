@@ -54,6 +54,7 @@ services:
       - influxdb3
 
   siddha-sensor-sim:
+    profiles: ["replay"]
     build:
       context: ./services/siddha_sensor_sim
       dockerfile: Dockerfile
@@ -66,6 +67,17 @@ services:
     volumes:
       - ./dataset:/app/dataset:ro
     restart: on-failure
+
+  har-service:
+    build:
+      context: ./services/har_service
+      dockerfile: Dockerfile
+    container_name: har-service
+    env_file:
+      - .env
+    depends_on:
+      - influxdb3
+    restart: unless-stopped
 
 volumes:
   influxdb3_data:

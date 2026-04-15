@@ -59,17 +59,19 @@ def get_imu(
 
     sql = f"""
     SELECT
-        time,
-        device,
-        recording_id,
-        activity_gt,
-        dataset_ts,
-        acc_x,
-        acc_y,
-        acc_z,
-        gyro_x,
-        gyro_y,
-        gyro_z
+        SELECT
+            time,
+            device,
+            recording_id,
+            sample_idx,
+            activity_gt,
+            dataset_ts,
+            acc_x,
+            acc_y,
+            acc_z,
+            gyro_x,
+            gyro_y,
+            gyro_z
     FROM {INFLUX_IMU_TABLE}
     {where_sql}
     ORDER BY {order_by} {order_dir.upper()}

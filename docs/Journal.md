@@ -102,7 +102,9 @@ A dataset subset of ~64,000 rows resulted in only ~5,000 stored rows. Multiple s
 
 **Initial attempt (rejected):** Nanosecond offsets on the storage timestamp. Prevented overwrites but introduced artificial time distortion and made debugging harder.
 
-**Final solution:** Explicit `sample_idx` assigned per duplicate group during dataset loading. Propagated through MQTT → ingest → InfluxDB tags. Validated with ~2M rows: all rows stored, no collisions, consistent queries.
+An explicit `sample_idx` was introduced to make duplicate-order visible and to prevent point collisions during debugging and validation. Later, the Siddha-specific session identifier was strengthened by deriving `recording_id = <activity>_<id>`, reducing ambiguity between labeled sampling sessions that reused the same raw `id`.
+
+In the current validated configuration, `sample_idx` is preserved as a field for inspection and future extensibility, while the active storage identity relies on the derived session identifier plus timestamp and device.
 
 The full identity model is documented in [Architecture.md — Data Identity Model](Architecture.md#5-data-identity-model).
 

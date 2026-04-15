@@ -107,7 +107,7 @@ class SiddhaDatasetLoader:
 
         # Explicit duplicate rank inside each logical timestamp group
         df["sample_idx"] = (
-            df.groupby(["device", "id", "timestamp"]).cumcount()
+            df.groupby(["device", "id", "activity", "timestamp"]).cumcount()
         )
 
         # Replay order stays deterministic
@@ -117,10 +117,13 @@ class SiddhaDatasetLoader:
         )
 
         for _, row in df.iterrows():
+            activity = str(row["activity"])
+            raw_id = str(row["id"])
+
             yield SensorSample(
                 device=str(row["device"]),
-                activity_gt=str(row["activity"]),
-                recording_id=str(row["id"]),
+                activity_gt=activity,
+                recording_id=f"{activity}_{raw_id}",
                 dataset_ts=float(row["timestamp"]),
                 sample_idx=int(row["sample_idx"]),
                 acc_x=float(row["acc_x"]),

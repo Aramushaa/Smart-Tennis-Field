@@ -150,7 +150,7 @@ docker compose up -d
 
 ### Structured IMU
 
-- `GET /imu` — query raw IMU rows with filters: `device`, `recording_id`, `activity_gt`, time range, ordering
+- `GET /imu` — query raw IMU rows with filters: `device`, `recording_id`, `activity_gt`, time range, ordering. For Siddha replay, `recording_id` is a derived value like `A_11`, not the raw numeric `id`.
 
 ### Operational
 
@@ -220,6 +220,7 @@ docker compose logs emqx ingest-service
 - Use `SIDDHA_MQTT_WAIT_FOR_PUBLISH=true` for strict runs
 - The ingest service uses bounded retries for failed batch writes. If failures persist beyond the retry limit, lines are dropped and counted. Check `/health` for `failed_batch_count` and `dropped_line_count`
 - Inspect ingest logs for batch write errors
+- Current Siddha replay uses a derived session identifier (`<activity>_<id>`) to separate labeled sampling sessions. `sample_idx` is preserved as a field for inspection and future schema evolution.
 
 ---
 

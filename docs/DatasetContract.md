@@ -33,13 +33,15 @@ Each validated dataset row is converted into a `SensorSample` dataclass:
 | --- | --- |
 | `device` | `device` |
 | `activity_gt` | `activity` |
-| `recording_id` | `id` |
+| `recording_id` | Derived session identifier: `<activity>_<id>` |
 | `dataset_ts` | `timestamp` |
-| `sample_idx` | Computed per duplicate group |
+| `sample_idx` | Computed duplicate-order index, preserved for inspection and future identity strengthening |
 | `acc_x`, `acc_y`, `acc_z` | `acc_x`, `acc_y`, `acc_z` |
 | `gyro_x`, `gyro_y`, `gyro_z` | `gyro_x`, `gyro_y`, `gyro_z` |
 
 This model is the stable handoff between dataset parsing and MQTT publishing.
+
+For Siddha replay, `recording_id` is derived as `<activity>_<id>` (for example `A_11`) rather than using the raw dataset `id` directly. This avoids ambiguity between labeled sessions that reuse the same raw `id` across different activities.
 
 ---
 
@@ -64,7 +66,7 @@ The simulator publishes JSON payloads with these fields:
 ```json
 {
   "device": "phone",
-  "recording_id": "11",
+  "recording_id": "A_11",
   "activity_gt": "A",
   "dataset_ts": 0.05,
   "sample_idx": 0,
@@ -108,11 +110,13 @@ Each incoming MQTT sample produces two writes:
 
 For the complete `imu_raw` schema, tags, fields, and timestamp derivation, see [Architecture.md — Data Model](Architecture.md#3-data-model).
 
+For the current validated Siddha configuration, `recording_id` is derived as `<activity>_<id>`, while `sample_idx` is retained as a field rather than a tag. This keeps duplicate-order metadata available without making it part of the current storage identity.
+
 ---
 
 ## 8. Replay and Ordering
 
-The simulator replays rows in deterministic order by `recording_id`, `device`, `dataset_ts`, and `sample_idx`, after applying optional filters (`device`, `activity`, `recording_id`).
+The simulator derives a session identifier `<activity>_<id>` and replays rows in deterministic order consistent with session, device, logical timestamp, and duplicate-order index.
 
 Replay controls:
 

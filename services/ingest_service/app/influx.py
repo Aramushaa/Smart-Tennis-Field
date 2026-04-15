@@ -291,7 +291,8 @@ def write_imu_raw_to_influx(payload: dict) -> None:
         )
 
         line = (
-            f"{INFLUX_IMU_TABLE},device={device},recording_id={recording_id},sample_idx={sample_idx} "
+            f"{INFLUX_IMU_TABLE},device={device},recording_id={recording_id} "
+            f"sample_idx={sample_idx}i,"
             f"acc_x={acc_x},acc_y={acc_y},acc_z={acc_z},"
             f"gyro_x={gyro_x},gyro_y={gyro_y},gyro_z={gyro_z},"
             f'dataset_ts={dataset_ts},activity_gt="{escaped_activity_gt}" {ts_epoch}'

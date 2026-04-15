@@ -70,10 +70,10 @@ Tags:
 
 - `device`
 - `recording_id`
-- `sample_idx`
 
 Fields:
 
+- `sample_idx`
 - `acc_x`, `acc_y`, `acc_z`
 - `gyro_x`, `gyro_y`, `gyro_z`
 - `dataset_ts`
@@ -83,10 +83,12 @@ Timestamp:
 
 - Derived from `dataset_ts`: `base_epoch_ns (2024-01-01T00:00:00Z) + dataset_ts_in_nanoseconds`
 
+For Siddha replay, `recording_id` is not the raw dataset `id`. It is a derived session identifier built as `<activity>_<id>` (for example `A_11`). This avoids ambiguity between labeled Siddha sessions that reuse the same raw `id` across different activities.
+
 Example line protocol:
 
 ```text
-imu_raw,device=phone,recording_id=11,sample_idx=2 acc_x=...,acc_y=...,gyro_x=...,dataset_ts=12.35,activity_gt="A" 1704067212350000000
+imu_raw,device=phone,recording_id=A_11 sample_idx=2i,acc_x=...,acc_y=...,acc_z=...,gyro_x=...,gyro_y=...,gyro_z=...,dataset_ts=12.35,activity_gt="A" 1704067212350000000
 ```
 
 ### 3.3 `events` Schema
@@ -106,7 +108,7 @@ The system uses three distinct time concepts plus one identity dimension:
 | `dataset_ts` | Original signal time inside the Siddha recording | Parquet dataset | Signal ordering, HAR windows |
 | `ts` | Wall-clock publish timestamp | Simulator at MQTT publish time | Transport tracing, latency analysis |
 | `time` | InfluxDB point timestamp | Derived from `dataset_ts` by ingest service | Storage ordering |
-| `sample_idx` | Duplicate index within a timestamp group | Dataset loader | Point identity disambiguation |
+| `sample_idx` | Duplicate-order index within a timestamp group | Dataset loader | Inspection, replay analysis, future identity strengthening |
 
 These values serve different purposes and are not interchangeable.
 
@@ -116,23 +118,36 @@ These values serve different purposes and are not interchangeable.
 
 ### 5.1 The Problem
 
-The Siddha dataset contains multiple samples sharing the same `device`, `recording_id`, and `dataset_ts`. Since InfluxDB identifies points using `measurement + tags + time`, samples with identical identity would silently overwrite each other.
+The Siddha dataset can reuse the same raw `id` across different activities, and multiple samples can also share the same logical timestamp within a session. A Siddha-specific session identifier was therefore derived so that replay and storage are keyed by labeled session rather than raw dataset `id`.
 
-### 5.2 The Solution
+### 5.2 Current Storage Identity
 
-An explicit duplicate index (`sample_idx`) is assigned per group during dataset loading:
-
-- `0` → first sample at a given timestamp
-- `1` → second sample
-- `...`
-
-Each sample is uniquely identified by:
+Under the current Siddha replay configuration, InfluxDB point identity is determined by:
 
 ```text
-(device, recording_id, dataset_ts, sample_idx)
+(measurement, device, recording_id, time)
 ```
 
-### 5.3 Why Explicit Indexing Over Timestamp Offsets
+where:
+
+- `recording_id = <activity>_<id>`
+- `time` is derived from `dataset_ts`
+
+`sample_idx` is still computed and stored as a field for inspection and future extensibility, but it is not currently part of point identity.
+
+This design assumes that the tuple `(device, activity, id, dataset_ts)` is unique for the validated Siddha replay configuration.
+
+### 5.3 Preserved Duplicate-Order Metadata
+
+An explicit duplicate-order index (`sample_idx`) is still assigned per group during dataset loading:
+
+- `0` -> first sample at a given timestamp
+- `1` -> second sample
+- `...`
+
+`sample_idx` is preserved as an explicit duplicate-order field so that it can be promoted back to a tag if future datasets or real-time scenarios require stronger point disambiguation.
+
+### 5.4 Why Explicit Indexing Over Timestamp Offsets
 
 An earlier iteration considered nanosecond offsets to prevent collisions. That approach was rejected because:
 
@@ -177,7 +192,7 @@ These are two independent concerns:
 
 | Concern | Risk | Mitigation |
 | --- | --- | --- |
-| Storage identity | Duplicate samples overwrite each other | `sample_idx` tag |
+| Storage identity | Session ambiguity or timestamp collisions | Derived `recording_id` + validated `dataset_ts` uniqueness |
 | Transport delivery | MQTT QoS 0 drops messages under load | QoS 1 + `wait_for_publish` |
 | Write throughput | Per-message HTTP writes bottleneck | Batch writer |
 | Broker overload | Ingest slower than publish rate | Batching + QoS tuning |
@@ -215,7 +230,8 @@ Ingestion and processing are separate services so that each can be developed, te
 | Concern | Mechanism |
 | --- | --- |
 | Semantic time | `dataset_ts` field |
-| Sample identity | `sample_idx` tag |
+| Session identity | Derived `recording_id` tag |
+| Duplicate-order visibility | `sample_idx` field |
 | Storage ordering | InfluxDB `time` |
 | Transport reliability | MQTT QoS + `wait_for_publish` |
 

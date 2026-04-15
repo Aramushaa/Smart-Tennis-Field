@@ -45,7 +45,7 @@ Each phase depends on the previous one: transport must be validated before persi
 
 **Done when:** MQTT events persist in InfluxDB across container restarts, time-range queries work, authentication verified.
 
-**Note:** Data identity was not yet fully addressed. Resolved in Phase 2 with `sample_idx`.
+**Note:** Data identity was not yet fully addressed. Phase 2 finalized the current Siddha identity model with derived session identifiers and preserved duplicate-order metadata.
 
 ---
 
@@ -58,7 +58,8 @@ Each phase depends on the previous one: transport must be validated before persi
 - `siddha-sensor-sim` microservice: reads Parquet, publishes via MQTT with configurable replay modes, filters, and QoS
 - Structured IMU storage in `imu_raw` measurement
 - Batch writer thread replacing per-message HTTP writes
-- Explicit duplicate-sample identity with `sample_idx`
+- Derived Siddha session identifiers (`<activity>_<id>`) to avoid ambiguity between labeled sampling sessions
+- Preserved `sample_idx` metadata for duplicate-order tracking and future schema strengthening
 - Validated end-to-end ingestion with ~2M rows
 
 For the `imu_raw` schema, identity model, and validated configurations, see [Architecture.md](Architecture.md).
@@ -66,7 +67,7 @@ For the `imu_raw` schema, identity model, and validated configurations, see [Arc
 **Done when:**
 
 - No data loss under validated configurations (QoS 1 + `wait_for_publish=true`)
-- Duplicate samples modeled explicitly
+- Session separation and replay ordering validated under the current Siddha identity model
 - Row count matches source dataset
 - Replay order preserved
 - Pipeline deterministic and reproducible
