@@ -7,7 +7,7 @@ Each phase depends on the previous one: transport must be validated before persi
 | Phase 0 — MQTT Infrastructure | Completed |
 | Phase 1 — Ingest + Persistence | Completed |
 | Phase 2 — Dataset Validation | Completed |
-| Phase 3 — HAR Microservice | Next |
+| Phase 3 — HAR Microservice | In Progress — Blocked on model |
 | Phase 4 — Real Edge Gateways | Deferred |
 | Phase 5 — Domain Semantics | Future |
 | Phase 6 — Observability / Evaluation | Ongoing |
@@ -76,7 +76,7 @@ For the `imu_raw` schema, identity model, and validated configurations, see [Arc
 
 ---
 
-## Phase 3 — HAR Processing Microservice (Next)
+## Phase 3 — HAR Processing Microservice (In Progress — Blocked)
 
 **Goal:** Integrate an existing ONNX HAR model as a separate microservice that consumes structured IMU data.
 
@@ -84,19 +84,25 @@ This phase is about integrating an existing ML component into the architecture, 
 
 **Deliverables:**
 
-- `har_service` Docker container
-- Sliding-window extraction from InfluxDB (DB polling, not MQTT streaming)
-- Model input conversion:
-
-```python
-accelerometer = {"x": [...], "y": [...], "z": [...]}
-gyroscope = {"x": [...], "y": [...], "z": [...]}
-```
-
-- ONNX inference using `L2MU_plain_leaky.onnx`
-- Predictions written back to InfluxDB
+- [x] `har_service` Docker container
+- [x] Sliding-window extraction from InfluxDB (DB polling, not MQTT streaming)
+- [x] Model input conversion (accelerometer + gyroscope arrays)
+- [x] ONNX inference pipeline using `L2MU_plain_leaky.onnx`
+- [x] Comprehensive model evaluation tooling
+- [ ] Predictions written back to InfluxDB (blocked on functional model)
 
 **Data access:** DB polling over MQTT streaming — deterministic, reproducible, easier to evaluate.
+
+**Model evaluation results:**
+
+The provided ONNX model was evaluated across all 18 Siddha activities (360 prediction windows). Results:
+
+- 15.0% accuracy on its own 7 labeled activities (random chance = 14.3%)
+- Model collapsed into binary catch/dribbling classifier
+- Exhaustive fix search (5040 label permutations × 6 aggregation methods × 4 input formats × 2 devices) yielded maximum 31.4% accuracy
+- Conclusion: training-level failure, not integration error
+
+Full analysis: [Result.md](../Result.md)
 
 **Target metrics:**
 
@@ -105,7 +111,9 @@ gyroscope = {"x": [...], "y": [...], "z": [...]}
 - Throughput (windows/second)
 - CPU usage under load
 
-**Done when:** ONNX model runs in Docker, predictions stored in a separate measurement, HAR remains decoupled from ingest-service.
+**Blocked on:** Clarification from the professor regarding model training parameters (preprocessing, normalization, channel order, aggregation method, training accuracy).
+
+**Done when:** ONNX model runs in Docker with acceptable accuracy, predictions stored in a separate measurement, HAR remains decoupled from ingest-service.
 
 ---
 

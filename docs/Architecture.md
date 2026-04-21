@@ -51,6 +51,33 @@ Time-series storage layer. Stores structured IMU data and generic event logs.
 
 Query and inspection UI for manual debugging and schema validation.
 
+### 2.6 har-service (HAR Processing Microservice)
+
+Decoupled activity recognition processor. Polls InfluxDB for structured IMU data, builds sliding windows, and runs ONNX model inference.
+
+Design choices:
+
+- **DB polling over MQTT streaming:** Operates on stored, validated data for deterministic and reproducible results
+- **Adapter pattern:** The professor's `inference_engine.py` is wrapped in `HarInferenceAdapter` to capture predictions as return values without modifying the original file
+- **Configurable pipeline:** Window size, stride, query limits, device/recording filters are all environment-driven
+
+Processing pipeline:
+
+```text
+InfluxDB (imu_raw) -> Query -> Group by device/recording -> Sliding windows -> ONNX inference -> Predictions
+```
+
+Configuration (via `HAR_` prefixed env vars):
+
+| Setting | Default | Purpose |
+|---------|---------|---------|
+| `HAR_WINDOW_SIZE` | 40 | Samples per inference window |
+| `HAR_WINDOW_STRIDE` | 20 | Stride between windows |
+| `HAR_QUERY_LIMIT` | 5000 | Max rows per poll cycle |
+| `HAR_MAX_WINDOWS_PER_STREAM` | 10 | Max windows evaluated per device/recording stream |
+| `HAR_FILTER_DEVICE` | (none) | Optional device filter |
+| `HAR_FILTER_RECORDING_ID` | (none) | Optional recording session filter |
+
 ---
 
 ## 3. Data Model

@@ -26,7 +26,7 @@ Data -> Broker -> Storage -> Processing -> Storage -> API
 | `influxdb3`          | Time-series database                            | Stable        |
 | `influxdb3-explorer` | Explorer UI for schema and query inspection     | Stable        |
 | `siddha-sensor-sim`  | Dataset-driven MQTT simulator                   | Stable        |
-| `har-service`        | Activity recognition processor                  | Current phase |
+| `har-service`        | Activity recognition processor                  | In Progress — Blocked on model |
 
 ---
 
@@ -38,6 +38,7 @@ Data -> Broker -> Storage -> Processing -> Storage -> API
 | [DatasetContract.md](docs/DatasetContract.md) | Dataset mapping rules: Parquet → MQTT → InfluxDB         |
 | [Phases.md](docs/Phases.md)                   | Roadmap and thesis direction                             |
 | [Journal.md](docs/Journal.md)                 | Development narrative and lessons learned                |
+| [Result.md](Result.md)                        | HAR model evaluation findings and fix attempts           |
 
 ---
 
@@ -54,7 +55,7 @@ docs/
 services/
   ingest_service/
   siddha_sensor_sim/
-  har_service/        # next phase
+  har_service/        # in progress
 
 dataset/
   data.parquet
@@ -205,10 +206,12 @@ docker compose logs emqx ingest-service
 
 ## Current Status
 
-| Component                   | Status      |
-| --------------------------- | ----------- |
-| MQTT infrastructure         | Stable      |
-| Ingest service              | Stable      |
-| Dataset validation pipeline | Completed   |
-| Batch writer                | Implemented |
-| HAR service                 | Next        |
+| Component                   | Status                         |
+| --------------------------- | ------------------------------ |
+| MQTT infrastructure         | Stable                         |
+| Ingest service              | Stable                         |
+| Dataset validation pipeline | Completed                      |
+| Batch writer                | Implemented                    |
+| HAR service integration     | Completed                      |
+| HAR model evaluation        | Completed — model non-functional |
+| HAR prediction storage      | Blocked on functional model    |

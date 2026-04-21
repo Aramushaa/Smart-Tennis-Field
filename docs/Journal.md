@@ -216,10 +216,10 @@ Data loss can occur at two independent layers: storage (silent overwrites from i
 
 ---
 
-## 6. Conclusion
+## 7. Conclusion
 
-From Phase 0 to Phase 2, the project evolved from a simple MQTT transport experiment into a validated distributed infrastructure capable of ingesting, storing, and preparing real sensor data for downstream AI processing.
+From Phase 0 to Phase 3, the project evolved from a simple MQTT transport experiment into a validated distributed infrastructure with a decoupled ML processing layer.
 
-The most important outcome is not just that data moved through the system, but that the pipeline became structured, measurable, reproducible, and explicitly modeled in terms of data identity.
+Phases 0–2 established reliable data transport, structured persistence, and reproducible replay. Phase 3 introduced the HAR processing microservice and revealed that the provided ONNX model requires resolution of training-level issues before production deployment. The integration code, windowing pipeline, and evaluation tooling are complete and validated — waiting only on a functional model.
 
-This creates the foundation for Phase 3, where the focus shifts from ingestion reliability to decoupled HAR processing.
+The most important outcome is not just that data moved through the system, but that the pipeline became structured, measurable, reproducible, and capable of evaluating ML model quality as part of the integration process.
