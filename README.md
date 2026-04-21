@@ -19,25 +19,25 @@ Data -> Broker -> Storage -> Processing -> Storage -> API
 
 ## Services
 
-| Service | Role | Status |
-| --- | --- | --- |
-| `emqx` | MQTT broker | Stable |
-| `ingest-service` | MQTT consumer, normalization, batch persistence | Stable |
-| `influxdb3` | Time-series database | Stable |
-| `influxdb3-explorer` | Explorer UI for schema and query inspection | Stable |
-| `siddha-sensor-sim` | Dataset-driven MQTT simulator | Stable |
-| `har-service` | Activity recognition processor | Next phase |
+| Service              | Role                                            | Status        |
+| -------------------- | ----------------------------------------------- | ------------- |
+| `emqx`               | MQTT broker                                     | Stable        |
+| `ingest-service`     | MQTT consumer, normalization, batch persistence | Stable        |
+| `influxdb3`          | Time-series database                            | Stable        |
+| `influxdb3-explorer` | Explorer UI for schema and query inspection     | Stable        |
+| `siddha-sensor-sim`  | Dataset-driven MQTT simulator                   | Stable        |
+| `har-service`        | Activity recognition processor                  | Current phase |
 
 ---
 
 ## Documentation
 
-| Document | Purpose |
-| --- | --- |
-| [Architecture.md](docs/Architecture.md) | Components, data model, design decisions, identity model |
-| [DatasetContract.md](docs/DatasetContract.md) | Dataset mapping rules: Parquet → MQTT → InfluxDB |
-| [Phases.md](docs/Phases.md) | Roadmap and thesis direction |
-| [Journal.md](docs/Journal.md) | Development narrative and lessons learned |
+| Document                                      | Purpose                                                  |
+| --------------------------------------------- | -------------------------------------------------------- |
+| [Architecture.md](docs/Architecture.md)       | Components, data model, design decisions, identity model |
+| [DatasetContract.md](docs/DatasetContract.md) | Dataset mapping rules: Parquet → MQTT → InfluxDB         |
+| [Phases.md](docs/Phases.md)                   | Roadmap and thesis direction                             |
+| [Journal.md](docs/Journal.md)                 | Development narrative and lessons learned                |
 
 ---
 
@@ -84,28 +84,7 @@ docker exec -it influxdb3 influxdb3 create token --admin
 
 ### 3. Configure `.env`
 
-```env
-INFLUX_ENABLED=1
-INFLUX_TOKEN=YOUR_TOKEN
-INFLUX_DATABASE=tennis_phase2_qos1
-INFLUX_TABLE=events
-INFLUX_IMU_TABLE=imu_raw
-INFLUX_BATCH_SIZE=3000
-INFLUX_FLUSH_INTERVAL_MS=500
-
-SIDDHA_MQTT_BROKER_HOST=emqx
-SIDDHA_MQTT_BROKER_PORT=1883
-SIDDHA_DATASET_PATH=/app/dataset/data.parquet
-SIDDHA_REPLAY_MODE=fast
-SIDDHA_REPLAY_SPEED=1.0
-SIDDHA_MQTT_QOS=1
-SIDDHA_MQTT_WAIT_FOR_PUBLISH=true
-SIDDHA_LOOP_FOREVER=false
-
-SIDDHA_DEFAULT_DEVICE_FILTER=
-SIDDHA_DEFAULT_ACTIVITY_FILTER=
-SIDDHA_DEFAULT_RECORDING_ID_FILTER=
-```
+.env.example is an example of how .env file should be. You can copy it to .env and modify it.
 
 ### 4. Restart after changing `.env`
 
@@ -123,12 +102,12 @@ docker compose up -d
 
 ## Endpoints
 
-| Service | URL |
-| --- | --- |
-| EMQX Dashboard | `http://localhost:18083` |
-| InfluxDB 3 | `http://localhost:8181` |
-| InfluxDB 3 Explorer | `http://localhost:8888` |
-| Ingest API | `http://localhost:8000` |
+| Service             | URL                      |
+| ------------------- | ------------------------ |
+| EMQX Dashboard      | `http://localhost:18083` |
+| InfluxDB 3          | `http://localhost:8181`  |
+| InfluxDB 3 Explorer | `http://localhost:8888`  |
+| Ingest API          | `http://localhost:8000`  |
 
 ### Docker Networking
 
@@ -226,10 +205,10 @@ docker compose logs emqx ingest-service
 
 ## Current Status
 
-| Component | Status |
-| --- | --- |
-| MQTT infrastructure | Stable |
-| Ingest service | Stable |
-| Dataset validation pipeline | Completed |
-| Batch writer | Implemented |
-| HAR service | Next |
+| Component                   | Status      |
+| --------------------------- | ----------- |
+| MQTT infrastructure         | Stable      |
+| Ingest service              | Stable      |
+| Dataset validation pipeline | Completed   |
+| Batch writer                | Implemented |
+| HAR service                 | Next        |

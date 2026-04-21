@@ -1,0 +1,525 @@
+﻿================================================================================
+HAR MODEL COMPREHENSIVE EVALUATION
+================================================================================
+Model      : C:\Users\Arash\VsCodeProjects\IOT\smart-tennis-field\services\har_service\model\L2MU_plain_leaky.onnx
+Labels     : ['dribbling', 'catch', 'typing', 'writing', 'clapping', 'teeth', 'folding']
+InfluxDB   : http://localhost:8181
+Database   : tennis
+Table      : imu_raw_full_rows
+Window     : 40 samples, stride 20
+
+Loading ONNX model...
+Model loaded successfully.
+
+Discovering activities in database...
+Found 18 activity codes: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'O', 'P', 'Q', 'R', 'S']
+
+----------------------------------------------------------------------
+ACTIVITY: A = Walking
+----------------------------------------------------------------------
+  recording_id=A_15 | rows=500 | gt_codes_in_data={'A'}
+    window[ 0] | pred=dribbling    | conf= 99.9% | top3=[('dribbling', 99.93000030517578), ('catch', 0.05999999865889549), ('writing', 0.0)]
+    window[ 1] | pred=dribbling    | conf= 98.0% | top3=[('dribbling', 98.0), ('catch', 1.9800000190734863), ('typing', 0.0)]
+    window[ 2] | pred=dribbling    | conf= 95.2% | top3=[('dribbling', 95.25), ('catch', 4.739999771118164), ('typing', 0.0)]
+    window[ 3] | pred=dribbling    | conf= 98.0% | top3=[('dribbling', 98.0), ('catch', 1.9800000190734863), ('writing', 0.009999999776482582)]
+    window[ 4] | pred=dribbling    | conf= 81.7% | top3=[('dribbling', 81.7300033569336), ('catch', 18.239999771118164), ('clapping', 0.019999999552965164)]
+    window[ 5] | pred=dribbling    | conf= 98.9% | top3=[('dribbling', 98.87999725341797), ('catch', 1.100000023841858), ('clapping', 0.009999999776482582)]
+    window[ 6] | pred=dribbling    | conf= 99.7% | top3=[('dribbling', 99.6500015258789), ('catch', 0.33000001311302185), ('clapping', 0.019999999552965164)]
+    window[ 7] | pred=dribbling    | conf= 97.2% | top3=[('dribbling', 97.19999694824219), ('catch', 2.6600000858306885), ('clapping', 0.12999999523162842)]
+    window[ 8] | pred=dribbling    | conf= 93.2% | top3=[('dribbling', 93.16000366210938), ('catch', 6.260000228881836), ('clapping', 0.5699999928474426)]
+    window[ 9] | pred=dribbling    | conf= 81.6% | top3=[('dribbling', 81.56999969482422), ('catch', 18.200000762939453), ('clapping', 0.20000000298023224)]
+    window[10] | pred=dribbling    | conf= 71.0% | top3=[('dribbling', 71.04000091552734), ('catch', 28.8799991607666), ('clapping', 0.05000000074505806)]
+    window[11] | pred=dribbling    | conf= 97.3% | top3=[('dribbling', 97.2699966430664), ('catch', 2.6600000858306885), ('clapping', 0.05000000074505806)]
+    window[12] | pred=dribbling    | conf= 95.2% | top3=[('dribbling', 95.19000244140625), ('catch', 4.739999771118164), ('clapping', 0.05000000074505806)]
+    window[13] | pred=dribbling    | conf= 99.6% | top3=[('dribbling', 99.62000274658203), ('catch', 0.33000001311302185), ('clapping', 0.03999999910593033)]
+    window[14] | pred=dribbling    | conf= 99.7% | top3=[('dribbling', 99.72000122070312), ('catch', 0.25), ('clapping', 0.019999999552965164)]
+    window[15] | pred=dribbling    | conf= 99.5% | top3=[('dribbling', 99.47000122070312), ('catch', 0.33000001311302185), ('clapping', 0.18000000715255737)]
+    window[16] | pred=dribbling    | conf= 97.9% | top3=[('dribbling', 97.94000244140625), ('catch', 1.9800000190734863), ('clapping', 0.05000000074505806)]
+    window[17] | pred=dribbling    | conf= 85.5% | top3=[('dribbling', 85.45999908447266), ('catch', 14.130000114440918), ('clapping', 0.38999998569488525)]
+    window[18] | pred=dribbling    | conf= 97.9% | top3=[('dribbling', 97.93000030517578), ('catch', 1.9800000190734863), ('clapping', 0.07000000029802322)]
+    window[19] | pred=dribbling    | conf= 98.5% | top3=[('dribbling', 98.5), ('catch', 1.4800000190734863), ('clapping', 0.019999999552965164)]
+  Total windows tested for A: 20
+
+----------------------------------------------------------------------
+ACTIVITY: B = Jogging
+----------------------------------------------------------------------
+  recording_id=B_12 | rows=500 | gt_codes_in_data={'B'}
+    window[ 0] | pred=catch        | conf= 97.1% | top3=[('catch', 97.06999969482422), ('dribbling', 2.6500000953674316), ('clapping', 0.23999999463558197)]
+    window[ 1] | pred=catch        | conf= 99.4% | top3=[('catch', 99.38999938964844), ('clapping', 0.33000001311302185), ('dribbling', 0.25)]
+    window[ 2] | pred=catch        | conf= 94.2% | top3=[('catch', 94.2300033569336), ('dribbling', 4.690000057220459), ('clapping', 0.7799999713897705)]
+    window[ 3] | pred=catch        | conf= 91.0% | top3=[('catch', 91.0), ('dribbling', 6.119999885559082), ('clapping', 2.490000009536743)]
+    window[ 4] | pred=catch        | conf= 74.7% | top3=[('catch', 74.66999816894531), ('clapping', 12.34000015258789), ('dribbling', 12.34000015258789)]
+    window[ 5] | pred=catch        | conf= 81.5% | top3=[('catch', 81.45999908447266), ('dribbling', 9.979999542236328), ('clapping', 7.389999866485596)]
+    window[ 6] | pred=catch        | conf= 99.8% | top3=[('catch', 99.75), ('clapping', 0.18000000715255737), ('dribbling', 0.03999999910593033)]
+    window[ 7] | pred=catch        | conf= 95.5% | top3=[('catch', 95.52999877929688), ('clapping', 3.5199999809265137), ('dribbling', 0.7900000214576721)]
+    window[ 8] | pred=catch        | conf= 98.3% | top3=[('catch', 98.30999755859375), ('clapping', 0.8100000023841858), ('dribbling', 0.6000000238418579)]
+    window[ 9] | pred=catch        | conf= 97.6% | top3=[('catch', 97.5999984741211), ('clapping', 1.4600000381469727), ('dribbling', 0.800000011920929)]
+    window[10] | pred=catch        | conf= 58.0% | top3=[('catch', 57.970001220703125), ('dribbling', 31.81999969482422), ('clapping', 9.579999923706055)]
+    window[11] | pred=catch        | conf= 69.2% | top3=[('catch', 69.16000366210938), ('dribbling', 28.1200008392334), ('clapping', 1.8899999856948853)]
+    window[12] | pred=catch        | conf= 99.2% | top3=[('catch', 99.2300033569336), ('clapping', 0.44999998807907104), ('dribbling', 0.18000000715255737)]
+    window[13] | pred=catch        | conf= 99.3% | top3=[('catch', 99.27999877929688), ('clapping', 0.6100000143051147), ('dribbling', 0.07000000029802322)]
+    window[14] | pred=catch        | conf= 97.6% | top3=[('catch', 97.62999725341797), ('dribbling', 1.4600000381469727), ('clapping', 0.800000011920929)]
+    window[15] | pred=catch        | conf= 98.3% | top3=[('catch', 98.29000091552734), ('dribbling', 1.090000033378601), ('clapping', 0.4399999976158142)]
+    window[16] | pred=catch        | conf= 86.0% | top3=[('catch', 86.0), ('dribbling', 7.800000190734863), ('clapping', 5.78000020980835)]
+    window[17] | pred=catch        | conf= 82.1% | top3=[('catch', 82.08000183105469), ('clapping', 10.050000190734863), ('dribbling', 7.449999809265137)]
+    window[18] | pred=catch        | conf= 89.6% | top3=[('catch', 89.58000183105469), ('dribbling', 8.130000114440918), ('clapping', 1.340000033378601)]
+    window[19] | pred=catch        | conf= 63.8% | top3=[('catch', 63.77000045776367), ('dribbling', 35.0), ('clapping', 0.9599999785423279)]
+  Total windows tested for B: 20
+
+----------------------------------------------------------------------
+ACTIVITY: C = Stairs
+----------------------------------------------------------------------
+  recording_id=C_25 | rows=500 | gt_codes_in_data={'C'}
+    window[ 0] | pred=catch        | conf= 57.8% | top3=[('catch', 57.849998474121094), ('dribbling', 31.75), ('folding', 9.5600004196167)]
+    window[ 1] | pred=catch        | conf= 93.4% | top3=[('catch', 93.4000015258789), ('dribbling', 6.28000020980835), ('clapping', 0.09000000357627869)]
+    window[ 2] | pred=catch        | conf= 97.3% | top3=[('catch', 97.30999755859375), ('dribbling', 1.9700000286102295), ('clapping', 0.33000001311302185)]
+    window[ 3] | pred=catch        | conf= 96.0% | top3=[('catch', 96.0), ('dribbling', 3.5399999618530273), ('folding', 0.18000000715255737)]
+    window[ 4] | pred=catch        | conf= 98.3% | top3=[('catch', 98.26000213623047), ('dribbling', 1.4700000286102295), ('folding', 0.07000000029802322)]
+    window[ 5] | pred=catch        | conf= 99.8% | top3=[('catch', 99.77999877929688), ('dribbling', 0.18000000715255737), ('clapping', 0.019999999552965164)]
+    window[ 6] | pred=catch        | conf= 99.0% | top3=[('catch', 99.0), ('dribbling', 0.8100000023841858), ('clapping', 0.07000000029802322)]
+    window[ 7] | pred=catch        | conf= 99.7% | top3=[('catch', 99.73999786376953), ('dribbling', 0.25), ('clapping', 0.009999999776482582)]
+    window[ 8] | pred=catch        | conf= 97.2% | top3=[('catch', 97.2300033569336), ('dribbling', 2.6600000858306885), ('folding', 0.019999999552965164)]
+    window[ 9] | pred=catch        | conf= 98.4% | top3=[('catch', 98.43000030517578), ('dribbling', 1.4800000190734863), ('clapping', 0.05000000074505806)]
+    window[10] | pred=catch        | conf= 64.5% | top3=[('catch', 64.45999908447266), ('dribbling', 35.369998931884766), ('clapping', 0.05999999865889549)]
+    window[11] | pred=catch        | conf= 93.7% | top3=[('catch', 93.68000030517578), ('dribbling', 6.300000190734863), ('clapping', 0.009999999776482582)]
+    window[12] | pred=catch        | conf= 64.5% | top3=[('catch', 64.45999908447266), ('dribbling', 35.380001068115234), ('clapping', 0.09000000357627869)]
+    window[13] | pred=catch        | conf= 94.7% | top3=[('catch', 94.72000122070312), ('dribbling', 4.71999979019165), ('typing', 0.23000000417232513)]
+    window[14] | pred=catch        | conf= 79.4% | top3=[('catch', 79.41999816894531), ('dribbling', 17.719999313354492), ('folding', 2.1700000762939453)]
+    window[15] | pred=catch        | conf= 67.8% | top3=[('catch', 67.75), ('dribbling', 27.549999237060547), ('folding', 3.369999885559082)]
+    window[16] | pred=catch        | conf= 87.8% | top3=[('catch', 87.77999877929688), ('dribbling', 10.75), ('folding', 0.5400000214576721)]
+    window[17] | pred=catch        | conf= 84.7% | top3=[('catch', 84.66999816894531), ('dribbling', 14.0), ('clapping', 0.5199999809265137)]
+    window[18] | pred=catch        | conf= 73.3% | top3=[('catch', 73.33999633789062), ('dribbling', 22.09000015258789), ('folding', 2.700000047683716)]
+    window[19] | pred=catch        | conf= 98.2% | top3=[('catch', 98.19000244140625), ('dribbling', 1.4700000286102295), ('folding', 0.18000000715255737)]
+  Total windows tested for C: 20
+
+----------------------------------------------------------------------
+ACTIVITY: D = Sitting
+----------------------------------------------------------------------
+  recording_id=D_18 | rows=500 | gt_codes_in_data={'D'}
+    window[ 0] | pred=catch        | conf= 99.9% | top3=[('catch', 99.86000061035156), ('dribbling', 0.14000000059604645), ('clapping', 0.0)]
+    window[ 1] | pred=catch        | conf=100.0% | top3=[('catch', 99.9800033569336), ('clapping', 0.019999999552965164), ('typing', 0.0)]
+    window[ 2] | pred=catch        | conf= 99.9% | top3=[('catch', 99.91999816894531), ('clapping', 0.07000000029802322), ('dribbling', 0.0)]
+    window[ 3] | pred=catch        | conf=100.0% | top3=[('catch', 99.9800033569336), ('clapping', 0.009999999776482582), ('dribbling', 0.0)]
+    window[ 4] | pred=catch        | conf= 99.8% | top3=[('catch', 99.8499984741211), ('typing', 0.14000000059604645), ('dribbling', 0.009999999776482582)]
+    window[ 5] | pred=catch        | conf= 99.5% | top3=[('catch', 99.54000091552734), ('typing', 0.44999998807907104), ('dribbling', 0.009999999776482582)]
+    window[ 6] | pred=catch        | conf= 98.9% | top3=[('catch', 98.9000015258789), ('typing', 1.100000023841858), ('dribbling', 0.0)]
+    window[ 7] | pred=catch        | conf= 81.8% | top3=[('catch', 81.75), ('typing', 18.239999771118164), ('dribbling', 0.0)]
+    window[ 8] | pred=catch        | conf= 93.7% | top3=[('catch', 93.69000244140625), ('typing', 6.300000190734863), ('dribbling', 0.009999999776482582)]
+    window[ 9] | pred=catch        | conf= 99.7% | top3=[('catch', 99.70999908447266), ('typing', 0.25), ('dribbling', 0.03999999910593033)]
+    window[10] | pred=catch        | conf=100.0% | top3=[('catch', 99.9800033569336), ('typing', 0.009999999776482582), ('dribbling', 0.009999999776482582)]
+    window[11] | pred=catch        | conf=100.0% | top3=[('catch', 99.97000122070312), ('dribbling', 0.029999999329447746), ('typing', 0.0)]
+    window[12] | pred=catch        | conf=100.0% | top3=[('catch', 99.97000122070312), ('dribbling', 0.029999999329447746), ('typing', 0.0)]
+    window[13] | pred=catch        | conf=100.0% | top3=[('catch', 99.9800033569336), ('dribbling', 0.019999999552965164), ('typing', 0.0)]
+    window[14] | pred=catch        | conf=100.0% | top3=[('catch', 99.9800033569336), ('dribbling', 0.009999999776482582), ('typing', 0.0)]
+    window[15] | pred=catch        | conf=100.0% | top3=[('catch', 99.98999786376953), ('dribbling', 0.009999999776482582), ('typing', 0.0)]
+    window[16] | pred=catch        | conf=100.0% | top3=[('catch', 99.97000122070312), ('dribbling', 0.019999999552965164), ('typing', 0.0)]
+    window[17] | pred=catch        | conf=100.0% | top3=[('catch', 99.97000122070312), ('dribbling', 0.019999999552965164), ('typing', 0.0)]
+    window[18] | pred=catch        | conf=100.0% | top3=[('catch', 99.98999786376953), ('dribbling', 0.009999999776482582), ('typing', 0.0)]
+    window[19] | pred=catch        | conf=100.0% | top3=[('catch', 99.9800033569336), ('dribbling', 0.019999999552965164), ('typing', 0.0)]
+  Total windows tested for D: 20
+
+----------------------------------------------------------------------
+ACTIVITY: E = Standing
+----------------------------------------------------------------------
+  recording_id=E_20 | rows=500 | gt_codes_in_data={'E'}
+    window[ 0] | pred=catch        | conf= 64.4% | top3=[('catch', 64.37999725341797), ('dribbling', 35.33000183105469), ('writing', 0.11999999731779099)]
+    window[ 1] | pred=catch        | conf= 85.3% | top3=[('catch', 85.2699966430664), ('dribbling', 14.100000381469727), ('typing', 0.38999998569488525)]
+    window[ 2] | pred=catch        | conf= 59.8% | top3=[('catch', 59.779998779296875), ('dribbling', 32.810001373291016), ('typing', 7.320000171661377)]
+    window[ 3] | pred=catch        | conf= 88.5% | top3=[('catch', 88.4800033569336), ('dribbling', 10.84000015258789), ('typing', 0.5400000214576721)]
+    window[ 4] | pred=catch        | conf= 82.1% | top3=[('catch', 82.0999984741211), ('dribbling', 13.569999694824219), ('typing', 4.090000152587891)]
+    window[ 5] | pred=dribbling    | conf= 48.7% | top3=[('catch', 48.709999084472656), ('dribbling', 48.709999084472656), ('typing', 1.7999999523162842)]
+    window[ 6] | pred=dribbling    | conf= 49.6% | top3=[('catch', 49.619998931884766), ('dribbling', 49.619998931884766), ('typing', 0.550000011920929)]
+    window[ 7] | pred=dribbling    | conf= 64.0% | top3=[('dribbling', 64.0199966430664), ('catch', 35.13999938964844), ('typing', 0.5299999713897705)]
+    window[ 8] | pred=catch        | conf= 80.2% | top3=[('catch', 80.19000244140625), ('dribbling', 17.889999389648438), ('typing', 1.6200000047683716)]
+    window[ 9] | pred=catch        | conf= 98.8% | top3=[('catch', 98.80999755859375), ('dribbling', 1.100000023841858), ('typing', 0.029999999329447746)]
+    window[10] | pred=catch        | conf= 81.7% | top3=[('catch', 81.66999816894531), ('dribbling', 18.219999313354492), ('clapping', 0.019999999552965164)]
+    window[11] | pred=catch        | conf= 96.4% | top3=[('catch', 96.41000366210938), ('dribbling', 3.559999942779541), ('writing', 0.019999999552965164)]
+    window[12] | pred=catch        | conf= 96.4% | top3=[('catch', 96.4000015258789), ('dribbling', 3.559999942779541), ('writing', 0.019999999552965164)]
+    window[13] | pred=dribbling    | conf= 57.4% | top3=[('dribbling', 57.380001068115234), ('catch', 42.5099983215332), ('folding', 0.019999999552965164)]
+    window[14] | pred=dribbling    | conf= 57.3% | top3=[('dribbling', 57.349998474121094), ('catch', 42.47999954223633), ('writing', 0.03999999910593033)]
+    window[15] | pred=catch        | conf= 89.0% | top3=[('catch', 88.98999786376953), ('dribbling', 10.899999618530273), ('writing', 0.03999999910593033)]
+    window[16] | pred=dribbling    | conf= 76.8% | top3=[('dribbling', 76.79000091552734), ('catch', 23.1299991607666), ('writing', 0.019999999552965164)]
+    window[17] | pred=dribbling    | conf= 64.4% | top3=[('dribbling', 64.44999694824219), ('catch', 35.369998931884766), ('folding', 0.05000000074505806)]
+    window[18] | pred=dribbling    | conf= 81.7% | top3=[('dribbling', 81.72000122070312), ('catch', 18.239999771118164), ('folding', 0.009999999776482582)]
+    window[19] | pred=dribbling    | conf= 71.1% | top3=[('dribbling', 71.06999969482422), ('catch', 28.899999618530273), ('folding', 0.009999999776482582)]
+  Total windows tested for E: 20
+
+----------------------------------------------------------------------
+ACTIVITY: F = Typing
+----------------------------------------------------------------------
+  recording_id=F_0 | rows=500 | gt_codes_in_data={'F'}
+    window[ 0] | pred=catch        | conf=100.0% | top3=[('catch', 99.98999786376953), ('dribbling', 0.009999999776482582), ('folding', 0.0)] WRONG (expected: typing)
+    window[ 1] | pred=catch        | conf=100.0% | top3=[('catch', 99.98999786376953), ('dribbling', 0.009999999776482582), ('folding', 0.0)] WRONG (expected: typing)
+    window[ 2] | pred=catch        | conf=100.0% | top3=[('catch', 99.98999786376953), ('dribbling', 0.009999999776482582), ('folding', 0.0)] WRONG (expected: typing)
+    window[ 3] | pred=catch        | conf=100.0% | top3=[('catch', 99.98999786376953), ('dribbling', 0.009999999776482582), ('typing', 0.0)] WRONG (expected: typing)
+    window[ 4] | pred=catch        | conf=100.0% | top3=[('catch', 99.9800033569336), ('dribbling', 0.019999999552965164), ('typing', 0.0)] WRONG (expected: typing)
+    window[ 5] | pred=catch        | conf=100.0% | top3=[('catch', 99.9800033569336), ('dribbling', 0.009999999776482582), ('typing', 0.0)] WRONG (expected: typing)
+    window[ 6] | pred=catch        | conf=100.0% | top3=[('catch', 99.9800033569336), ('dribbling', 0.009999999776482582), ('typing', 0.0)] WRONG (expected: typing)
+    window[ 7] | pred=catch        | conf=100.0% | top3=[('catch', 99.98999786376953), ('dribbling', 0.009999999776482582), ('typing', 0.0)] WRONG (expected: typing)
+    window[ 8] | pred=catch        | conf=100.0% | top3=[('catch', 99.98999786376953), ('dribbling', 0.009999999776482582), ('typing', 0.0)] WRONG (expected: typing)
+    window[ 9] | pred=catch        | conf=100.0% | top3=[('catch', 99.9800033569336), ('dribbling', 0.009999999776482582), ('typing', 0.0)] WRONG (expected: typing)
+    window[10] | pred=catch        | conf=100.0% | top3=[('catch', 99.9800033569336), ('dribbling', 0.019999999552965164), ('typing', 0.0)] WRONG (expected: typing)
+    window[11] | pred=catch        | conf=100.0% | top3=[('catch', 99.9800033569336), ('dribbling', 0.019999999552965164), ('typing', 0.0)] WRONG (expected: typing)
+    window[12] | pred=catch        | conf=100.0% | top3=[('catch', 99.9800033569336), ('dribbling', 0.009999999776482582), ('typing', 0.0)] WRONG (expected: typing)
+    window[13] | pred=catch        | conf=100.0% | top3=[('catch', 99.9800033569336), ('dribbling', 0.009999999776482582), ('writing', 0.0)] WRONG (expected: typing)
+    window[14] | pred=catch        | conf=100.0% | top3=[('catch', 99.97000122070312), ('dribbling', 0.029999999329447746), ('typing', 0.0)] WRONG (expected: typing)
+    window[15] | pred=catch        | conf=100.0% | top3=[('catch', 99.97000122070312), ('dribbling', 0.029999999329447746), ('typing', 0.0)] WRONG (expected: typing)
+    window[16] | pred=catch        | conf=100.0% | top3=[('catch', 99.97000122070312), ('dribbling', 0.019999999552965164), ('folding', 0.0)] WRONG (expected: typing)
+    window[17] | pred=catch        | conf=100.0% | top3=[('catch', 99.97000122070312), ('dribbling', 0.019999999552965164), ('typing', 0.0)] WRONG (expected: typing)
+    window[18] | pred=catch        | conf=100.0% | top3=[('catch', 99.9800033569336), ('dribbling', 0.019999999552965164), ('typing', 0.0)] WRONG (expected: typing)
+    window[19] | pred=catch        | conf=100.0% | top3=[('catch', 99.97000122070312), ('dribbling', 0.019999999552965164), ('typing', 0.0)] WRONG (expected: typing)
+  Total windows tested for F: 20
+
+----------------------------------------------------------------------
+ACTIVITY: G = Brushing Teeth
+----------------------------------------------------------------------
+  recording_id=G_12 | rows=500 | gt_codes_in_data={'G'}
+    window[ 0] | pred=catch        | conf=100.0% | top3=[('catch', 99.9800033569336), ('clapping', 0.009999999776482582), ('folding', 0.0)] WRONG (expected: teeth)
+    window[ 1] | pred=catch        | conf=100.0% | top3=[('catch', 99.97000122070312), ('clapping', 0.009999999776482582), ('typing', 0.009999999776482582)] WRONG (expected: teeth)
+    window[ 2] | pred=catch        | conf= 99.9% | top3=[('catch', 99.88999938964844), ('typing', 0.029999999329447746), ('folding', 0.019999999552965164)] WRONG (expected: teeth)
+    window[ 3] | pred=catch        | conf= 99.9% | top3=[('catch', 99.93000030517578), ('folding', 0.019999999552965164), ('typing', 0.019999999552965164)] WRONG (expected: teeth)
+    window[ 4] | pred=catch        | conf= 99.9% | top3=[('catch', 99.94000244140625), ('folding', 0.019999999552965164), ('typing', 0.009999999776482582)] WRONG (expected: teeth)
+    window[ 5] | pred=catch        | conf= 99.9% | top3=[('catch', 99.93000030517578), ('typing', 0.029999999329447746), ('clapping', 0.019999999552965164)] WRONG (expected: teeth)
+    window[ 6] | pred=catch        | conf=100.0% | top3=[('catch', 99.98999786376953), ('clapping', 0.0), ('typing', 0.0)] WRONG (expected: teeth)
+    window[ 7] | pred=catch        | conf=100.0% | top3=[('catch', 100.0), ('clapping', 0.0), ('folding', 0.0)] WRONG (expected: teeth)
+    window[ 8] | pred=catch        | conf=100.0% | top3=[('catch', 99.98999786376953), ('clapping', 0.009999999776482582), ('typing', 0.0)] WRONG (expected: teeth)
+    window[ 9] | pred=catch        | conf=100.0% | top3=[('catch', 99.98999786376953), ('typing', 0.009999999776482582), ('clapping', 0.0)] WRONG (expected: teeth)
+    window[10] | pred=catch        | conf=100.0% | top3=[('catch', 99.98999786376953), ('typing', 0.0), ('clapping', 0.0)] WRONG (expected: teeth)
+    window[11] | pred=catch        | conf=100.0% | top3=[('catch', 99.9800033569336), ('clapping', 0.009999999776482582), ('typing', 0.009999999776482582)] WRONG (expected: teeth)
+    window[12] | pred=catch        | conf= 99.9% | top3=[('catch', 99.91999816894531), ('typing', 0.019999999552965164), ('clapping', 0.019999999552965164)] WRONG (expected: teeth)
+    window[13] | pred=catch        | conf= 99.6% | top3=[('catch', 99.61000061035156), ('folding', 0.10000000149011612), ('typing', 0.10000000149011612)] WRONG (expected: teeth)
+    window[14] | pred=catch        | conf= 99.7% | top3=[('catch', 99.69999694824219), ('folding', 0.18000000715255737), ('typing', 0.029999999329447746)] WRONG (expected: teeth)
+    window[15] | pred=catch        | conf=100.0% | top3=[('catch', 99.97000122070312), ('folding', 0.009999999776482582), ('typing', 0.009999999776482582)] WRONG (expected: teeth)
+    window[16] | pred=catch        | conf=100.0% | top3=[('catch', 99.95999908447266), ('dribbling', 0.009999999776482582), ('folding', 0.009999999776482582)] WRONG (expected: teeth)
+    window[17] | pred=catch        | conf= 99.9% | top3=[('catch', 99.86000061035156), ('dribbling', 0.03999999910593033), ('folding', 0.029999999329447746)] WRONG (expected: teeth)
+    window[18] | pred=catch        | conf=100.0% | top3=[('catch', 99.97000122070312), ('dribbling', 0.009999999776482582), ('clapping', 0.009999999776482582)] WRONG (expected: teeth)
+    window[19] | pred=catch        | conf=100.0% | top3=[('catch', 99.9800033569336), ('dribbling', 0.009999999776482582), ('folding', 0.0)] WRONG (expected: teeth)
+  Total windows tested for G: 20
+
+----------------------------------------------------------------------
+ACTIVITY: H = Eating Soup
+----------------------------------------------------------------------
+  recording_id=H_39 | rows=500 | gt_codes_in_data={'H'}
+    window[ 0] | pred=catch        | conf= 99.7% | top3=[('catch', 99.66000366210938), ('clapping', 0.33000001311302185), ('folding', 0.0)]
+    window[ 1] | pred=catch        | conf= 99.4% | top3=[('catch', 99.38999938964844), ('clapping', 0.6100000143051147), ('typing', 0.0)]
+    window[ 2] | pred=catch        | conf= 97.3% | top3=[('catch', 97.33999633789062), ('clapping', 2.6600000858306885), ('typing', 0.0)]
+    window[ 3] | pred=catch        | conf= 97.3% | top3=[('catch', 97.33999633789062), ('clapping', 2.6600000858306885), ('typing', 0.0)]
+    window[ 4] | pred=catch        | conf= 98.5% | top3=[('catch', 98.5199966430664), ('clapping', 1.4800000190734863), ('typing', 0.0)]
+    window[ 5] | pred=catch        | conf= 99.9% | top3=[('catch', 99.91999816894531), ('clapping', 0.07000000029802322), ('typing', 0.0)]
+    window[ 6] | pred=catch        | conf=100.0% | top3=[('catch', 99.98999786376953), ('typing', 0.009999999776482582), ('clapping', 0.0)]
+    window[ 7] | pred=catch        | conf=100.0% | top3=[('catch', 99.98999786376953), ('typing', 0.009999999776482582), ('folding', 0.0)]
+    window[ 8] | pred=catch        | conf=100.0% | top3=[('catch', 99.98999786376953), ('typing', 0.0), ('dribbling', 0.0)]
+    window[ 9] | pred=catch        | conf=100.0% | top3=[('catch', 99.98999786376953), ('dribbling', 0.0), ('typing', 0.0)]
+    window[10] | pred=catch        | conf=100.0% | top3=[('catch', 99.98999786376953), ('typing', 0.0), ('dribbling', 0.0)]
+    window[11] | pred=catch        | conf=100.0% | top3=[('catch', 99.98999786376953), ('typing', 0.0), ('folding', 0.0)]
+    window[12] | pred=catch        | conf=100.0% | top3=[('catch', 99.98999786376953), ('clapping', 0.0), ('typing', 0.0)]
+    window[13] | pred=catch        | conf=100.0% | top3=[('catch', 99.98999786376953), ('typing', 0.0), ('clapping', 0.0)]
+    window[14] | pred=catch        | conf=100.0% | top3=[('catch', 99.95999908447266), ('clapping', 0.03999999910593033), ('folding', 0.0)]
+    window[15] | pred=catch        | conf= 98.5% | top3=[('catch', 98.5199966430664), ('clapping', 1.4800000190734863), ('folding', 0.0)]
+    window[16] | pred=catch        | conf= 93.7% | top3=[('catch', 93.69999694824219), ('clapping', 6.300000190734863), ('folding', 0.0)]
+    window[17] | pred=catch        | conf= 98.5% | top3=[('catch', 98.5199966430664), ('clapping', 1.4800000190734863), ('folding', 0.0)]
+    window[18] | pred=catch        | conf= 99.2% | top3=[('catch', 99.18000030517578), ('clapping', 0.8199999928474426), ('folding', 0.0)]
+    window[19] | pred=catch        | conf= 99.4% | top3=[('catch', 99.38999938964844), ('clapping', 0.6100000143051147), ('typing', 0.0)]
+  Total windows tested for H: 20
+
+----------------------------------------------------------------------
+ACTIVITY: I = Eating Chips
+----------------------------------------------------------------------
+  recording_id=I_24 | rows=500 | gt_codes_in_data={'I'}
+    window[ 0] | pred=catch        | conf= 98.0% | top3=[('catch', 97.98999786376953), ('clapping', 1.090000033378601), ('dribbling', 0.8100000023841858)]
+    window[ 1] | pred=catch        | conf= 99.9% | top3=[('catch', 99.87999725341797), ('clapping', 0.10000000149011612), ('dribbling', 0.009999999776482582)]
+    window[ 2] | pred=catch        | conf=100.0% | top3=[('catch', 99.98999786376953), ('dribbling', 0.0), ('clapping', 0.0)]
+    window[ 3] | pred=catch        | conf=100.0% | top3=[('catch', 99.98999786376953), ('dribbling', 0.0), ('typing', 0.0)]
+    window[ 4] | pred=catch        | conf=100.0% | top3=[('catch', 99.9800033569336), ('clapping', 0.009999999776482582), ('typing', 0.0)]
+    window[ 5] | pred=catch        | conf= 99.1% | top3=[('catch', 99.12999725341797), ('clapping', 0.8199999928474426), ('dribbling', 0.03999999910593033)]
+    window[ 6] | pred=catch        | conf= 76.4% | top3=[('catch', 76.36000061035156), ('clapping', 23.0), ('dribbling', 0.6299999952316284)]
+    window[ 7] | pred=clapping     | conf= 71.0% | top3=[('clapping', 70.95999908447266), ('catch', 28.850000381469727), ('dribbling', 0.18000000715255737)]
+    window[ 8] | pred=catch        | conf= 85.6% | top3=[('catch', 85.55999755859375), ('clapping', 14.140000343322754), ('dribbling', 0.28999999165534973)]
+    window[ 9] | pred=catch        | conf= 49.9% | top3=[('clapping', 49.900001525878906), ('catch', 49.900001525878906), ('dribbling', 0.17000000178813934)]
+    window[10] | pred=catch        | conf= 71.1% | top3=[('catch', 71.08999633789062), ('clapping', 28.899999618530273), ('dribbling', 0.0)]
+    window[11] | pred=catch        | conf= 50.0% | top3=[('clapping', 50.0), ('catch', 50.0), ('dribbling', 0.0)]
+    window[12] | pred=catch        | conf= 81.8% | top3=[('catch', 81.75), ('clapping', 18.239999771118164), ('dribbling', 0.009999999776482582)]
+    window[13] | pred=clapping     | conf= 76.8% | top3=[('clapping', 76.83999633789062), ('catch', 23.139999389648438), ('dribbling', 0.009999999776482582)]
+    window[14] | pred=catch        | conf= 95.2% | top3=[('catch', 95.23999786376953), ('clapping', 4.739999771118164), ('dribbling', 0.009999999776482582)]
+    window[15] | pred=catch        | conf= 99.5% | top3=[('catch', 99.4800033569336), ('clapping', 0.44999998807907104), ('dribbling', 0.029999999329447746)]
+    window[16] | pred=catch        | conf= 99.9% | top3=[('catch', 99.94999694824219), ('clapping', 0.03999999910593033), ('dribbling', 0.0)]
+    window[17] | pred=catch        | conf= 99.9% | top3=[('catch', 99.94000244140625), ('clapping', 0.05999999865889549), ('dribbling', 0.0)]
+    window[18] | pred=catch        | conf= 99.6% | top3=[('catch', 99.61000061035156), ('clapping', 0.33000001311302185), ('dribbling', 0.019999999552965164)]
+    window[19] | pred=catch        | conf= 99.9% | top3=[('catch', 99.94999694824219), ('clapping', 0.019999999552965164), ('dribbling', 0.019999999552965164)]
+  Total windows tested for I: 20
+
+----------------------------------------------------------------------
+ACTIVITY: J = Eating Pasta
+----------------------------------------------------------------------
+  recording_id=J_15 | rows=500 | gt_codes_in_data={'J'}
+    window[ 0] | pred=dribbling    | conf= 70.7% | top3=[('dribbling', 70.6500015258789), ('catch', 28.719999313354492), ('typing', 0.4300000071525574)]
+    window[ 1] | pred=catch        | conf= 88.8% | top3=[('catch', 88.80000305175781), ('dribbling', 10.869999885559082), ('typing', 0.2199999988079071)]
+    window[ 2] | pred=catch        | conf= 99.9% | top3=[('catch', 99.93000030517578), ('dribbling', 0.05999999865889549), ('clapping', 0.009999999776482582)]
+    window[ 3] | pred=catch        | conf= 97.2% | top3=[('catch', 97.20999908447266), ('dribbling', 2.6600000858306885), ('typing', 0.05000000074505806)]
+    window[ 4] | pred=catch        | conf= 98.7% | top3=[('catch', 98.72000122070312), ('dribbling', 1.100000023841858), ('typing', 0.12999999523162842)]
+    window[ 5] | pred=typing       | conf= 77.6% | top3=[('typing', 77.55999755859375), ('dribbling', 12.819999694824219), ('catch', 9.5)]
+    window[ 6] | pred=dribbling    | conf= 81.3% | top3=[('dribbling', 81.29000091552734), ('catch', 18.139999389648438), ('typing', 0.5)]
+    window[ 7] | pred=dribbling    | conf= 96.4% | top3=[('dribbling', 96.38999938964844), ('catch', 3.559999942779541), ('typing', 0.029999999329447746)]
+    window[ 8] | pred=dribbling    | conf= 99.8% | top3=[('dribbling', 99.80000305175781), ('catch', 0.18000000715255737), ('clapping', 0.009999999776482582)]
+    window[ 9] | pred=catch        | conf= 57.4% | top3=[('catch', 57.40999984741211), ('dribbling', 42.529998779296875), ('clapping', 0.029999999329447746)]
+    window[10] | pred=catch        | conf= 93.7% | top3=[('catch', 93.68000030517578), ('dribbling', 6.300000190734863), ('clapping', 0.009999999776482582)]
+    window[11] | pred=catch        | conf= 98.5% | top3=[('catch', 98.5199966430664), ('dribbling', 1.4800000190734863), ('folding', 0.0)]
+    window[12] | pred=catch        | conf= 98.9% | top3=[('catch', 98.88999938964844), ('dribbling', 1.100000023841858), ('folding', 0.0)]
+    window[13] | pred=catch        | conf= 99.4% | top3=[('catch', 99.37999725341797), ('dribbling', 0.6100000143051147), ('folding', 0.0)]
+    window[14] | pred=catch        | conf= 91.5% | top3=[('catch', 91.54000091552734), ('dribbling', 8.300000190734863), ('typing', 0.09000000357627869)]
+    window[15] | pred=catch        | conf= 67.6% | top3=[('catch', 67.5999984741211), ('dribbling', 27.479999542236328), ('typing', 4.539999961853027)]
+    window[16] | pred=dribbling    | conf= 39.9% | top3=[('dribbling', 39.900001525878906), ('typing', 29.559999465942383), ('catch', 29.559999465942383)]
+    window[17] | pred=dribbling    | conf= 56.8% | top3=[('dribbling', 56.7599983215332), ('catch', 42.04999923706055), ('typing', 0.6299999952316284)]
+    window[18] | pred=typing       | conf= 61.0% | top3=[('typing', 60.959999084472656), ('catch', 24.790000915527344), ('dribbling', 13.600000381469727)]
+    window[19] | pred=typing       | conf= 95.8% | top3=[('typing', 95.80999755859375), ('dribbling', 2.619999885559082), ('catch', 1.440000057220459)]
+  Total windows tested for J: 20
+
+----------------------------------------------------------------------
+ACTIVITY: K = Drinking from Cup
+----------------------------------------------------------------------
+  recording_id=K_21 | rows=500 | gt_codes_in_data={'K'}
+    window[ 0] | pred=catch        | conf= 99.2% | top3=[('catch', 99.16999816894531), ('dribbling', 0.8199999928474426), ('typing', 0.0)]
+    window[ 1] | pred=catch        | conf= 99.7% | top3=[('catch', 99.66000366210938), ('dribbling', 0.33000001311302185), ('folding', 0.0)]
+    window[ 2] | pred=catch        | conf= 99.9% | top3=[('catch', 99.91999816894531), ('dribbling', 0.07000000029802322), ('writing', 0.009999999776482582)]
+    window[ 3] | pred=catch        | conf=100.0% | top3=[('catch', 99.9800033569336), ('clapping', 0.009999999776482582), ('dribbling', 0.009999999776482582)]
+    window[ 4] | pred=catch        | conf= 97.1% | top3=[('catch', 97.06999969482422), ('clapping', 1.4600000381469727), ('dribbling', 1.4600000381469727)]
+    window[ 5] | pred=catch        | conf= 90.4% | top3=[('catch', 90.43000030517578), ('clapping', 8.199999809265137), ('dribbling', 1.3600000143051147)]
+    window[ 6] | pred=catch        | conf= 96.4% | top3=[('catch', 96.37000274658203), ('clapping', 3.549999952316284), ('dribbling', 0.07000000029802322)]
+    window[ 7] | pred=catch        | conf= 96.2% | top3=[('catch', 96.25), ('clapping', 3.549999952316284), ('dribbling', 0.18000000715255737)]
+    window[ 8] | pred=catch        | conf= 99.9% | top3=[('catch', 99.94000244140625), ('dribbling', 0.05999999865889549), ('clapping', 0.0)]
+    window[ 9] | pred=catch        | conf= 97.8% | top3=[('catch', 97.75), ('dribbling', 1.9800000190734863), ('typing', 0.23999999463558197)]
+    window[10] | pred=catch        | conf= 67.3% | top3=[('catch', 67.30000305175781), ('typing', 27.360000610351562), ('dribbling', 3.3499999046325684)]
+    window[11] | pred=catch        | conf= 56.9% | top3=[('catch', 56.88999938964844), ('typing', 42.13999938964844), ('folding', 0.6299999952316284)]
+    window[12] | pred=typing       | conf= 76.3% | top3=[('typing', 76.26000213623047), ('catch', 22.969999313354492), ('folding', 0.6299999952316284)]
+    window[13] | pred=dribbling    | conf= 48.4% | top3=[('typing', 48.36000061035156), ('dribbling', 48.36000061035156), ('catch', 3.25)]
+    window[14] | pred=dribbling    | conf= 93.6% | top3=[('dribbling', 93.55999755859375), ('catch', 6.289999961853027), ('typing', 0.12999999523162842)]
+    window[15] | pred=catch        | conf= 85.8% | top3=[('catch', 85.75), ('dribbling', 14.170000076293945), ('typing', 0.03999999910593033)]
+    window[16] | pred=dribbling    | conf= 90.9% | top3=[('dribbling', 90.88999938964844), ('catch', 8.25), ('typing', 0.75)]
+    window[17] | pred=dribbling    | conf= 64.2% | top3=[('dribbling', 64.1500015258789), ('typing', 35.209999084472656), ('catch', 0.38999998569488525)]
+    window[18] | pred=typing       | conf= 94.2% | top3=[('typing', 94.25), ('dribbling', 4.690000057220459), ('catch', 1.0499999523162842)]
+    window[19] | pred=typing       | conf= 84.3% | top3=[('typing', 84.30999755859375), ('catch', 13.9399995803833), ('dribbling', 1.7100000381469727)]
+  Total windows tested for K: 20
+
+----------------------------------------------------------------------
+ACTIVITY: L = Eating Sandwich
+----------------------------------------------------------------------
+  recording_id=L_28 | rows=500 | gt_codes_in_data={'L'}
+    window[ 0] | pred=catch        | conf= 76.8% | top3=[('catch', 76.8499984741211), ('dribbling', 23.149999618530273), ('typing', 0.0)]
+    window[ 1] | pred=dribbling    | conf= 76.8% | top3=[('dribbling', 76.8499984741211), ('catch', 23.149999618530273), ('typing', 0.0)]
+    window[ 2] | pred=dribbling    | conf= 97.3% | top3=[('dribbling', 97.31999969482422), ('catch', 2.6600000858306885), ('teeth', 0.009999999776482582)]
+    window[ 3] | pred=dribbling    | conf= 96.4% | top3=[('dribbling', 96.43000030517578), ('catch', 3.559999942779541), ('teeth', 0.009999999776482582)]
+    window[ 4] | pred=dribbling    | conf= 81.8% | top3=[('dribbling', 81.75), ('catch', 18.239999771118164), ('teeth', 0.0)]
+    window[ 5] | pred=catch        | conf= 57.4% | top3=[('catch', 57.439998626708984), ('dribbling', 42.54999923706055), ('folding', 0.0)]
+    window[ 6] | pred=dribbling    | conf= 93.7% | top3=[('dribbling', 93.69000244140625), ('catch', 6.300000190734863), ('folding', 0.0)]
+    window[ 7] | pred=dribbling    | conf= 81.8% | top3=[('dribbling', 81.75), ('catch', 18.239999771118164), ('folding', 0.0)]
+    window[ 8] | pred=dribbling    | conf= 98.5% | top3=[('dribbling', 98.5199966430664), ('catch', 1.4800000190734863), ('folding', 0.0)]
+    window[ 9] | pred=dribbling    | conf= 76.8% | top3=[('dribbling', 76.8499984741211), ('catch', 23.149999618530273), ('folding', 0.0)]
+    window[10] | pred=dribbling    | conf= 91.7% | top3=[('dribbling', 91.68000030517578), ('catch', 8.319999694824219), ('folding', 0.0)]
+    window[11] | pred=dribbling    | conf= 95.2% | top3=[('dribbling', 95.25), ('catch', 4.739999771118164), ('folding', 0.0)]
+    window[12] | pred=dribbling    | conf= 98.0% | top3=[('dribbling', 98.01000213623047), ('catch', 1.9800000190734863), ('folding', 0.0)]
+    window[13] | pred=dribbling    | conf= 85.8% | top3=[('dribbling', 85.80999755859375), ('catch', 14.180000305175781), ('folding', 0.0)]
+    window[14] | pred=dribbling    | conf= 76.8% | top3=[('dribbling', 76.8499984741211), ('catch', 23.149999618530273), ('folding', 0.0)]
+    window[15] | pred=dribbling    | conf= 93.7% | top3=[('dribbling', 93.69999694824219), ('catch', 6.300000190734863), ('clapping', 0.0)]
+    window[16] | pred=dribbling    | conf= 98.0% | top3=[('dribbling', 98.01000213623047), ('catch', 1.9800000190734863), ('clapping', 0.0)]
+    window[17] | pred=dribbling    | conf= 57.4% | top3=[('dribbling', 57.439998626708984), ('catch', 42.54999923706055), ('clapping', 0.009999999776482582)]
+    window[18] | pred=dribbling    | conf= 95.2% | top3=[('dribbling', 95.25), ('catch', 4.739999771118164), ('folding', 0.0)]
+    window[19] | pred=dribbling    | conf= 99.9% | top3=[('dribbling', 99.86000061035156), ('catch', 0.14000000059604645), ('clapping', 0.0)]
+  Total windows tested for L: 20
+
+----------------------------------------------------------------------
+ACTIVITY: M = Kicking (Soccer)
+----------------------------------------------------------------------
+  recording_id=M_3 | rows=500 | gt_codes_in_data={'M'}
+    window[ 0] | pred=dribbling    | conf= 95.0% | top3=[('dribbling', 94.98999786376953), ('catch', 4.730000019073486), ('writing', 0.17000000178813934)]
+    window[ 1] | pred=dribbling    | conf= 99.1% | top3=[('dribbling', 99.08999633789062), ('catch', 0.6000000238418579), ('writing', 0.25)]
+    window[ 2] | pred=dribbling    | conf= 95.3% | top3=[('dribbling', 95.30000305175781), ('catch', 2.5999999046325684), ('writing', 1.9299999475479126)]
+    window[ 3] | pred=dribbling    | conf= 88.5% | top3=[('dribbling', 88.54000091552734), ('catch', 10.84000015258789), ('writing', 0.4000000059604645)]
+    window[ 4] | pred=dribbling    | conf= 89.0% | top3=[('dribbling', 89.02999877929688), ('catch', 10.899999618530273), ('writing', 0.029999999329447746)]
+    window[ 5] | pred=dribbling    | conf= 76.7% | top3=[('dribbling', 76.7300033569336), ('catch', 23.110000610351562), ('writing', 0.05999999865889549)]
+    window[ 6] | pred=dribbling    | conf= 50.0% | top3=[('catch', 49.97999954223633), ('dribbling', 49.97999954223633), ('writing', 0.009999999776482582)]
+    window[ 7] | pred=dribbling    | conf= 85.8% | top3=[('dribbling', 85.75), ('catch', 14.170000076293945), ('writing', 0.03999999910593033)]
+    window[ 8] | pred=dribbling    | conf= 70.9% | top3=[('dribbling', 70.94000244140625), ('catch', 28.84000015258789), ('writing', 0.10000000149011612)]
+    window[ 9] | pred=dribbling    | conf= 88.9% | top3=[('dribbling', 88.91999816894531), ('catch', 10.890000343322754), ('clapping', 0.07000000029802322)]
+    window[10] | pred=dribbling    | conf= 97.2% | top3=[('dribbling', 97.18000030517578), ('catch', 2.6600000858306885), ('clapping', 0.12999999523162842)]
+    window[11] | pred=dribbling    | conf= 64.4% | top3=[('dribbling', 64.44000244140625), ('catch', 35.36000061035156), ('clapping', 0.1599999964237213)]
+    window[12] | pred=catch        | conf= 91.7% | top3=[('catch', 91.6500015258789), ('dribbling', 8.3100004196167), ('folding', 0.009999999776482582)]
+    window[13] | pred=catch        | conf= 64.3% | top3=[('catch', 64.31999969482422), ('dribbling', 35.29999923706055), ('writing', 0.28999999165534973)]
+    window[14] | pred=catch        | conf= 64.5% | top3=[('catch', 64.48999786376953), ('dribbling', 35.38999938964844), ('writing', 0.09000000357627869)]
+    window[15] | pred=dribbling    | conf= 89.1% | top3=[('dribbling', 89.05000305175781), ('catch', 10.899999618530273), ('writing', 0.009999999776482582)]
+    window[16] | pred=dribbling    | conf= 89.1% | top3=[('dribbling', 89.05999755859375), ('catch', 10.90999984741211), ('writing', 0.009999999776482582)]
+    window[17] | pred=dribbling    | conf= 89.0% | top3=[('dribbling', 89.0), ('catch', 10.899999618530273), ('writing', 0.03999999910593033)]
+    window[18] | pred=dribbling    | conf= 95.1% | top3=[('dribbling', 95.13999938964844), ('catch', 4.739999771118164), ('writing', 0.03999999910593033)]
+    window[19] | pred=dribbling    | conf= 64.4% | top3=[('dribbling', 64.41999816894531), ('catch', 35.349998474121094), ('writing', 0.09000000357627869)]
+  Total windows tested for M: 20
+
+----------------------------------------------------------------------
+ACTIVITY: O = Playing Catch (Tennis)
+----------------------------------------------------------------------
+  recording_id=O_11 | rows=500 | gt_codes_in_data={'O'}
+    window[ 0] | pred=dribbling    | conf= 99.7% | top3=[('dribbling', 99.6500015258789), ('catch', 0.25), ('clapping', 0.10000000149011612)] WRONG (expected: catch)
+    window[ 1] | pred=catch        | conf= 75.1% | top3=[('catch', 75.12000274658203), ('clapping', 12.420000076293945), ('dribbling', 12.420000076293945)] OK
+    window[ 2] | pred=catch        | conf= 81.7% | top3=[('catch', 81.6500015258789), ('clapping', 18.219999313354492), ('dribbling', 0.10999999940395355)] OK
+    window[ 3] | pred=dribbling    | conf= 70.6% | top3=[('dribbling', 70.56999969482422), ('catch', 28.690000534057617), ('clapping', 0.5799999833106995)] WRONG (expected: catch)
+    window[ 4] | pred=dribbling    | conf= 89.0% | top3=[('dribbling', 89.0199966430664), ('catch', 10.899999618530273), ('clapping', 0.03999999910593033)] WRONG (expected: catch)
+    window[ 5] | pred=catch        | conf= 99.3% | top3=[('catch', 99.30999755859375), ('dribbling', 0.6100000143051147), ('clapping', 0.07000000029802322)] OK
+    window[ 6] | pred=catch        | conf= 94.6% | top3=[('catch', 94.56999969482422), ('dribbling', 3.490000009536743), ('clapping', 1.909999966621399)] OK
+    window[ 7] | pred=dribbling    | conf= 98.1% | top3=[('dribbling', 98.08999633789062), ('clapping', 1.090000033378601), ('catch', 0.8100000023841858)] WRONG (expected: catch)
+    window[ 8] | pred=clapping     | conf= 86.3% | top3=[('clapping', 86.2699966430664), ('dribbling', 7.829999923706055), ('catch', 5.800000190734863)] WRONG (expected: catch)
+    window[ 9] | pred=catch        | conf= 97.8% | top3=[('catch', 97.76000213623047), ('clapping', 1.090000033378601), ('dribbling', 1.090000033378601)] OK
+    window[10] | pred=dribbling    | conf= 90.7% | top3=[('dribbling', 90.68000030517578), ('catch', 8.229999542236328), ('clapping', 1.0099999904632568)] WRONG (expected: catch)
+    window[11] | pred=dribbling    | conf= 95.2% | top3=[('dribbling', 95.1500015258789), ('catch', 4.739999771118164), ('clapping', 0.10000000149011612)] WRONG (expected: catch)
+    window[12] | pred=catch        | conf= 99.1% | top3=[('catch', 99.13999938964844), ('dribbling', 0.8199999928474426), ('clapping', 0.029999999329447746)] OK
+    window[13] | pred=catch        | conf= 98.8% | top3=[('catch', 98.83999633789062), ('clapping', 1.100000023841858), ('dribbling', 0.05000000074505806)] OK
+    window[14] | pred=dribbling    | conf= 57.3% | top3=[('dribbling', 57.349998474121094), ('catch', 42.4900016784668), ('clapping', 0.14000000059604645)] WRONG (expected: catch)
+    window[15] | pred=dribbling    | conf= 77.5% | top3=[('dribbling', 77.47000122070312), ('catch', 17.290000915527344), ('clapping', 5.210000038146973)] WRONG (expected: catch)
+    window[16] | pred=clapping     | conf= 68.2% | top3=[('clapping', 68.18000030517578), ('dribbling', 20.530000686645508), ('catch', 11.270000457763672)] WRONG (expected: catch)
+    window[17] | pred=dribbling    | conf= 59.8% | top3=[('dribbling', 59.7599983215332), ('catch', 32.790000915527344), ('clapping', 7.320000171661377)] WRONG (expected: catch)
+    window[18] | pred=dribbling    | conf= 64.5% | top3=[('dribbling', 64.54000091552734), ('catch', 35.41999816894531), ('clapping', 0.009999999776482582)] WRONG (expected: catch)
+    window[19] | pred=catch        | conf= 64.6% | top3=[('catch', 64.55000305175781), ('dribbling', 35.43000030517578), ('clapping', 0.009999999776482582)] OK
+  Total windows tested for O: 20
+
+----------------------------------------------------------------------
+ACTIVITY: P = Dribbling (Basketball)
+----------------------------------------------------------------------
+  recording_id=P_2 | rows=500 | gt_codes_in_data={'P'}
+    window[ 0] | pred=dribbling    | conf= 98.0% | top3=[('dribbling', 98.04000091552734), ('catch', 1.4700000286102295), ('clapping', 0.4399999976158142)] OK
+    window[ 1] | pred=dribbling    | conf= 99.4% | top3=[('dribbling', 99.4000015258789), ('catch', 0.44999998807907104), ('clapping', 0.14000000059604645)] OK
+    window[ 2] | pred=dribbling    | conf= 85.4% | top3=[('dribbling', 85.43000030517578), ('catch', 14.119999885559082), ('clapping', 0.38999998569488525)] OK
+    window[ 3] | pred=dribbling    | conf= 49.5% | top3=[('catch', 49.54999923706055), ('dribbling', 49.54999923706055), ('clapping', 0.7400000095367432)] OK
+    window[ 4] | pred=catch        | conf= 80.4% | top3=[('catch', 80.37999725341797), ('dribbling', 17.940000534057617), ('clapping', 1.6299999952316284)] WRONG (expected: dribbling)
+    window[ 5] | pred=dribbling    | conf= 46.1% | top3=[('catch', 46.119998931884766), ('dribbling', 46.119998931884766), ('clapping', 7.619999885559082)] OK
+    window[ 6] | pred=dribbling    | conf= 75.2% | top3=[('dribbling', 75.22000122070312), ('catch', 22.649999618530273), ('clapping', 2.059999942779541)] OK
+    window[ 7] | pred=dribbling    | conf= 90.9% | top3=[('dribbling', 90.94999694824219), ('catch', 8.25), ('clapping', 0.75)] OK
+    window[ 8] | pred=dribbling    | conf= 96.0% | top3=[('dribbling', 95.98999786376953), ('catch', 3.5399999618530273), ('clapping', 0.4300000071525574)] OK
+    window[ 9] | pred=catch        | conf= 80.9% | top3=[('catch', 80.94000244140625), ('dribbling', 18.059999465942383), ('clapping', 0.8999999761581421)] WRONG (expected: dribbling)
+    window[10] | pred=catch        | conf= 98.6% | top3=[('catch', 98.55999755859375), ('dribbling', 0.8100000023841858), ('clapping', 0.6000000238418579)] WRONG (expected: dribbling)
+    window[11] | pred=catch        | conf= 91.4% | top3=[('catch', 91.44000244140625), ('dribbling', 8.289999961853027), ('clapping', 0.23000000417232513)] WRONG (expected: dribbling)
+    window[12] | pred=catch        | conf= 85.5% | top3=[('catch', 85.5199966430664), ('dribbling', 14.140000343322754), ('clapping', 0.28999999165534973)] WRONG (expected: dribbling)
+    window[13] | pred=catch        | conf= 85.2% | top3=[('catch', 85.19000244140625), ('dribbling', 10.430000305175781), ('clapping', 4.239999771118164)] WRONG (expected: dribbling)
+    window[14] | pred=catch        | conf= 80.4% | top3=[('catch', 80.37999725341797), ('dribbling', 17.940000534057617), ('clapping', 1.6299999952316284)] WRONG (expected: dribbling)
+    window[15] | pred=dribbling    | conf= 91.6% | top3=[('dribbling', 91.56999969482422), ('catch', 8.3100004196167), ('clapping', 0.09000000357627869)] OK
+    window[16] | pred=dribbling    | conf= 97.6% | top3=[('dribbling', 97.55000305175781), ('catch', 1.9700000286102295), ('clapping', 0.4399999976158142)] OK
+    window[17] | pred=dribbling    | conf= 97.2% | top3=[('dribbling', 97.22000122070312), ('clapping', 2.6600000858306885), ('catch', 0.10000000149011612)] OK
+    window[18] | pred=dribbling    | conf= 97.8% | top3=[('dribbling', 97.79000091552734), ('clapping', 1.090000033378601), ('catch', 1.090000033378601)] OK
+    window[19] | pred=dribbling    | conf= 95.4% | top3=[('dribbling', 95.36000061035156), ('clapping', 3.5199999809265137), ('catch', 1.059999942779541)] OK
+  Total windows tested for P: 20
+
+----------------------------------------------------------------------
+ACTIVITY: Q = Writing
+----------------------------------------------------------------------
+  recording_id=Q_1 | rows=500 | gt_codes_in_data={'Q'}
+    window[ 0] | pred=catch        | conf=100.0% | top3=[('catch', 99.97000122070312), ('dribbling', 0.019999999552965164), ('typing', 0.009999999776482582)] WRONG (expected: writing)
+    window[ 1] | pred=catch        | conf= 99.9% | top3=[('catch', 99.93000030517578), ('typing', 0.05999999865889549), ('dribbling', 0.009999999776482582)] WRONG (expected: writing)
+    window[ 2] | pred=catch        | conf= 99.9% | top3=[('catch', 99.93000030517578), ('typing', 0.05999999865889549), ('dribbling', 0.009999999776482582)] WRONG (expected: writing)
+    window[ 3] | pred=catch        | conf= 99.9% | top3=[('catch', 99.93000030517578), ('typing', 0.05999999865889549), ('dribbling', 0.019999999552965164)] WRONG (expected: writing)
+    window[ 4] | pred=catch        | conf= 99.8% | top3=[('catch', 99.8499984741211), ('typing', 0.14000000059604645), ('dribbling', 0.019999999552965164)] WRONG (expected: writing)
+    window[ 5] | pred=catch        | conf= 99.8% | top3=[('catch', 99.81999969482422), ('dribbling', 0.10000000149011612), ('typing', 0.07000000029802322)] WRONG (expected: writing)
+    window[ 6] | pred=catch        | conf= 99.8% | top3=[('catch', 99.83999633789062), ('dribbling', 0.10000000149011612), ('typing', 0.05999999865889549)] WRONG (expected: writing)
+    window[ 7] | pred=catch        | conf= 99.5% | top3=[('catch', 99.52999877929688), ('dribbling', 0.44999998807907104), ('typing', 0.019999999552965164)] WRONG (expected: writing)
+    window[ 8] | pred=catch        | conf= 99.7% | top3=[('catch', 99.68000030517578), ('dribbling', 0.25), ('typing', 0.07000000029802322)] WRONG (expected: writing)
+    window[ 9] | pred=catch        | conf= 99.7% | top3=[('catch', 99.7300033569336), ('dribbling', 0.25), ('typing', 0.019999999552965164)] WRONG (expected: writing)
+    window[10] | pred=catch        | conf= 99.4% | top3=[('catch', 99.36000061035156), ('dribbling', 0.6100000143051147), ('typing', 0.029999999329447746)] WRONG (expected: writing)
+    window[11] | pred=catch        | conf= 98.9% | top3=[('catch', 98.9000015258789), ('dribbling', 1.100000023841858), ('typing', 0.0)] WRONG (expected: writing)
+    window[12] | pred=catch        | conf= 98.5% | top3=[('catch', 98.51000213623047), ('dribbling', 1.4800000190734863), ('typing', 0.009999999776482582)] WRONG (expected: writing)
+    window[13] | pred=catch        | conf= 98.8% | top3=[('catch', 98.83000183105469), ('dribbling', 1.100000023841858), ('typing', 0.07000000029802322)] WRONG (expected: writing)
+    window[14] | pred=catch        | conf= 98.9% | top3=[('catch', 98.88999938964844), ('dribbling', 1.100000023841858), ('typing', 0.009999999776482582)] WRONG (expected: writing)
+    window[15] | pred=catch        | conf= 99.4% | top3=[('catch', 99.37999725341797), ('dribbling', 0.6100000143051147), ('typing', 0.009999999776482582)] WRONG (expected: writing)
+    window[16] | pred=catch        | conf= 99.2% | top3=[('catch', 99.16999816894531), ('dribbling', 0.8199999928474426), ('typing', 0.009999999776482582)] WRONG (expected: writing)
+    window[17] | pred=catch        | conf= 98.5% | top3=[('catch', 98.51000213623047), ('dribbling', 1.4800000190734863), ('typing', 0.009999999776482582)] WRONG (expected: writing)
+    window[18] | pred=catch        | conf= 99.1% | top3=[('catch', 99.05999755859375), ('dribbling', 0.6000000238418579), ('typing', 0.33000001311302185)] WRONG (expected: writing)
+    window[19] | pred=catch        | conf= 99.8% | top3=[('catch', 99.76000213623047), ('dribbling', 0.14000000059604645), ('typing', 0.10000000149011612)] WRONG (expected: writing)
+  Total windows tested for Q: 20
+
+----------------------------------------------------------------------
+ACTIVITY: R = Clapping
+----------------------------------------------------------------------
+  recording_id=R_29 | rows=500 | gt_codes_in_data={'R'}
+    window[ 0] | pred=catch        | conf= 64.5% | top3=[('catch', 64.52999877929688), ('dribbling', 35.41999816894531), ('clapping', 0.03999999910593033)] WRONG (expected: clapping)
+    window[ 1] | pred=catch        | conf= 99.4% | top3=[('catch', 99.38999938964844), ('dribbling', 0.6100000143051147), ('clapping', 0.0)] WRONG (expected: clapping)
+    window[ 2] | pred=catch        | conf= 76.8% | top3=[('catch', 76.83000183105469), ('dribbling', 23.139999389648438), ('writing', 0.009999999776482582)] WRONG (expected: clapping)
+    window[ 3] | pred=catch        | conf= 97.3% | top3=[('catch', 97.31999969482422), ('dribbling', 2.6600000858306885), ('typing', 0.009999999776482582)] WRONG (expected: clapping)
+    window[ 4] | pred=catch        | conf= 89.1% | top3=[('catch', 89.08000183105469), ('dribbling', 10.90999984741211), ('clapping', 0.0)] WRONG (expected: clapping)
+    window[ 5] | pred=catch        | conf= 64.5% | top3=[('catch', 64.54000091552734), ('dribbling', 35.41999816894531), ('typing', 0.009999999776482582)] WRONG (expected: clapping)
+    window[ 6] | pred=catch        | conf= 71.1% | top3=[('catch', 71.05000305175781), ('dribbling', 28.889999389648438), ('clapping', 0.029999999329447746)] WRONG (expected: clapping)
+    window[ 7] | pred=catch        | conf= 89.1% | top3=[('catch', 89.08000183105469), ('dribbling', 10.90999984741211), ('clapping', 0.009999999776482582)] WRONG (expected: clapping)
+    window[ 8] | pred=catch        | conf= 98.0% | top3=[('catch', 97.98999786376953), ('dribbling', 1.9800000190734863), ('writing', 0.009999999776482582)] WRONG (expected: clapping)
+    window[ 9] | pred=catch        | conf= 96.4% | top3=[('catch', 96.43000030517578), ('dribbling', 3.559999942779541), ('clapping', 0.009999999776482582)] WRONG (expected: clapping)
+    window[10] | pred=catch        | conf= 57.4% | top3=[('catch', 57.439998626708984), ('dribbling', 42.54999923706055), ('clapping', 0.009999999776482582)] WRONG (expected: clapping)
+    window[11] | pred=dribbling    | conf= 71.1% | top3=[('dribbling', 71.08999633789062), ('catch', 28.899999618530273), ('clapping', 0.0)] WRONG (expected: clapping)
+    window[12] | pred=catch        | conf= 96.4% | top3=[('catch', 96.41999816894531), ('dribbling', 3.559999942779541), ('clapping', 0.009999999776482582)] WRONG (expected: clapping)
+    window[13] | pred=catch        | conf= 71.1% | top3=[('catch', 71.06999969482422), ('dribbling', 28.899999618530273), ('clapping', 0.009999999776482582)] WRONG (expected: clapping)
+    window[14] | pred=dribbling    | conf= 50.0% | top3=[('catch', 49.9900016784668), ('dribbling', 49.9900016784668), ('clapping', 0.0)] WRONG (expected: clapping)
+    window[15] | pred=catch        | conf= 91.7% | top3=[('catch', 91.66999816894531), ('dribbling', 8.319999694824219), ('clapping', 0.0)] WRONG (expected: clapping)
+    window[16] | pred=catch        | conf= 76.8% | top3=[('catch', 76.83999633789062), ('dribbling', 23.139999389648438), ('clapping', 0.009999999776482582)] WRONG (expected: clapping)
+    window[17] | pred=catch        | conf= 76.8% | top3=[('catch', 76.83999633789062), ('dribbling', 23.139999389648438), ('clapping', 0.009999999776482582)] WRONG (expected: clapping)
+    window[18] | pred=catch        | conf= 64.5% | top3=[('catch', 64.54000091552734), ('dribbling', 35.41999816894531), ('clapping', 0.029999999329447746)] WRONG (expected: clapping)
+    window[19] | pred=dribbling    | conf= 76.8% | top3=[('dribbling', 76.83999633789062), ('catch', 23.139999389648438), ('clapping', 0.009999999776482582)] WRONG (expected: clapping)
+  Total windows tested for R: 20
+
+----------------------------------------------------------------------
+ACTIVITY: S = Folding Clothes
+----------------------------------------------------------------------
+  recording_id=S_30 | rows=500 | gt_codes_in_data={'S'}
+    window[ 0] | pred=dribbling    | conf=100.0% | top3=[('dribbling', 99.98999786376953), ('clapping', 0.009999999776482582), ('folding', 0.0)] WRONG (expected: folding)
+    window[ 1] | pred=dribbling    | conf=100.0% | top3=[('dribbling', 99.98999786376953), ('clapping', 0.0), ('writing', 0.0)] WRONG (expected: folding)
+    window[ 2] | pred=dribbling    | conf=100.0% | top3=[('dribbling', 99.9800033569336), ('writing', 0.009999999776482582), ('catch', 0.0)] WRONG (expected: folding)
+    window[ 3] | pred=dribbling    | conf= 99.9% | top3=[('dribbling', 99.87999725341797), ('catch', 0.05999999865889549), ('folding', 0.029999999329447746)] WRONG (expected: folding)
+    window[ 4] | pred=dribbling    | conf= 93.4% | top3=[('dribbling', 93.44999694824219), ('catch', 6.28000020980835), ('folding', 0.12999999523162842)] WRONG (expected: folding)
+    window[ 5] | pred=catch        | conf= 98.5% | top3=[('catch', 98.48999786376953), ('dribbling', 1.4800000190734863), ('typing', 0.009999999776482582)] WRONG (expected: folding)
+    window[ 6] | pred=catch        | conf= 99.7% | top3=[('catch', 99.73999786376953), ('dribbling', 0.25), ('typing', 0.009999999776482582)] WRONG (expected: folding)
+    window[ 7] | pred=catch        | conf= 99.5% | top3=[('catch', 99.52999877929688), ('dribbling', 0.44999998807907104), ('typing', 0.019999999552965164)] WRONG (expected: folding)
+    window[ 8] | pred=catch        | conf= 99.9% | top3=[('catch', 99.86000061035156), ('dribbling', 0.14000000059604645), ('typing', 0.0)] WRONG (expected: folding)
+    window[ 9] | pred=catch        | conf= 76.8% | top3=[('catch', 76.80000305175781), ('dribbling', 23.1299991607666), ('folding', 0.029999999329447746)] WRONG (expected: folding)
+    window[10] | pred=dribbling    | conf= 99.3% | top3=[('dribbling', 99.27999877929688), ('catch', 0.44999998807907104), ('folding', 0.18000000715255737)] WRONG (expected: folding)
+    window[11] | pred=dribbling    | conf= 99.9% | top3=[('dribbling', 99.93000030517578), ('clapping', 0.029999999329447746), ('folding', 0.009999999776482582)] WRONG (expected: folding)
+    window[12] | pred=dribbling    | conf=100.0% | top3=[('dribbling', 99.98999786376953), ('clapping', 0.009999999776482582), ('folding', 0.0)] WRONG (expected: folding)
+    window[13] | pred=dribbling    | conf=100.0% | top3=[('dribbling', 99.9800033569336), ('folding', 0.009999999776482582), ('writing', 0.009999999776482582)] WRONG (expected: folding)
+    window[14] | pred=dribbling    | conf=100.0% | top3=[('dribbling', 99.9800033569336), ('clapping', 0.009999999776482582), ('folding', 0.0)] WRONG (expected: folding)
+    window[15] | pred=dribbling    | conf= 99.9% | top3=[('dribbling', 99.87999725341797), ('catch', 0.10000000149011612), ('clapping', 0.009999999776482582)] WRONG (expected: folding)
+    window[16] | pred=dribbling    | conf= 64.6% | top3=[('dribbling', 64.55000305175781), ('catch', 35.41999816894531), ('writing', 0.009999999776482582)] WRONG (expected: folding)
+    window[17] | pred=dribbling    | conf= 76.8% | top3=[('dribbling', 76.83999633789062), ('catch', 23.139999389648438), ('clapping', 0.009999999776482582)] WRONG (expected: folding)
+    window[18] | pred=dribbling    | conf= 99.6% | top3=[('dribbling', 99.62000274658203), ('catch', 0.33000001311302185), ('folding', 0.009999999776482582)] WRONG (expected: folding)
+    window[19] | pred=dribbling    | conf= 95.2% | top3=[('dribbling', 95.22000122070312), ('catch', 4.739999771118164), ('clapping', 0.009999999776482582)] WRONG (expected: folding)
+  Total windows tested for S: 20
+
+
+================================================================================
+SUMMARY: Ground Truth -> Prediction Distribution
+================================================================================
+GT Code  Activity Name             In Model?  Predictions
+--------------------------------------------------------------------------------
+A        Walking                   NO         dribbling=20(100%)
+B        Jogging                   NO         catch=20(100%)
+C        Stairs                    NO         catch=20(100%)
+D        Sitting                   NO         catch=20(100%)
+E        Standing                  NO         catch=11(55%), dribbling=9(45%)
+F        Typing                    YES        catch=20(100%)
+G        Brushing Teeth            YES        catch=20(100%)
+H        Eating Soup               NO         catch=20(100%)
+I        Eating Chips              NO         catch=18(90%), clapping=2(10%)
+J        Eating Pasta              NO         catch=11(55%), dribbling=6(30%), typing=3(15%)
+K        Drinking from Cup         NO         catch=13(65%), dribbling=4(20%), typing=3(15%)
+L        Eating Sandwich           NO         dribbling=18(90%), catch=2(10%)
+M        Kicking (Soccer)          NO         dribbling=17(85%), catch=3(15%)
+O        Playing Catch (Tennis)    YES        dribbling=10(50%), catch=8(40%), clapping=2(10%)
+P        Dribbling (Basketball)    YES        dribbling=13(65%), catch=7(35%)
+Q        Writing                   YES        catch=20(100%)
+R        Clapping                  YES        catch=17(85%), dribbling=3(15%)
+S        Folding Clothes           YES        dribbling=15(75%), catch=5(25%)
+--------------------------------------------------------------------------------
+
+ACCURACY for model's 7 activities:
+--------------------------------------------------
+  F (typing      ): 0/20 correct = 0.0%
+  G (teeth       ): 0/20 correct = 0.0%
+  O (catch       ): 8/20 correct = 40.0%
+  P (dribbling   ): 13/20 correct = 65.0%
+  Q (writing     ): 0/20 correct = 0.0%
+  R (clapping    ): 0/20 correct = 0.0%
+  S (folding     ): 0/20 correct = 0.0%
+
+  OVERALL: 21/140 = 15.0%
+
+================================================================================
+EVALUATION COMPLETE
+================================================================================

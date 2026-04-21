@@ -13,10 +13,20 @@ class Settings(BaseSettings):
     prediction_table: str = "har_predictions"
 
     model_path: str = "/app/model/L2MU_plain_leaky.onnx"
-    query_limit: int = 5000
+    labels_path: str = "/app/model/labels.txt"
 
-    window_size: int = 128
-    window_stride: int = 64
+    query_limit: int = 5000
+    window_size: int = 40
+    window_stride: int = 20
+    max_windows_per_stream: int = 10
+    prediction_top_k: int = 3
+    debug_inference: bool = False
+    input_layout: str = "accel_then_gyro"
+    temporal_preprocess: str = "none"
+    score_aggregation: str = "sum"
+
+    filter_device: str | None = None
+    filter_recording_id: str | None = None
 
     model_config = SettingsConfigDict(
         env_prefix="HAR_",

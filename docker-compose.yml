@@ -75,6 +75,11 @@ services:
     container_name: har-service
     env_file:
       - .env
+    environment:
+      HAR_FILTER_DEVICE: watch
+      HAR_INPUT_LAYOUT: gyro_then_accel
+      HAR_TEMPORAL_PREPROCESS: none
+      HAR_SCORE_AGGREGATION: sum
     depends_on:
       - influxdb3
     restart: unless-stopped

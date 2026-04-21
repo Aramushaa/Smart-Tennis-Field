@@ -132,7 +132,67 @@ The validated replay pass produced the expected stored row count, confirming tha
 
 ---
 
-## 5. Key Lessons Learned
+## 5. Phase 3 — HAR Processing Integration
+
+Phase 3 shifted focus from ingestion reliability to decoupled ML processing.
+
+### Architecture Decisions
+
+The HAR service was designed as a standalone microservice that polls InfluxDB for IMU data rather than consuming MQTT directly. This design was chosen for three reasons:
+
+1. **Reproducibility:** Database polling operates on stored, validated data. Results are deterministic and repeatable.
+2. **Decoupling:** The HAR service has no dependency on the ingest service or MQTT broker. Each component can be developed, deployed, and tested independently.
+3. **Evaluation clarity:** For thesis measurement, processing a known, validated dataset produces cleaner metrics than processing a live stream.
+
+### Implementation
+
+The service implements a sliding window pipeline:
+
+1. Query ordered IMU rows from InfluxDB (filtered by device and recording_id)
+2. Group rows by device and recording session
+3. Build sliding windows (40 samples, stride 20)
+4. Convert each window to model input format (accelerometer + gyroscope arrays)
+5. Run ONNX inference and capture predictions
+
+The professor's assistant provided an ONNX model (`L2MU_plain_leaky.onnx`) with 7 activity labels. The provided `inference_engine.py` was wrapped in an adapter to avoid modifying the original file while capturing predictions as return values.
+
+### Model Evaluation
+
+Before moving to production inference, a comprehensive evaluation was conducted. Three scripts were created:
+
+- `inspect_model.py` — discovered the model architecture: input `[40, 1, 6]`, output `[40, 1, 7]`, PyTorch 2.2.1, 3230 nodes
+- `evaluate_model.py` — tested predictions across all 18 Siddha activities (360 windows total)
+- `fix_finder.py` — exhaustive search for configuration issues
+
+**Results:** The model achieved 15.0% accuracy on its own 7 labeled activities (random chance = 14.3%). It collapsed into outputting primarily "catch" and "dribbling" regardless of input activity.
+
+### Debugging Path
+
+#### Initial hypothesis: label mismatch
+
+The labels file listed 7 labels but the dataset has 18 activities. Confirmed via model inspection that the model genuinely outputs 7 classes — the label count is correct.
+
+#### Aggregation uncertainty
+
+The model outputs `[40, 1, 7]` — a prediction per timestep. The provided code sums across timesteps. Tested 6 aggregation methods (sum, last, first, mean, majority vote, middle): no significant improvement.
+
+#### Exhaustive fix search
+
+Systematically tested all 5040 label permutations × 6 aggregation methods × 4 input formats (standard, normalized, gyro-first, interleaved) × 2 devices (phone, watch).
+
+Best result found: **31.4%** (watch device, gyro-first input, sum aggregation) — still far below functional levels.
+
+#### Conclusion
+
+The evaluation proved that the failure is in the model itself (likely a training-level issue such as mode collapse), not in the integration code. The full analysis is documented in [Result.md](../Result.md).
+
+### Current Status
+
+Awaiting clarification from the professor on training parameters (preprocessing, normalization, channel order, aggregation method, training accuracy) before proceeding with production deployment.
+
+---
+
+## 6. Key Lessons Learned
 
 ### Simple architectures break under real data
 
