@@ -11,6 +11,7 @@ from .windowing import (
     group_rows_by_device_and_recording,
     window_to_model_input,
 )
+from .writer import write_prediction_point
 
 logging.basicConfig(
     level=logging.INFO,
@@ -19,19 +20,74 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+last_written_window_end_ts: dict[tuple[str, str], float] = {}
 
-def fetch_ordered_imu_rows(limit: int) -> list[dict]:
+
+def sql_quote_literal(value: str) -> str:
+    return "'" + str(value).replace("'", "''") + "'"
+
+
+def build_allowed_activity_clause() -> str | None:
+    if not settings.allowed_activity_codes:
+        return None
+
+    allowed = ", ".join(
+        sql_quote_literal(code)
+        for code in settings.allowed_activity_codes
+    )
+    return f"activity_gt IN ({allowed})"
+
+
+def fetch_matching_streams() -> list[dict]:
     where_clauses = []
 
     if settings.filter_device:
-        where_clauses.append(f"device = '{settings.filter_device}'")
+        where_clauses.append(f"device = {sql_quote_literal(settings.filter_device)}")
 
     if settings.filter_recording_id:
-        where_clauses.append(f"recording_id = '{settings.filter_recording_id}'")
+        where_clauses.append(
+            f"recording_id = {sql_quote_literal(settings.filter_recording_id)}"
+        )
+
+    allowed_activity_clause = build_allowed_activity_clause()
+    if allowed_activity_clause:
+        where_clauses.append(allowed_activity_clause)
 
     where_sql = ""
     if where_clauses:
         where_sql = "WHERE " + " AND ".join(where_clauses)
+
+    sql = f"""
+    SELECT
+        device,
+        recording_id,
+        MAX(dataset_ts) AS max_dataset_ts
+    FROM {settings.imu_table}
+    {where_sql}
+    GROUP BY device, recording_id
+    ORDER BY device ASC, recording_id ASC
+    """.strip()
+
+    return query_influx_sql(sql)
+
+
+def fetch_ordered_imu_rows(
+    *,
+    device: str,
+    recording_id: str,
+    limit: int,
+) -> list[dict]:
+    where_clauses = [
+        f"device = {sql_quote_literal(device)}",
+        f"recording_id = {sql_quote_literal(recording_id)}",
+    ]
+
+    allowed_activity_clause = build_allowed_activity_clause()
+    if allowed_activity_clause:
+        where_clauses.append(allowed_activity_clause)
+
+    where_sql = "WHERE " + " AND ".join(where_clauses)
+    limit_sql = f"LIMIT {limit}" if limit > 0 else ""
 
     sql = f"""
     SELECT
@@ -49,8 +105,8 @@ def fetch_ordered_imu_rows(limit: int) -> list[dict]:
         gyro_z
     FROM {settings.imu_table}
     {where_sql}
-    ORDER BY device ASC, recording_id ASC, time ASC, sample_idx ASC
-    LIMIT {limit}
+    ORDER BY time ASC, sample_idx ASC
+    {limit_sql}
     """.strip()
 
     return query_influx_sql(sql)
@@ -99,7 +155,11 @@ def evaluate_windows_for_stream(
 
     predicted_counts: dict[str, int] = {}
 
-    windows_to_check = windows[:max_windows]
+    if max_windows > 0:
+        windows_to_check = windows[:max_windows]
+    else:
+        windows_to_check = windows
+
     skipped_windows = max(0, len(windows) - len(windows_to_check))
 
     logger.info(
@@ -113,23 +173,45 @@ def evaluate_windows_for_stream(
     )
 
     for idx, window in enumerate(windows_to_check):
+        window_end_ts = float(window[-1]["dataset_ts"])
+
+        if window_end_ts <= last_written_window_end_ts.get((device, recording_id), float("-inf")):
+            logger.debug(
+                "Skipping already written prediction | device=%s | recording_id=%s | window_idx=%s | end_dataset_ts=%s",
+                device,
+                recording_id,
+                idx,
+                window_end_ts,
+            )
+            continue
+
         model_input = window_to_model_input(window)
         prediction_details = inference.predict_details(model_input)
         prediction = prediction_details["predicted_label"]
+        metadata = model_input["metadata"]
 
         predicted_counts[prediction] = predicted_counts.get(prediction, 0) + 1
 
+        write_prediction_point(
+            device=device,
+            recording_id=recording_id,
+            prediction=prediction,
+            confidence=prediction_details["confidence"],
+            metadata=metadata,
+        )
+        last_written_window_end_ts[(device, recording_id)] = window_end_ts
+
         logger.info(
             "Window prediction | device=%s | recording_id=%s | window_idx=%s | activity_gt=%s | predicted=%s | confidence=%.2f | top_k=%s | start_dataset_ts=%s | end_dataset_ts=%s",
-            model_input["metadata"]["device"],
-            model_input["metadata"]["recording_id"],
+            metadata["device"],
+            metadata["recording_id"],
             idx,
-            model_input["metadata"]["activity_gt"],
+            metadata["activity_gt"],
             prediction,
             prediction_details["confidence"],
             prediction_details["top_k"],
-            model_input["metadata"]["start_dataset_ts"],
-            model_input["metadata"]["end_dataset_ts"],
+            metadata["start_dataset_ts"],
+            metadata["end_dataset_ts"],
         )
 
     logger.info(
@@ -170,20 +252,44 @@ def main() -> None:
     try:
         while True:
             try:
-                rows = fetch_ordered_imu_rows(settings.query_limit)
-                logger.info("Fetched %s ordered IMU rows from %s", len(rows), settings.imu_table)
+                stream_summaries = fetch_matching_streams()
+                logger.info("Found %s matching streams in %s", len(stream_summaries), settings.imu_table)
 
-                if not rows:
-                    logger.info("No rows fetched from %s", settings.imu_table)
+                if not stream_summaries:
+                    logger.info("No matching streams found in %s", settings.imu_table)
                     time.sleep(settings.poll_interval_seconds)
                     continue
 
-                groups = group_rows_by_device_and_recording(rows)
-                logger.info("Grouped rows into %s streams", len(groups))
-
                 total_windows = 0
 
-                for (device, recording_id), group_rows in groups.items():
+                for summary in stream_summaries:
+                    device = str(summary["device"])
+                    recording_id = str(summary["recording_id"])
+                    max_dataset_ts = float(summary["max_dataset_ts"])
+
+                    if max_dataset_ts <= last_written_window_end_ts.get((device, recording_id), float("-inf")):
+                        logger.debug(
+                            "Skipping unchanged stream | device=%s | recording_id=%s | max_dataset_ts=%s",
+                            device,
+                            recording_id,
+                            max_dataset_ts,
+                        )
+                        continue
+
+                    group_rows = fetch_ordered_imu_rows(
+                        device=device,
+                        recording_id=recording_id,
+                        limit=settings.query_limit,
+                    )
+
+                    if not group_rows:
+                        logger.info(
+                            "No rows fetched for matching stream | device=%s | recording_id=%s",
+                            device,
+                            recording_id,
+                        )
+                        continue
+
                     windows = build_sliding_windows(
                         rows=group_rows,
                         window_size=settings.window_size,

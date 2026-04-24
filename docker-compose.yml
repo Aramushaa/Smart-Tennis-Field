@@ -35,11 +35,6 @@ services:
         condition: service_started
     env_file:
       - .env
-    environment:
-      MQTT_HOST: emqx
-      MQTT_PORT: "1883"
-      SUB_TOPICS: tennis/sensor/+/events,tennis/camera/+/ball
-      INFLUX_ENABLED: "1"
     ports:
       - "8000:8000"
     restart: always
@@ -75,11 +70,6 @@ services:
     container_name: har-service
     env_file:
       - .env
-    environment:
-      HAR_FILTER_DEVICE: watch
-      HAR_INPUT_LAYOUT: gyro_then_accel
-      HAR_TEMPORAL_PREPROCESS: none
-      HAR_SCORE_AGGREGATION: sum
     depends_on:
       - influxdb3
     restart: unless-stopped

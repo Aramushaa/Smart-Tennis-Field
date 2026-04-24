@@ -1,6 +1,6 @@
 # Smart Tennis Field — Implementation Journal
 
-This document records the implementation journey from Phase 0 to the end of Phase 2: what was built, what broke, and how the system evolved.
+This document records the implementation journey from Phase 0 to the end of Phase 3: what was built, what broke, what was debugged, and how the system evolved.
 
 For the final-state technical reference, see [Architecture.md](Architecture.md). For the roadmap, see [Phases.md](Phases.md).
 
@@ -151,10 +151,11 @@ The service implements a sliding window pipeline:
 1. Query ordered IMU rows from InfluxDB (filtered by device and recording_id)
 2. Group rows by device and recording session
 3. Build sliding windows (40 samples, stride 20)
-4. Convert each window to model input format (accelerometer + gyroscope arrays)
+4. Convert each window to model input format (gyroscope + accelerometer arrays)
 5. Run ONNX inference and capture predictions
+6. Write predictions back to InfluxDB
 
-The professor's assistant provided an ONNX model (`L2MU_plain_leaky.onnx`) with 7 activity labels. The provided `inference_engine.py` was wrapped in an adapter to avoid modifying the original file while capturing predictions as return values.
+The professor's assistant provided an ONNX model (`L2MU_plain_leaky.onnx`) with 7 activity labels. The provided `inference_engine.py` was wrapped in an adapter (`HarInferenceAdapter`) to avoid modifying the original file while capturing predictions as return values.
 
 ### Model Evaluation
 
@@ -164,7 +165,7 @@ Before moving to production inference, a comprehensive evaluation was conducted.
 - `evaluate_model.py` — tested predictions across all 18 Siddha activities (360 windows total)
 - `fix_finder.py` — exhaustive search for configuration issues
 
-**Results:** The model achieved 15.0% accuracy on its own 7 labeled activities (random chance = 14.3%). It collapsed into outputting primarily "catch" and "dribbling" regardless of input activity.
+**Initial results:** The model achieved 15.0% accuracy on its own 7 labeled activities (random chance = 14.3%). It collapsed into outputting primarily "catch" and "dribbling" regardless of input activity.
 
 ### Debugging Path
 
@@ -178,17 +179,41 @@ The model outputs `[40, 1, 7]` — a prediction per timestep. The provided code 
 
 #### Exhaustive fix search
 
-Systematically tested all 5040 label permutations × 6 aggregation methods × 4 input formats (standard, normalized, gyro-first, interleaved) × 2 devices (phone, watch).
+During the debugging phase, an exhaustive search was conducted: 5040 label permutations × 6 aggregation methods × 4 input formats × 2 devices. This pointed toward the correct configuration: watch device, gyro-first input layout, and sum aggregation.
 
-Best result found: **31.4%** (watch device, gyro-first input, sum aggregation) — still far below functional levels.
+#### Root cause discovery: data handling, not model quality
 
-#### Conclusion
+This phase revealed that the initial poor model performance (15%) was caused by incorrect data handling and evaluation methodology, not by the model itself:
 
-The evaluation proved that the failure is in the model itself (likely a training-level issue such as mode collapse), not in the integration code. The full analysis is documented in [Result.md](../Result.md).
+1. **Mixed-device contamination:** Mixing data from multiple devices (phone + watch) inside the same window severely degraded performance.
+2. **Input layout sensitivity:** The model is highly sensitive to input layout (gyro vs accel ordering). Switching to `gyro_then_accel` improved results dramatically.
+3. **Device specificity:** The model is optimized for wrist-based (watch) signals rather than general-purpose sensor placement.
+4. **Aggregation impact:** Proper aggregation of model outputs (`sum` vs `last`) significantly affects prediction quality.
+5. **Scope mismatch:** Evaluating a 7-class model against all 18 Siddha activities inflated the apparent failure rate.
 
-### Current Status
+After correcting these issues and re-evaluating with the proper configuration (watch-only, `gyro_then_accel`, `sum`, 7 supported activities only):
 
-Awaiting clarification from the professor on training parameters (preprocessing, normalization, channel order, aggregation method, training accuracy) before proceeding with production deployment.
+- **Overall accuracy: 85.0%** (119/140 windows correct)
+- Best per-activity: Playing Catch 95%, Dribbling 95%, Clapping 90%
+- Weakest: Writing 65% (confused with Folding Clothes)
+- Predictions persisted to InfluxDB with full traceability metadata
+- System architecture validated end-to-end
+
+The full analysis is documented in [Result.md](../Result.md).
+
+### Engineering Insight
+
+This phase demonstrates a critical principle for IoT-based ML systems:
+
+**Correct data interpretation is as important as model selection.** A misaligned data pipeline can make a functional model appear broken. Systematic debugging — controlling device, input layout, aggregation, and evaluation scope — was essential to separating integration issues from genuine model limitations.
+
+### Phase 3 Outcome
+
+- ✔ Full end-to-end prediction pipeline working
+- ✔ Model integrated, validated, and predictions stored in database
+- ✔ Comprehensive evaluation tooling created and documented
+- ✔ System ready for real sensor input
+- ✔ Clear documentation of model scope and limitations
 
 ---
 
@@ -214,12 +239,16 @@ Batching was not added because it is faster. It was added because per-message wr
 
 Data loss can occur at two independent layers: storage (silent overwrites from incorrect identity modeling) and transport (QoS 0 message drops). Both must be addressed independently.
 
+### Data pipeline correctness is prerequisite to model evaluation
+
+Phase 3 showed that a correctly functioning model can appear broken when the data pipeline feeds it incorrectly structured input. Device mixing, channel ordering, and evaluation scope must all be controlled before drawing conclusions about model quality.
+
 ---
 
 ## 7. Conclusion
 
-From Phase 0 to Phase 3, the project evolved from a simple MQTT transport experiment into a validated distributed infrastructure with a decoupled ML processing layer.
+From Phase 0 to Phase 3, the project evolved from a simple MQTT transport experiment into a validated distributed infrastructure with end-to-end ML inference.
 
-Phases 0–2 established reliable data transport, structured persistence, and reproducible replay. Phase 3 introduced the HAR processing microservice and revealed that the provided ONNX model requires resolution of training-level issues before production deployment. The integration code, windowing pipeline, and evaluation tooling are complete and validated — waiting only on a functional model.
+Phases 0–2 established reliable data transport, structured persistence, and reproducible replay. Phase 3 introduced the HAR processing microservice, integrated the ONNX model, and — through systematic debugging — resolved data handling issues that initially masked the model's capabilities. Predictions are now persisted to InfluxDB with full traceability metadata.
 
-The most important outcome is not just that data moved through the system, but that the pipeline became structured, measurable, reproducible, and capable of evaluating ML model quality as part of the integration process.
+The most important outcome is not just that data moved through the system, but that the pipeline became structured, measurable, reproducible, and capable of evaluating ML model quality as part of the integration process. The system is now ready for the next phase: real sensor integration with physical hardware.

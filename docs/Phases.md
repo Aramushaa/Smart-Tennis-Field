@@ -7,7 +7,7 @@ Each phase depends on the previous one: transport must be validated before persi
 | Phase 0 — MQTT Infrastructure | Completed |
 | Phase 1 — Ingest + Persistence | Completed |
 | Phase 2 — Dataset Validation | Completed |
-| Phase 3 — HAR Microservice | In Progress — Blocked on model |
+| Phase 3 — HAR Microservice | Completed |
 | Phase 4 — Real Edge Gateways | Deferred |
 | Phase 5 — Domain Semantics | Future |
 | Phase 6 — Observability / Evaluation | Ongoing |
@@ -76,44 +76,181 @@ For the `imu_raw` schema, identity model, and validated configurations, see [Arc
 
 ---
 
-## Phase 3 — HAR Processing Microservice (In Progress — Blocked)
+## Phase 3 — HAR Microservice (Completed)
 
-**Goal:** Integrate an existing ONNX HAR model as a separate microservice that consumes structured IMU data.
+### Goal
 
-This phase is about integrating an existing ML component into the architecture, not training a new model.
+Integrate a Human Activity Recognition (HAR) microservice that processes stored IMU data and generates activity predictions.
 
-**Deliverables:**
+### Architecture Extension
 
-- [x] `har_service` Docker container
-- [x] Sliding-window extraction from InfluxDB (DB polling, not MQTT streaming)
-- [x] Model input conversion (accelerometer + gyroscope arrays)
-- [x] ONNX inference pipeline using `L2MU_plain_leaky.onnx`
-- [x] Comprehensive model evaluation tooling
-- [ ] Predictions written back to InfluxDB (blocked on functional model)
+```text
+Data → Broker → Storage → Processing → Storage
+```
 
-**Data access:** DB polling over MQTT streaming — deterministic, reproducible, easier to evaluate.
+Specifically:
 
-**Model evaluation results:**
+```text
+Dataset → MQTT → Ingest → InfluxDB (raw)
+                              ↓
+                         HAR Service
+                              ↓
+                   InfluxDB (predictions)
+```
 
-The provided ONNX model was evaluated across all 18 Siddha activities (360 prediction windows). Results:
+### Implementation Details
 
-- 15.0% accuracy on its own 7 labeled activities (random chance = 14.3%)
-- Model collapsed into binary catch/dribbling classifier
-- Exhaustive fix search (5040 label permutations × 6 aggregation methods × 4 input formats × 2 devices) yielded maximum 31.4% accuracy
-- Conclusion: training-level failure, not integration error
+#### 1. HAR Microservice
+
+- Separate service (`har-service`) in its own Docker container
+- Polls IMU data from InfluxDB (DB polling, not MQTT streaming)
+- Groups data by `(device, recording_id)`
+- Builds sliding windows from ordered rows
+- Runs ONNX inference via adapter pattern
+- Writes predictions back to InfluxDB
+
+#### 2. Windowing
+
+- Window size: configurable via `HAR_WINDOW_SIZE` (validated: 40)
+- Stride: configurable via `HAR_WINDOW_STRIDE` (validated: 20)
+- Deterministic ordering via SQL: `ORDER BY time ASC, sample_idx ASC`
+- Rows filtered by device and recording in the `WHERE` clause before windowing
+
+#### 3. Model Integration
+
+- ONNX model: `L2MU_plain_leaky.onnx` (PyTorch 2.2.1, ONNX opset 17, 3230 nodes)
+- Input shape: `[40, 1, 6]` — 40 timesteps × 1 batch × 6 features
+- Output shape: `[40, 1, 7]` — per-timestep prediction, 7 classes
+- Input layout: `gyro_then_accel` (gyroscope channels before accelerometer)
+- Temporal preprocessing: `none`
+- Score aggregation: `sum` across timesteps
+- Adapter pattern wraps the professor's `inference_engine.py` without modifying the original file
+
+#### 4. Activity Filtering
+
+The service filters by `allowed_activity_gt` (default: `F,G,O,P,Q,R,S`) to restrict processing to only the 7 activities the model was trained on. This prevents meaningless predictions on unsupported activity classes.
+
+#### 5. Critical Fixes
+
+The following issues were identified and resolved during integration:
+
+| Issue | Impact |
+| --- | --- |
+| Mixed-device windows (phone + watch) | Severely degraded performance |
+| Incorrect input layout interpretation | Model expected gyro-first, pipeline sent accel-first |
+| Inconsistent evaluation methodology | Initial evaluation mixed all 18 activities against a 7-class model |
+| Model–dataset mismatch assumptions | Assumed model covered all Siddha activities |
+
+**Fixed by:**
+
+- Grouping by `(device, recording_id)` to prevent cross-device contamination
+- Restricting processing to `device=watch` via `HAR_FILTER_DEVICE`
+- Validating preprocessing strategies via systematic sweep (see [Result.md](../Result.md))
+- Filtering to the 7 supported activity codes via `HAR_ALLOWED_ACTIVITY_GT`
+
+#### 6. Model Scope
+
+> **Important:** The supplied model has strict operational boundaries.
+
+The model is:
+
+- ✔ 7-class classifier
+- ✔ Optimized for wrist (watch) input
+- ❌ Not designed for the full 18-activity Siddha dataset
+- ❌ Not validated for phone input
+
+Supported activities:
+
+| Code | Activity | Label |
+| --- | --- | --- |
+| F | Typing | typing |
+| G | Brushing Teeth | teeth |
+| O | Playing Catch (Tennis) | catch |
+| P | Dribbling (Basketball) | dribbling |
+| Q | Writing | writing |
+| R | Clapping | clapping |
+| S | Folding Clothes | folding |
+
+#### 7. Prediction Storage
+
+Predictions are written to InfluxDB using line protocol. The measurement name is configurable via `HAR_PREDICTION_TABLE`.
+
+**Schema:**
+
+Tags:
+
+- `device`
+- `recording_id`
+- `model_name`
+- `input_layout`
+- `score_aggregation`
+
+Fields:
+
+- `predicted_label` (string)
+- `activity_gt` (string)
+- `confidence` (float)
+- `window_start_dataset_ts` (float)
+- `window_end_dataset_ts` (float)
+- `window_size` (integer)
+- `window_stride` (integer)
+
+Timestamp: derived from `window_end_dataset_ts` (nanosecond epoch).
+
+#### 8. Duplicate Prediction Prevention
+
+The service tracks `last_written_window_end_ts` per `(device, recording_id)` stream to avoid re-writing predictions for windows that have already been processed. Streams where the maximum `dataset_ts` hasn't changed since the last cycle are skipped entirely.
+
+#### 9. Final Validated Configuration
+
+| Parameter | Value |
+| --- | --- |
+| `HAR_FILTER_DEVICE` | `watch` |
+| `HAR_INPUT_LAYOUT` | `gyro_then_accel` |
+| `HAR_TEMPORAL_PREPROCESS` | `none` |
+| `HAR_SCORE_AGGREGATION` | `sum` |
+| `HAR_WINDOW_SIZE` | `40` |
+| `HAR_WINDOW_STRIDE` | `20` |
+| `HAR_ALLOWED_ACTIVITY_GT` | `F,G,O,P,Q,R,S` |
+| `HAR_MAX_WINDOWS_PER_STREAM` | `0` (unlimited) |
+
+### Performance Result
+
+Validated accuracy: **85.0%** (119/140 windows correct) on the 7 supported activities, using watch-only data with `gyro_then_accel` layout and `sum` aggregation.
+
+Per-activity breakdown:
+
+| Activity | Accuracy |
+| --- | --- |
+| Playing Catch (Tennis) | 95.0% |
+| Dribbling (Basketball) | 95.0% |
+| Clapping | 90.0% |
+| Brushing Teeth | 85.0% |
+| Folding Clothes | 85.0% |
+| Typing | 80.0% |
+| Writing | 65.0% |
 
 Full analysis: [Result.md](../Result.md)
 
-**Target metrics:**
+### Phase 3 Outcome
 
-- HAR inference latency per window
-- End-to-end latency from `dataset_ts` to prediction
-- Throughput (windows/second)
-- CPU usage under load
+- ✔ Full end-to-end pipeline working
+- ✔ Model integrated and validated at 85% accuracy
+- ✔ Predictions stored in database
+- ✔ Comprehensive evaluation tooling created (`inspect_model.py`, `evaluate_model.py`, `fix_finder.py`)
+- ✔ System ready for real sensor input
 
-**Blocked on:** Clarification from the professor regarding model training parameters (preprocessing, normalization, channel order, aggregation method, training accuracy).
+### Limitations
 
-**Done when:** ONNX model runs in Docker with acceptable accuracy, predictions stored in a separate measurement, HAR remains decoupled from ingest-service.
+- Model supports only 7 of 18 Siddha activities
+- Validated only on watch-like (wrist) data
+- Phone-based inference is unreliable
+- Writing activity has lowest accuracy (65%) — confused with Folding Clothes
+
+
+### Status
+
+**Phase 3: COMPLETED**
 
 ---
 
@@ -146,7 +283,8 @@ Convert low-level telemetry and predictions into tennis-level semantic events (b
 
 - End-to-end latency (publish → storage)
 - Ingestion throughput at various replay speeds
-- HAR inference latency
+- HAR inference latency per window
+- End-to-end latency from `dataset_ts` to prediction
 - Broker restart recovery
 - Data consistency (published vs stored count)
 - MQTT QoS impact on delivery

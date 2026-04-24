@@ -5,10 +5,28 @@
 The system follows a distributed, event-driven microservice architecture:
 
 ```text
-Data -> Broker -> Storage -> Processing -> Storage -> API
+Data → Broker → Storage → Processing → Storage → API
+```
+
+End-to-end pipeline:
+
+```text
+Dataset / Real Sensor
+        ↓
+   MQTT Broker
+        ↓
+  Ingest Service
+        ↓
+ InfluxDB (Raw IMU)
+        ↓
+   HAR Service
+        ↓
+InfluxDB (Predictions)
 ```
 
 Producers, ingestion, and processing are fully decoupled. The full system runs reproducibly via Docker Compose, and each stage can be measured independently.
+
+> **Note:** The HAR service currently operates on watch-filtered streams and a 7-class activity model. See [Phases.md — Phase 3](Phases.md#phase-3--har-microservice-completed) for details.
 
 ![Smart Tennis Field data flow](smart_tennis_field_data_flow.svg)
 
@@ -53,18 +71,20 @@ Query and inspection UI for manual debugging and schema validation.
 
 ### 2.6 har-service (HAR Processing Microservice)
 
-Decoupled activity recognition processor. Polls InfluxDB for structured IMU data, builds sliding windows, and runs ONNX model inference.
+Decoupled activity recognition processor. Polls InfluxDB for structured IMU data, builds sliding windows, runs ONNX model inference, and writes predictions back to InfluxDB.
 
 Design choices:
 
 - **DB polling over MQTT streaming:** Operates on stored, validated data for deterministic and reproducible results
 - **Adapter pattern:** The professor's `inference_engine.py` is wrapped in `HarInferenceAdapter` to capture predictions as return values without modifying the original file
-- **Configurable pipeline:** Window size, stride, query limits, device/recording filters are all environment-driven
+- **Configurable pipeline:** Window size, stride, query limits, device/recording filters, input layout, and aggregation method are all environment-driven
+- **Activity filtering:** Only processes the 7 activities the model was trained on (configurable via `HAR_ALLOWED_ACTIVITY_GT`)
+- **Duplicate prevention:** Tracks last-processed window timestamps per stream to avoid re-writing predictions
 
 Processing pipeline:
 
 ```text
-InfluxDB (imu_raw) -> Query -> Group by device/recording -> Sliding windows -> ONNX inference -> Predictions
+InfluxDB (imu_raw) → Query → Filter by device/activity → Sliding windows → ONNX inference → InfluxDB (predictions)
 ```
 
 Configuration (via `HAR_` prefixed env vars):
@@ -74,22 +94,29 @@ Configuration (via `HAR_` prefixed env vars):
 | `HAR_WINDOW_SIZE` | 40 | Samples per inference window |
 | `HAR_WINDOW_STRIDE` | 20 | Stride between windows |
 | `HAR_QUERY_LIMIT` | 5000 | Max rows per poll cycle |
-| `HAR_MAX_WINDOWS_PER_STREAM` | 10 | Max windows evaluated per device/recording stream |
-| `HAR_FILTER_DEVICE` | (none) | Optional device filter |
+| `HAR_MAX_WINDOWS_PER_STREAM` | 10 | Max windows evaluated per device/recording stream (0 = unlimited) |
+| `HAR_FILTER_DEVICE` | (none) | Optional device filter (validated: `watch`) |
 | `HAR_FILTER_RECORDING_ID` | (none) | Optional recording session filter |
+| `HAR_INPUT_LAYOUT` | `gyro_then_accel` | Channel ordering for model input |
+| `HAR_TEMPORAL_PREPROCESS` | `none` | Temporal preprocessing strategy |
+| `HAR_SCORE_AGGREGATION` | `sum` | How per-timestep scores are aggregated |
+| `HAR_ALLOWED_ACTIVITY_GT` | `F,G,O,P,Q,R,S` | Activity codes to process |
+| `HAR_PREDICTION_TABLE` | `har_predictions_7_activity` | InfluxDB measurement for predictions |
+| `HAR_MODEL_NAME` | `L2MU_plain_leaky` | Model identifier stored as tag |
 
 ---
 
 ## 3. Data Model
 
-### 3.1 Dual Persistence
+### 3.1 Multi-Layer Persistence
 
-The ingest layer maintains two parallel storage paths:
+The system maintains three storage layers:
 
 | Layer | Measurement | Purpose |
 | --- | --- | --- |
 | Event layer | `events` | Generic logging, debugging, full payload trace |
 | Signal layer | `imu_raw` | Structured IMU data for ML processing |
+| Prediction layer | `har_predictions` | HAR inference results with traceability metadata |
 
 ### 3.2 `imu_raw` Schema
 
@@ -118,7 +145,33 @@ Example line protocol:
 imu_raw,device=phone,recording_id=A_11 sample_idx=2i,acc_x=...,acc_y=...,acc_z=...,gyro_x=...,gyro_y=...,gyro_z=...,dataset_ts=12.35,activity_gt="A" 1704067212350000000
 ```
 
-### 3.3 `events` Schema
+### 3.3 `har_predictions` Schema
+
+Tags:
+
+- `device`
+- `recording_id`
+- `model_name`
+- `input_layout`
+- `score_aggregation`
+
+Fields:
+
+- `predicted_label` (string) — model's predicted activity
+- `activity_gt` (string) — ground-truth activity code
+- `confidence` (float) — prediction confidence score
+- `window_start_dataset_ts` (float) — start of the inference window in dataset time
+- `window_end_dataset_ts` (float) — end of the inference window in dataset time
+- `window_size` (integer) — number of samples in the window
+- `window_stride` (integer) — stride between windows
+
+Timestamp:
+
+- Derived from `window_end_dataset_ts` (nanosecond epoch)
+
+The tag set provides full traceability: every prediction is linked to its source device, recording session, model version, and inference configuration.
+
+### 3.4 `events` Schema
 
 Tags: `stream`, `source_id`
 Field: `payload` (escaped JSON string)

@@ -53,9 +53,9 @@ def query_influx(sql: str):
 if __name__ == "__main__":
     print("🎾 Querying Smart Tennis Field InfluxDB Database...")
 
-    query_influx("SELECT COUNT(*) AS n_rows FROM imu_raw;")
+    # query_influx("SELECT COUNT(*) AS n_rows FROM har_predictions_7_activity;")
 
-    # query_influx("SELECT device, COUNT(*) AS n_rows FROM imu_raw GROUP BY device ORDER BY n_rows DESC;")
+    query_influx("SELECT activity_gt, COUNT(*) AS n_rows FROM har_predictions_7_activity GROUP BY activity_gt ORDER BY n_rows DESC;")
 
     # query_influx("SELECT time, device, recording_id, activity_gt, dataset_ts, acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z FROM imu_raw WHERE device = 'watch' AND recording_id = '1' AND dataset_ts = 0.15;")
 

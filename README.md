@@ -10,7 +10,7 @@ Docker-based IoT, time-series, and AI processing pipeline
 Dockerized, event-driven IoT architecture for ingesting, storing, and processing multi-sensor data in a reproducible and measurable way.
 
 ```text
-Data -> Broker -> Storage -> Processing -> Storage -> API
+Dataset / Real Sensor → MQTT Broker → Ingest Service → InfluxDB (Raw IMU) → HAR Service → InfluxDB (Predictions)
 ```
 
 ![Smart Tennis Field IoT pipeline](docs/smart_tennis_field_iot_pipeline.svg)
@@ -26,7 +26,7 @@ Data -> Broker -> Storage -> Processing -> Storage -> API
 | `influxdb3`          | Time-series database                            | Stable        |
 | `influxdb3-explorer` | Explorer UI for schema and query inspection     | Stable        |
 | `siddha-sensor-sim`  | Dataset-driven MQTT simulator                   | Stable        |
-| `har-service`        | Activity recognition processor                  | In Progress — Blocked on model |
+| `har-service`        | Activity recognition processor                  | Stable        |
 
 ---
 
@@ -55,13 +55,17 @@ docs/
 services/
   ingest_service/
   siddha_sensor_sim/
-  har_service/        # in progress
+  har_service/
+    app/              # service logic, config, windowing, writer
+    model/            # ONNX model + labels + inference engine
+    Dockerfile
 
 dataset/
   data.parquet
 
 docker-compose.yml
 .env.example
+Result.md
 README.md
 ```
 
@@ -206,12 +210,25 @@ docker compose logs emqx ingest-service
 
 ## Current Status
 
-| Component                   | Status                         |
-| --------------------------- | ------------------------------ |
-| MQTT infrastructure         | Stable                         |
-| Ingest service              | Stable                         |
-| Dataset validation pipeline | Completed                      |
-| Batch writer                | Implemented                    |
-| HAR service integration     | Completed                      |
-| HAR model evaluation        | Completed — model non-functional |
-| HAR prediction storage      | Blocked on functional model    |
+✔ MQTT communication
+✔ Data ingestion and storage
+✔ Dataset replay and validation
+✔ HAR microservice integration
+✔ Model inference (ONNX, 7-class, watch-only, 85% accuracy)
+✔ Prediction persistence to InfluxDB
+
+| Component                   | Status    |
+| --------------------------- | --------- |
+| MQTT infrastructure         | Stable    |
+| Ingest service              | Stable    |
+| Dataset validation pipeline | Completed |
+| Batch writer                | Stable    |
+| HAR service integration     | Completed |
+| HAR model evaluation        | Completed |
+| HAR prediction storage      | Completed |
+
+### Next Steps
+
+🚧 Real sensor integration (MetaWear bracelet)
+🚧 Domain semantics (tennis-level event detection)
+🚧 Observability dashboard
