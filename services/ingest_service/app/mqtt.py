@@ -46,7 +46,14 @@ def on_connect(client, userdata, flags, rc, properties=None):
         print("[MQTT] subscribed to:", t, "with QoS 1")
 
 
-def _process_influx_async(ev: Dict[str, Any], payload_obj: Any):
+def _enqueue_influx_writes(ev: Dict[str, Any], payload_obj: Any) -> None:
+    """
+    Prepare and enqueue Influx writes from the MQTT callback thread.
+
+    The actual HTTP write is asynchronous relative to MQTT processing because
+    `write_event_to_influx()` and `write_imu_raw_to_influx()` only enqueue line
+    protocol for the dedicated background writer thread in `influx.py`.
+    """
     try:
         if INFLUX_WRITE_GENERIC_EVENTS:
             write_event_to_influx(ev)
@@ -76,7 +83,7 @@ def on_message(client, userdata, msg):
         EVENTS.append(ev)
 
     if INFLUX_ENABLED:
-        _process_influx_async(ev, payload_obj)
+        _enqueue_influx_writes(ev, payload_obj)
 
 def mqtt_worker():
     mqtt_client.on_connect = on_connect
