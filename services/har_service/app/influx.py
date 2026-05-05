@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import json
+import logging
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 from .config import settings
+
+logger = logging.getLogger(__name__)
 
 
 def escape_tag_value(value: str) -> str:
@@ -30,10 +33,18 @@ def write_line_protocol(line: str) -> None:
     )
 
     with urlopen(req, timeout=10) as resp:
-        body = resp.read().decode("utf-8")
-        print(f"[INFLUX WRITE] status={resp.status} db={settings.influx_database} line={line}")
+        body = resp.read()
+        logger.debug(
+            "[INFLUX WRITE] status=%s db=%s line=%s",
+            resp.status,
+            settings.influx_database,
+            line,
+        )
         if body:
-            print(f"[INFLUX WRITE BODY] {body}")
+            logger.debug(
+                "[INFLUX WRITE BODY] %s",
+                body.decode("utf-8", errors="replace"),
+            )
 
 
 def query_influx_sql(sql: str) -> list[dict]:

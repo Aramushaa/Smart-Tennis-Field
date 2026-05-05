@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     window_stride: int = 20
     max_windows_per_stream: int = 10
     query_limit: int = 5000
+    skip_existing_on_start: bool = False
     prediction_top_k: int = 3
     debug_inference: bool = False
     temporal_preprocess: str = "none"

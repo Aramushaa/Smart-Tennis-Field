@@ -105,11 +105,13 @@ def fetch_ordered_imu_rows(
         gyro_z
     FROM {settings.imu_table}
     {where_sql}
-    ORDER BY time ASC, sample_idx ASC
+    ORDER BY time DESC, sample_idx DESC
     {limit_sql}
     """.strip()
 
-    return query_influx_sql(sql)
+    rows = query_influx_sql(sql)
+    rows.reverse()
+    return rows
 
 def log_window_summary(
     device: str,
@@ -228,12 +230,16 @@ def evaluate_windows_for_stream(
 def main() -> None:
     logger.info("Starting %s", settings.service_name)
     logger.info(
-        "Configuration | influx_database=%s | imu_table=%s | query_limit=%s | window_size=%s | window_stride=%s | model_path=%s | labels_path=%s",
+        "Configuration | influx_database=%s | imu_table=%s | query_limit=%s | window_size=%s | window_stride=%s | filter_device=%s | filter_recording_id=%s | allowed_activity_gt=%s | skip_existing_on_start=%s | model_path=%s | labels_path=%s",
         settings.influx_database,
         settings.imu_table,
         settings.query_limit,
         settings.window_size,
         settings.window_stride,
+        settings.filter_device,
+        settings.filter_recording_id,
+        settings.allowed_activity_gt,
+        settings.skip_existing_on_start,
         settings.model_path,
         settings.labels_path,
     )
@@ -266,8 +272,19 @@ def main() -> None:
                     device = str(summary["device"])
                     recording_id = str(summary["recording_id"])
                     max_dataset_ts = float(summary["max_dataset_ts"])
+                    stream_key = (device, recording_id)
 
-                    if max_dataset_ts <= last_written_window_end_ts.get((device, recording_id), float("-inf")):
+                    if settings.skip_existing_on_start and stream_key not in last_written_window_end_ts:
+                        last_written_window_end_ts[stream_key] = max_dataset_ts
+                        logger.info(
+                            "Initialized live watermark | device=%s | recording_id=%s | max_dataset_ts=%s",
+                            device,
+                            recording_id,
+                            max_dataset_ts,
+                        )
+                        continue
+
+                    if max_dataset_ts <= last_written_window_end_ts.get(stream_key, float("-inf")):
                         logger.debug(
                             "Skipping unchanged stream | device=%s | recording_id=%s | max_dataset_ts=%s",
                             device,

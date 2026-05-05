@@ -1,5 +1,3 @@
-import annotated_types
-from datetime import time
 import os
 import json
 import urllib.request
@@ -8,7 +6,7 @@ from urllib.parse import urlencode
 # Default fallback values
 INFLUX_TOKEN = ""
 INFLUX_HOST = "http://localhost:8181"
-INFLUX_DATABASE = "events_full_rows"
+INFLUX_DATABASE = "tennis"
 
 # Attempt to read from .env file manually to avoid pip install python-dotenv
 if os.path.exists(".env"):

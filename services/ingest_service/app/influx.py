@@ -16,6 +16,7 @@ from .config import (
     INFLUX_FLUSH_INTERVAL_MS,
     INFLUX_HOST,
     INFLUX_IMU_TABLE,
+    INFLUX_REAL_IMU_TABLE,
     INFLUX_TABLE,
     INFLUX_TOKEN,
 )
@@ -268,6 +269,11 @@ def write_imu_raw_to_influx(payload: dict) -> None:
         return
 
     try:
+        table = (
+            INFLUX_REAL_IMU_TABLE
+            if payload.get("source") == "metawear"
+            else INFLUX_IMU_TABLE
+        )
         device = payload.get("device", "unknown")
         recording_id = payload.get("recording_id", "unknown")
         sample_idx = int(payload.get("sample_idx", 0))
@@ -291,7 +297,7 @@ def write_imu_raw_to_influx(payload: dict) -> None:
         )
 
         line = (
-            f"{INFLUX_IMU_TABLE},device={device},recording_id={recording_id} "
+            f"{table},device={device},recording_id={recording_id} "
             f"sample_idx={sample_idx}i,"
             f"acc_x={acc_x},acc_y={acc_y},acc_z={acc_z},"
             f"gyro_x={gyro_x},gyro_y={gyro_y},gyro_z={gyro_z},"

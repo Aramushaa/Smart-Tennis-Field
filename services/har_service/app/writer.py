@@ -12,6 +12,9 @@ def build_prediction_line(
     confidence: float,
     metadata: dict,
 ) -> str:
+    base_epoch_ns = 1704067200_000_000_000
+    window_end_ns = int(float(metadata["end_dataset_ts"]) * 1_000_000_000)
+
     return (
         f"{settings.prediction_table},"
         f"device={escape_tag_value(device)},"
@@ -26,7 +29,7 @@ def build_prediction_line(
         f'window_end_dataset_ts={metadata["end_dataset_ts"]},'
         f'window_size={metadata["window_size"]}i,'
         f'window_stride={settings.window_stride}i '
-        f"{int(float(metadata['end_dataset_ts']) * 1_000_000_000)}"
+        f"{base_epoch_ns + window_end_ns}"
     )
 
 
