@@ -1,327 +1,428 @@
 # Smart Tennis Field — System Architecture
 
-## 1. Overview
+## Current System Context
 
-The system follows a distributed, event-driven microservice architecture:
+The project is now entering **Phase 4**.
+
+Completed phases:
+
+| Phase | Status | Main result |
+|---|---|---|
+| Phase 0 | Completed | EMQX MQTT broker validated |
+| Phase 1 | Completed | FastAPI ingest-service + InfluxDB persistence |
+| Phase 2 | Completed | Siddha dataset replay pipeline validated |
+| Phase 3 | Completed | HAR microservice with ONNX inference and prediction storage |
+| Phase 4 | Next | Real MetaWear watch pipeline with cleaner + live HAR mode |
+
+The current implemented Phase 3 pipeline is:
 
 ```text
-Data → Broker → Storage → Processing → Storage → API
+Siddha Dataset
+→ siddha-sensor-sim
+→ EMQX
+→ ingest-service
+→ InfluxDB: imu_raw_full_rows
+→ har-service in DB mode
+→ InfluxDB: har_predictions_7_activity
 ```
 
-End-to-end pipeline:
+The Phase 4 target pipeline is:
 
 ```text
-Dataset / Real Sensor
-        ↓
-   MQTT Broker
-        ↓
-  Ingest Service
-        ↓
- InfluxDB (Raw IMU)
-        ↓
-   HAR Service
-        ↓
-InfluxDB (Predictions)
+MetaWear Bracelet
+→ BLE
+→ metawear_bridge
+→ EMQX: tennis/watch/raw
+→ watch_cleaner_service
+→ EMQX: tennis/watch/clean
+→ ingest-service
+→ InfluxDB: watch_imu_clean
+
+tennis/watch/clean
+→ har-service in MQTT mode
+→ InfluxDB: real_har_predictions
+→ Grafana visualization
 ```
-
-Producers, ingestion, and processing are fully decoupled. The full system runs reproducibly via Docker Compose, and each stage can be measured independently.
-
-> **Note:** The HAR service currently operates on watch-filtered streams and a 7-class activity model. See [Phases.md — Phase 3](Phases.md#phase-3--har-microservice-completed) for details.
-
-![Smart Tennis Field data flow](smart_tennis_field_data_flow.svg)
 
 ---
 
-## 2. Components
+## 1. Architecture Principle
 
-### 2.1 EMQX (MQTT Broker)
+The system follows this thesis-level principle:
 
-Event transport layer. Routes all sensor messages and supports wildcard topic subscriptions.
+```text
+Data Source → Protocol Adapter → Broker → Cleaner → Storage / Processing → Visualization
+```
 
-Topics:
+The more general system loop remains:
+
+```text
+Data → Broker → Storage → Processing → Storage → Visualization
+```
+
+However, Phase 4 refines the architecture by inserting a dedicated cleaner between raw sensor acquisition and downstream services.
+
+This separation is important because raw hardware streams are not always safe, complete, or aligned with model expectations.
+
+---
+
+## 2. Main Components
+
+### 2.1 EMQX — MQTT Broker
+
+EMQX is the event transport layer.
+
+Responsibilities:
+
+- Route raw and clean sensor events.
+- Decouple producers from consumers.
+- Support MQTT wildcard subscriptions.
+- Allow multiple consumers to read the same clean topic.
+
+Phase 4 topics:
+
+```text
+tennis/watch/raw
+tennis/watch/clean
+```
+
+Existing Siddha topic:
 
 ```text
 tennis/sensor/<device>/events
-tennis/camera/<id>/ball
 ```
 
-### 2.2 siddha-sensor-sim (Dataset Simulator)
+Camera topics are removed from the future architecture because camera hardware is not part of the final thesis implementation.
 
-Simulated sensor producer using the Siddha dataset. Reads Parquet data, publishes IMU samples as MQTT events, and supports `realtime` and `fast` replay modes with deterministic ordering.
+---
 
-The simulator exists so that real data flows through the broker and ingest pipeline, preserving the architectural contribution over direct database loading.
+### 2.2 siddha-sensor-sim — Dataset Replay Producer
 
-### 2.3 ingest-service (FastAPI Microservice)
+The Siddha simulator remains implemented and valid for reproducible dataset validation.
 
-Bridge between MQTT and database. Responsibilities:
-
-- Subscribe to MQTT topics using wildcard patterns
-- Normalize incoming messages into event envelopes
-- Store recent events in memory for debugging
-- Route payloads into generic event storage (`events`) and structured IMU storage (`imu_raw`)
-- Enqueue line protocol writes into a batch writer thread
-
-### 2.4 InfluxDB 3
-
-Time-series storage layer. Stores structured IMU data and generic event logs.
-
-### 2.5 InfluxDB 3 Explorer
-
-Query and inspection UI for manual debugging and schema validation.
-
-### 2.6 har-service (HAR Processing Microservice)
-
-Decoupled activity recognition processor. Polls InfluxDB for structured IMU data, builds sliding windows, runs ONNX model inference, and writes predictions back to InfluxDB.
-
-Design choices:
-
-- **DB polling over MQTT streaming:** Operates on stored, validated data for deterministic and reproducible results
-- **Adapter pattern:** The professor's `inference_engine.py` is wrapped in `HarInferenceAdapter` to capture predictions as return values without modifying the original file
-- **Configurable pipeline:** Window size, stride, query limits, device/recording filters, input layout, and aggregation method are all environment-driven
-- **Activity filtering:** Only processes the 7 activities the model was trained on (configurable via `HAR_ALLOWED_ACTIVITY_GT`)
-- **Duplicate prevention:** Tracks last-processed window timestamps per stream to avoid re-writing predictions
-
-Processing pipeline:
+Flow:
 
 ```text
-InfluxDB (imu_raw) → Query → Filter by device/activity → Sliding windows → ONNX inference → InfluxDB (predictions)
+Siddha Parquet Dataset
+→ siddha-sensor-sim
+→ EMQX
+→ ingest-service
+→ InfluxDB: imu_raw_full_rows
 ```
 
-Configuration (via `HAR_` prefixed env vars):
+This component is not deleted because it supports:
 
-| Setting | Default | Purpose |
-|---------|---------|---------|
-| `HAR_WINDOW_SIZE` | 40 | Samples per inference window |
-| `HAR_WINDOW_STRIDE` | 20 | Stride between windows |
-| `HAR_QUERY_LIMIT` | 5000 | Max rows per poll cycle |
-| `HAR_MAX_WINDOWS_PER_STREAM` | 10 | Max windows evaluated per device/recording stream (0 = unlimited) |
-| `HAR_FILTER_DEVICE` | (none) | Optional device filter (validated: `watch`) |
-| `HAR_FILTER_RECORDING_ID` | (none) | Optional recording session filter |
-| `HAR_INPUT_LAYOUT` | `gyro_then_accel` | Channel ordering for model input |
-| `HAR_TEMPORAL_PREPROCESS` | `none` | Temporal preprocessing strategy |
-| `HAR_SCORE_AGGREGATION` | `sum` | How per-timestep scores are aggregated |
-| `HAR_ALLOWED_ACTIVITY_GT` | `F,G,O,P,Q,R,S` | Activity codes to process |
-| `HAR_PREDICTION_TABLE` | `har_predictions_7_activity` | InfluxDB measurement for predictions |
-| `HAR_MODEL_NAME` | `L2MU_plain_leaky` | Model identifier stored as tag |
+- reproducible evaluation,
+- controlled replay speed,
+- known activity labels,
+- comparison with real sensor mode.
 
 ---
 
-## 3. Data Model
+### 2.3 metawear_bridge — BLE to MQTT Protocol Adapter
 
-### 3.1 Multi-Layer Persistence
+The MetaWear bracelet does not publish MQTT by itself.
 
-The system maintains three storage layers:
-
-| Layer | Measurement | Purpose |
-| --- | --- | --- |
-| Event layer | `events` | Generic logging, debugging, full payload trace |
-| Signal layer | `imu_raw` | Structured IMU data for ML processing |
-| Prediction layer | `har_predictions` | HAR inference results with traceability metadata |
-
-### 3.2 `imu_raw` Schema
-
-Tags:
-
-- `device`
-- `recording_id`
-
-Fields:
-
-- `sample_idx`
-- `acc_x`, `acc_y`, `acc_z`
-- `gyro_x`, `gyro_y`, `gyro_z`
-- `dataset_ts`
-- `activity_gt` (metadata, not part of point identity)
-
-Timestamp:
-
-- Derived from `dataset_ts`: `base_epoch_ns (2024-01-01T00:00:00Z) + dataset_ts_in_nanoseconds`
-
-For Siddha replay, `recording_id` is not the raw dataset `id`. It is a derived session identifier built as `<activity>_<id>` (for example `A_11`). This avoids ambiguity between labeled Siddha sessions that reuse the same raw `id` across different activities.
-
-Example line protocol:
+The actual flow is:
 
 ```text
-imu_raw,device=phone,recording_id=A_11 sample_idx=2i,acc_x=...,acc_y=...,acc_z=...,gyro_x=...,gyro_y=...,gyro_z=...,dataset_ts=12.35,activity_gt="A" 1704067212350000000
+MetaWear Bracelet → BLE → metawear_bridge → MQTT
 ```
 
-### 3.3 `har_predictions` Schema
+The `metawear_bridge` is a protocol adapter.
 
-Tags:
+Responsibilities:
 
-- `device`
-- `recording_id`
-- `model_name`
-- `input_layout`
-- `score_aggregation`
+- Connect to the bracelet over BLE.
+- Receive accelerometer and gyroscope callbacks.
+- Publish raw MetaWear events to MQTT.
+- Avoid direct database writes.
+- Avoid ML inference.
 
-Fields:
-
-- `predicted_label` (string) — model's predicted activity
-- `activity_gt` (string) — ground-truth activity code
-- `confidence` (float) — prediction confidence score
-- `window_start_dataset_ts` (float) — start of the inference window in dataset time
-- `window_end_dataset_ts` (float) — end of the inference window in dataset time
-- `window_size` (integer) — number of samples in the window
-- `window_stride` (integer) — stride between windows
-
-Timestamp:
-
-- Derived from `window_end_dataset_ts` (nanosecond epoch)
-
-The tag set provides full traceability: every prediction is linked to its source device, recording session, model version, and inference configuration.
-
-### 3.4 `events` Schema
-
-Tags: `stream`, `source_id`
-Field: `payload` (escaped JSON string)
-Timestamp: normalized event timestamp converted to epoch nanoseconds
-
----
-
-## 4. Timestamp Semantics
-
-The system uses three distinct time concepts plus one identity dimension:
-
-| Name | Meaning | Source | Used for |
-| --- | --- | --- | --- |
-| `dataset_ts` | Original signal time inside the Siddha recording | Parquet dataset | Signal ordering, HAR windows |
-| `ts` | Wall-clock publish timestamp | Simulator at MQTT publish time | Transport tracing, latency analysis |
-| `time` | InfluxDB point timestamp | Derived from `dataset_ts` by ingest service | Storage ordering |
-| `sample_idx` | Duplicate-order index within a timestamp group | Dataset loader | Inspection, replay analysis, future identity strengthening |
-
-These values serve different purposes and are not interchangeable.
-
----
-
-## 5. Data Identity Model
-
-### 5.1 The Problem
-
-The Siddha dataset can reuse the same raw `id` across different activities, and multiple samples can also share the same logical timestamp within a session. A Siddha-specific session identifier was therefore derived so that replay and storage are keyed by labeled session rather than raw dataset `id`.
-
-### 5.2 Current Storage Identity
-
-Under the current Siddha replay configuration, InfluxDB point identity is determined by:
+It publishes raw events to:
 
 ```text
-(measurement, device, recording_id, time)
+tennis/watch/raw
 ```
 
-where:
-
-- `recording_id = <activity>_<id>`
-- `time` is derived from `dataset_ts`
-
-`sample_idx` is still computed and stored as a field for inspection and future extensibility, but it is not currently part of point identity.
-
-This design assumes that the tuple `(device, activity, id, dataset_ts)` is unique for the validated Siddha replay configuration.
-
-### 5.3 Preserved Duplicate-Order Metadata
-
-An explicit duplicate-order index (`sample_idx`) is still assigned per group during dataset loading:
-
-- `0` -> first sample at a given timestamp
-- `1` -> second sample
-- `...`
-
-`sample_idx` is preserved as an explicit duplicate-order field so that it can be promoted back to a tag if future datasets or real-time scenarios require stronger point disambiguation.
-
-### 5.4 Why Explicit Indexing Over Timestamp Offsets
-
-An earlier iteration considered nanosecond offsets to prevent collisions. That approach was rejected because:
-
-- It introduces artificial time distortion
-- It hides the real structure of the data
-- It makes debugging harder
-
-Explicit indexing preserves semantic time, makes identity visible, and aligns with time-series modeling best practices.
+The bridge should not contain storage logic or HAR logic. This keeps hardware acquisition separate from processing and persistence.
 
 ---
 
-## 6. Batch Writer Design
+### 2.4 watch_cleaner_service — Sensor-Specific Cleaner
 
-**Problem:** One HTTP write per MQTT message is too slow for high-throughput replay.
+The cleaner is introduced in Phase 4.
 
-**Solution:** Incoming writes are enqueued and flushed from a background writer thread, controlled by `INFLUX_BATCH_SIZE` and `INFLUX_FLUSH_INTERVAL_MS`.
+Responsibilities:
 
-This decouples MQTT consumption from persistence and significantly improves throughput.
+- Subscribe to raw watch events.
+- Validate required values.
+- Pair accelerometer and gyroscope samples when needed.
+- Normalize timestamps.
+- Enforce a consistent sampling assumption.
+- Drop incomplete or physically implausible samples.
+- Publish canonical clean IMU rows.
 
-### Failure Handling
+Input topic:
 
-Write failures are handled with bounded retry logic. Failed batches are re-enqueued with a retry counter. After exceeding a maximum retry threshold, data is dropped and reported.
+```text
+tennis/watch/raw
+```
 
-This prevents silent data loss while avoiding infinite retry loops.
+Output topic:
 
-### Runtime Metrics
+```text
+tennis/watch/clean
+```
 
-The batch writer exposes runtime metrics:
+The cleaner exists so that ingest-service and HAR do not need to know MetaWear-specific details.
 
-- `queue_depth` — current number of lines waiting to be written
-- `failed_batch_count` — total batches that failed at least once
-- `retried_line_count` — total lines re-enqueued for retry
-- `dropped_line_count` — total lines dropped after exceeding max retries
-
-These are available via `/health` and `/stats` endpoints and are used to validate ingestion reliability.
-
----
-
-## 7. Data Integrity and Transport Reliability
-
-These are two independent concerns:
-
-| Concern | Risk | Mitigation |
-| --- | --- | --- |
-| Storage identity | Session ambiguity or timestamp collisions | Derived `recording_id` + validated `dataset_ts` uniqueness |
-| Transport delivery | MQTT QoS 0 drops messages under load | QoS 1 + `wait_for_publish` |
-| Write throughput | Per-message HTTP writes bottleneck | Batch writer |
-| Broker overload | Ingest slower than publish rate | Batching + QoS tuning |
-
-### Validated Configurations
-
-| Replay Mode | QoS | Wait for Publish | Result |
-| --- | --- | --- | --- |
-| `fast` | 0 | `false` | Data loss observed |
-| `fast` | 1 | `true` | Correct ingestion |
-| `realtime` | 0 | `false` | Correct ingestion |
-| `realtime` | 1 | `true` | Correct ingestion |
-
-Recommended for batch validation runs: `fast` + QoS 1 + `wait_for_publish=true`.
+This is the key architectural improvement in Phase 4.
 
 ---
 
-## 8. Design Decisions
+### 2.5 ingest-service — Sensor Storage Gateway
 
-### 8.1 Structured vs JSON Storage
+The ingest-service remains the storage gateway for clean sensor data.
 
-| Option | Pros | Cons |
-| --- | --- | --- |
-| JSON-only | Simple | Not queryable for ML |
-| Structured numeric | SQL-queryable, ML-ready | More design effort |
+Responsibilities:
 
-Structured storage was selected because HAR processing requires direct numeric access to sensor channels.
+- Subscribe to clean sensor topics.
+- Validate storage-safe payloads.
+- Write clean sensor readings to InfluxDB.
+- Use batching and retry logic.
+- Expose health and stats endpoints.
 
-### 8.2 Microservice Separation
+For Phase 4, it stores clean watch rows in:
 
-Ingestion and processing are separate services so that each can be developed, tested, and scaled independently. This also makes thesis evaluation clearer by isolating concerns.
+```text
+watch_imu_clean
+```
 
-### 8.3 Separation of Concerns
+For Phase 2/3 dataset replay, it still stores Siddha rows in:
 
-| Concern | Mechanism |
-| --- | --- |
-| Semantic time | `dataset_ts` field |
-| Session identity | Derived `recording_id` tag |
-| Duplicate-order visibility | `sample_idx` field |
-| Storage ordering | InfluxDB `time` |
-| Transport reliability | MQTT QoS + `wait_for_publish` |
+```text
+imu_raw_full_rows
+```
+
+Important boundary:
+
+```text
+ingest-service stores sensor data.
+HAR service stores prediction data.
+```
+
+Prediction outputs should not be routed through ingest-service because predictions are produced and owned by the ML service.
 
 ---
 
-## 9. Security Considerations
+### 2.6 har-service — Human Activity Recognition Service
 
-- InfluxDB tokens are stored in `.env` and never hardcoded
-- All query parameters used in SQL construction are validated using strict allowlists (alphanumeric, underscore, hyphen) to prevent SQL injection
-- Timestamp parameters are validated as ISO-8601 before interpolation
-- Table and measurement names from environment variables are validated at startup
-- Internal services communicate via Docker service names
-- Only necessary ports are exposed during development
+The HAR service has two modes.
+
+#### DB Mode — Reproducible Evaluation
+
+Used for Phase 3 and dataset validation.
+
+```text
+InfluxDB: imu_raw_full_rows
+→ har-service
+→ InfluxDB: har_predictions_7_activity
+```
+
+This mode is deterministic and easier to reproduce.
+
+#### MQTT Mode — Real-Time Watch Inference
+
+Used for Phase 4 real sensor mode.
+
+```text
+EMQX: tennis/watch/clean
+→ har-service
+→ InfluxDB: real_har_predictions
+```
+
+In MQTT mode, HAR keeps an in-memory sliding window buffer and runs ONNX inference when enough clean samples are available.
+
+The service writes predictions directly to InfluxDB because it owns the prediction result.
+
+---
+
+### 2.7 InfluxDB 3 — Time-Series Storage
+
+InfluxDB stores clean sensor inputs and prediction outputs.
+
+Recommended tables:
+
+| Table | Purpose |
+|---|---|
+| `events` | Generic event log/debug storage |
+| `imu_raw_full_rows` | Siddha dataset IMU rows |
+| `watch_imu_clean` | Clean real MetaWear watch IMU rows |
+| `har_predictions_7_activity` | Phase 3 dataset HAR predictions |
+| `real_har_predictions` | Phase 4 real watch predictions |
+| `eeg_clean` | Future EEG dataset rows |
+| `ecg_clean` | Future ECG dataset rows |
+
+Clean sensor rows and prediction rows are separated deliberately.
+
+Prediction rows should reference the input time window. They should not duplicate the full raw window.
+
+---
+
+### 2.8 Grafana — Visualization Layer
+
+Grafana is planned as the final visualization phase.
+
+Required visualization path:
+
+```text
+InfluxDB → Grafana
+```
+
+This supports:
+
+- historical prediction timelines,
+- confidence over time,
+- IMU signal visualization,
+- session summaries,
+- near-real-time dashboards with auto-refresh.
+
+Optional advanced visualization path:
+
+```text
+HAR service → Grafana Live
+```
+
+Grafana Live may provide lower latency, but it should be treated as an optional enhancement unless fully verified and implemented.
+
+The required thesis-safe approach is Grafana reading from InfluxDB.
+
+---
+
+## 3. Correct Prediction Path
+
+The correct prediction write path is:
+
+```text
+HAR service → InfluxDB: real_har_predictions
+```
+
+Not:
+
+```text
+HAR service → MQTT → ingest-service → InfluxDB
+```
+
+Reason:
+
+- ingest-service owns sensor ingestion;
+- HAR service owns prediction generation;
+- prediction schemas differ from sensor schemas;
+- routing predictions through ingest would make ingest responsible for ML output formats.
+
+This avoids turning the ingest-service into a tightly coupled central monolith.
+
+---
+
+## 4. Why Store Clean IMU and Predictions Separately?
+
+The clean IMU table stores the model input:
+
+```text
+watch_imu_clean
+```
+
+The prediction table stores model output:
+
+```text
+real_har_predictions
+```
+
+A prediction row should contain metadata such as:
+
+```text
+device
+recording_id
+predicted_label
+confidence
+window_start_ts
+window_end_ts
+window_size
+window_stride
+```
+
+It should not store the full raw input window again.
+
+This design supports:
+
+- reproducibility,
+- debugging,
+- future model comparison,
+- data quality analysis,
+- historical visualization.
+
+---
+
+## 5. Edge Computing Position
+
+This project is not a full edge-computing system.
+
+The MetaWear bracelet is a sensor. The laptop or Docker host performs cleaning, storage, and inference.
+
+A true edge deployment would be:
+
+```text
+MetaWear → Raspberry Pi gateway → local inference → central storage
+```
+
+That is a valid future direction, but it is outside the current thesis scope.
+
+The current choice is centralized local processing because it is:
+
+- more reproducible,
+- easier to observe,
+- easier to evaluate,
+- more suitable for Docker-based thesis validation.
+
+---
+
+## 6. Final Phase 4 Architecture
+
+```text
+MetaWear Bracelet (BLE)
+        │
+        ▼
+metawear_bridge
+        │
+        ▼
+EMQX: tennis/watch/raw
+        │
+        ▼
+watch_cleaner_service
+        │
+        ▼
+EMQX: tennis/watch/clean
+        │
+        ├──────────────────────────┐
+        ▼                          ▼
+ingest-service              har-service (MQTT mode)
+        │                          │
+        ▼                          ▼
+InfluxDB: watch_imu_clean   InfluxDB: real_har_predictions
+                                      │
+                                      ▼
+                                  Grafana
+```
+
+Dataset evaluation remains:
+
+```text
+Siddha Dataset
+→ siddha-sensor-sim
+→ EMQX
+→ ingest-service
+→ InfluxDB: imu_raw_full_rows
+→ har-service (DB mode)
+→ InfluxDB: har_predictions_7_activity
+```

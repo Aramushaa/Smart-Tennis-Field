@@ -71,8 +71,36 @@ services:
     env_file:
       - .env
     depends_on:
+      emqx:
+        condition: service_healthy
+      influxdb3:
+        condition: service_started
+    restart: unless-stopped
+
+
+  data-cleaner-service:
+    build:
+      context: ./services/data_cleaner_service
+      dockerfile: Dockerfile
+    container_name: data-cleaner-service
+    env_file:
+      - .env
+    depends_on:
+      emqx:
+        condition: service_healthy
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
       - influxdb3
     restart: unless-stopped
 
 volumes:
   influxdb3_data:
+  grafana_data:

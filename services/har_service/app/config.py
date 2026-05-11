@@ -2,7 +2,16 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     service_name: str = "har-service"
+    # Phase 3 uses db_polling for reproducible dataset evaluation.
+    # Phase 4 uses mqtt_stream for live watch prediction.
+    input_mode: str = "db_polling"
     poll_interval_seconds: float = 5.0
+
+    mqtt_host: str = "emqx"
+    mqtt_port: int = 1883
+    mqtt_topic: str = "tennis/watch/clean"
+    mqtt_prediction_topic: str = "tennis/watch/predictions"
+    mqtt_qos: int = 1
 
     influx_host: str = "http://influxdb3:8181"
     influx_token: str = ""
@@ -22,7 +31,6 @@ class Settings(BaseSettings):
     window_stride: int = 20
     max_windows_per_stream: int = 10
     query_limit: int = 5000
-    skip_existing_on_start: bool = False
     prediction_top_k: int = 3
     debug_inference: bool = False
     temporal_preprocess: str = "none"

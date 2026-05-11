@@ -36,9 +36,12 @@ INFLUX_IMU_TABLE = validate_table_name(
     os.getenv("INFLUX_IMU_TABLE", "imu_raw"),
     "INFLUX_IMU_TABLE",
 )
-INFLUX_REAL_IMU_TABLE = validate_table_name(
-    os.getenv("INFLUX_REAL_IMU_TABLE", "real_imu_rows"),
-    "INFLUX_REAL_IMU_TABLE",
+
+# Phase 4: real watch data is routed to a separate table so dataset validation
+# and real hardware experiments do not mix.
+INFLUX_WATCH_IMU_TABLE = validate_table_name(
+    os.getenv("INFLUX_WATCH_IMU_TABLE", "watch_imu_clean"),
+    "INFLUX_WATCH_IMU_TABLE",
 )
 
 INFLUX_BATCH_SIZE = int(os.getenv("INFLUX_BATCH_SIZE", "500"))

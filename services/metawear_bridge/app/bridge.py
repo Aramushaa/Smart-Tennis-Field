@@ -1,68 +1,81 @@
 import time
+from datetime import datetime, timezone
+
 from app.metawear_client import MetaWearClient
 from app.mqtt_publisher import MQTTPublisher
-from app.config import MAC_ADDRESS, MQTT_TOPIC, DEVICE_NAME, RECORDING_ID
+from app.config import (
+    MAC_ADDRESS,
+    MQTT_TOPIC,
+    DEVICE_NAME,
+    RECORDING_ID,
+    SAMPLING_RATE_HZ,
+)
 
 if not MAC_ADDRESS or MAC_ADDRESS == "YOUR_MAC_ADDRESS_HERE":
     raise RuntimeError("Set METAWEAR_MAC_ADDRESS in .env before starting the bridge")
 
 publisher = MQTTPublisher()
-
-latest_acc = None
-latest_gyro = None
-sample_idx = 0
 recording_started_at = time.time()
-session_recording_id = f"{RECORDING_ID}_{time.strftime('%Y%m%d_%H%M%S')}"
+raw_sample_idx = {"acc": 0, "gyro": 0}
+
+# Debug counters: print rate once per second instead of printing every sample.
+counts = {"acc": 0, "gyro": 0}
+last_rate_print = time.time()
 
 
-def publish_if_ready():
-    global latest_acc, latest_gyro, sample_idx
+def now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
-    if latest_acc is None or latest_gyro is None:
+
+def my_function(sensor, timestamp, x, y, z):
+    """
+    Callback called by MetaWearClient for each raw ACC/GYRO notification.
+
+    Important Phase 4 design:
+    - The bridge is only a BLE -> MQTT protocol adapter.
+    - It does NOT merge accelerometer and gyroscope.
+    - The data_cleaner_service owns pairing, validation, and canonical schema.
+    """
+    global last_rate_print
+
+    if sensor not in ("acc", "gyro"):
         return
 
-    dataset_ts = time.time() - recording_started_at
+    sensor_ts = time.time() - recording_started_at
+    sample_idx = raw_sample_idx[sensor]
+    raw_sample_idx[sensor] += 1
 
     payload = {
         "source": "metawear",
         "device": DEVICE_NAME,
-        "recording_id": session_recording_id,
-        "dataset_ts": dataset_ts,
+        "recording_id": RECORDING_ID,
+        "sensor": sensor,
+        "sensor_ts": sensor_ts,
+        "metawear_epoch_ms": int(timestamp),
         "sample_idx": sample_idx,
-        "acc_x": latest_acc[0],
-        "acc_y": latest_acc[1],
-        "acc_z": latest_acc[2],
-        "gyro_x": latest_gyro[0],
-        "gyro_y": latest_gyro[1],
-        "gyro_z": latest_gyro[2],
-        "activity_gt": "unknown",
+        "x": float(x),
+        "y": float(y),
+        "z": float(z),
+        "sampling_rate_hz": SAMPLING_RATE_HZ,
+        "ts": now_iso(),
     }
 
     publisher.publish(MQTT_TOPIC, payload)
-    sample_idx += 1
 
-
-def my_function(sensor, timestamp, x, y, z):
-    global latest_acc, latest_gyro
-
-    if sensor == "acc":
-        latest_acc = (x, y, z)
-        return
-    elif sensor == "gyro":
-        latest_gyro = (x, y, z)
-
-    publish_if_ready()
+    counts[sensor] += 1
+    now = time.time()
+    if now - last_rate_print >= 1.0:
+        print("Raw publish rate per second:", counts)
+        counts["acc"] = 0
+        counts["gyro"] = 0
+        last_rate_print = now
 
 
 sensor = MetaWearClient(MAC_ADDRESS)
 sensor.set_callback(my_function)
 
 print("Connecting to MetaWear...")
-print(f"Recording id: {session_recording_id}")
 sensor.connect()
 sensor.configure()
-print("Streaming to MQTT...")
+print(f"Streaming RAW MetaWear data to MQTT topic: {MQTT_TOPIC}")
 sensor.start_sampling()
-
-while True:
-    time.sleep(1)

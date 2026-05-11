@@ -16,7 +16,7 @@ from .config import (
     INFLUX_FLUSH_INTERVAL_MS,
     INFLUX_HOST,
     INFLUX_IMU_TABLE,
-    INFLUX_REAL_IMU_TABLE,
+    INFLUX_WATCH_IMU_TABLE,
     INFLUX_TABLE,
     INFLUX_TOKEN,
 )
@@ -269,14 +269,16 @@ def write_imu_raw_to_influx(payload: dict) -> None:
         return
 
     try:
-        table = (
-            INFLUX_REAL_IMU_TABLE
-            if payload.get("source") == "metawear"
-            else INFLUX_IMU_TABLE
-        )
         device = payload.get("device", "unknown")
         recording_id = payload.get("recording_id", "unknown")
+        source = payload.get("source", "dataset")
         sample_idx = int(payload.get("sample_idx", 0))
+
+        target_table = (
+            INFLUX_WATCH_IMU_TABLE
+            if source == "metawear"
+            else INFLUX_IMU_TABLE
+        )
 
         acc_x = float(payload["acc_x"])
         acc_y = float(payload["acc_y"])
@@ -288,16 +290,22 @@ def write_imu_raw_to_influx(payload: dict) -> None:
         dataset_ts = float(payload.get("dataset_ts", 0.0))
         activity_gt = payload.get("activity_gt", "unknown")
 
-        base_epoch_ns = 1704067200_000_000_000
-        dataset_ts_ns = int(dataset_ts * 1_000_000_000)
-        ts_epoch = base_epoch_ns + dataset_ts_ns
+        # Dataset replay uses a deterministic synthetic epoch based on dataset_ts.
+        # Real watch rows use wall-clock time from the cleaner so Grafana can show
+        # them in a live dashboard with a normal "last 5 minutes" time range.
+        if source == "metawear" and payload.get("ts"):
+            ts_epoch = iso_to_epoch_nanos(str(payload["ts"]))
+        else:
+            base_epoch_ns = 1704067200_000_000_000
+            dataset_ts_ns = int(dataset_ts * 1_000_000_000)
+            ts_epoch = base_epoch_ns + dataset_ts_ns
 
         escaped_activity_gt = (
             str(activity_gt).replace("\\", "\\\\").replace('"', '\\"')
         )
 
         line = (
-            f"{table},device={device},recording_id={recording_id} "
+            f"{target_table},device={device},recording_id={recording_id} "
             f"sample_idx={sample_idx}i,"
             f"acc_x={acc_x},acc_y={acc_y},acc_z={acc_z},"
             f"gyro_x={gyro_x},gyro_y={gyro_y},gyro_z={gyro_z},"

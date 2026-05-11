@@ -1,295 +1,316 @@
 # Phases — Smart Tennis Field Roadmap
 
-Each phase depends on the previous one: transport must be validated before persistence, persistence before processing.
+This roadmap reflects the updated Phase 4 direction.
 
-| Phase | Status |
-| --- | --- |
-| Phase 0 — MQTT Infrastructure | Completed |
-| Phase 1 — Ingest + Persistence | Completed |
-| Phase 2 — Dataset Validation | Completed |
-| Phase 3 — HAR Microservice | Completed |
-| Phase 4 — Real Edge Gateways | Deferred |
-| Phase 5 — Domain Semantics | Future |
-| Phase 6 — Observability / Evaluation | Ongoing |
+The project first validated transport, persistence, dataset replay, and HAR inference. It now moves toward real sensor integration and later multi-source extensibility.
 
 ---
 
-## Phase 0 — MQTT Infrastructure (Completed)
+## Phase Overview
 
-**Goal:** Validate reliable end-to-end event transport using MQTT in a Dockerized environment.
+| Phase | Status | Goal |
+|---|---|---|
+| Phase 0 — MQTT Infrastructure | Completed | Validate broker-based event transport |
+| Phase 1 — Ingest + Persistence | Completed | Store MQTT data in InfluxDB |
+| Phase 2 — Dataset Validation | Completed | Replay Siddha dataset through the full pipeline |
+| Phase 3 — HAR Microservice | Completed | Run ONNX HAR inference and store predictions |
+| Phase 4 — Real Watch Pipeline | Next | Integrate MetaWear watch with cleaner + real-time HAR |
+| Phase 5 — EEG/ECG Dataset Sources | Planned | Add two heterogeneous dataset-based sensors, no ML |
+| Phase 6 — Grafana Visualization | Planned | Visualize live-ish and historical data |
 
-**Deliverables:**
-
-- EMQX broker in Docker
-- Publisher → broker → subscriber verified
-- Topic naming convention (`tennis/sensor/+/events`, `tennis/camera/+/ball`)
-- JSON payload schema defined
-- Basic QoS behavior understood
-
-**Done when:** Message integrity validated, Docker Compose reproducibility confirmed.
-
----
-
-## Phase 1 — Ingest Service + Persistence (Completed)
-
-**Goal:** Transform MQTT messages into durable, queryable time-series data.
-
-**Deliverables:**
-
-- FastAPI ingest microservice with background MQTT worker
-- Event normalization envelope
-- In-memory ring buffer for debugging
-- InfluxDB 3 integration via line protocol writes and SQL queries
-- Token-based authentication
-- REST endpoints: `GET /health`, `GET /events`, `POST /publish`
-
-**Done when:** MQTT events persist in InfluxDB across container restarts, time-range queries work, authentication verified.
-
-**Note:** Data identity was not yet fully addressed. Phase 2 finalized the current Siddha identity model with derived session identifiers and preserved duplicate-order metadata.
+Camera-based features are removed from future phases because no camera hardware is available and camera tracking is not part of the final thesis contribution.
 
 ---
 
-## Phase 2 — Dataset Validation Pipeline (Completed)
+## Phase 0 — MQTT Infrastructure
 
-**Goal:** Validate the infrastructure using the Siddha multi-sensor dataset instead of synthetic messages.
-
-**Deliverables:**
-
-- `siddha-sensor-sim` microservice: reads Parquet, publishes via MQTT with configurable replay modes, filters, and QoS
-- Structured IMU storage in `imu_raw` measurement
-- Batch writer thread replacing per-message HTTP writes
-- Derived Siddha session identifiers (`<activity>_<id>`) to avoid ambiguity between labeled sampling sessions
-- Preserved `sample_idx` metadata for duplicate-order tracking and future schema strengthening
-- Validated end-to-end ingestion with ~2M rows
-
-For the `imu_raw` schema, identity model, and validated configurations, see [Architecture.md](Architecture.md).
-
-**Done when:**
-
-- No data loss under validated configurations (QoS 1 + `wait_for_publish=true`)
-- Session separation and replay ordering validated under the current Siddha identity model
-- Row count matches source dataset
-- Replay order preserved
-- Pipeline deterministic and reproducible
-
-**Scope boundaries:** Phase 2 does not include ML inference, real hardware, or multi-sensor fusion. Ingestion infrastructure is validated independently before processing.
-
----
-
-## Phase 3 — HAR Microservice (Completed)
+**Status:** Completed
 
 ### Goal
 
-Integrate a Human Activity Recognition (HAR) microservice that processes stored IMU data and generates activity predictions.
+Validate the event backbone using MQTT and Docker.
 
-### Architecture Extension
+### Implemented
+
+- EMQX broker.
+- Publisher/subscriber validation.
+- Docker Compose networking.
+- MQTT host/port distinction:
+  - inside Docker: `emqx:1883`
+  - from host: `localhost:2883`
+
+### Thesis Reasoning
+
+Before storing or processing sensor data, the transport layer had to be proven reliable and reproducible.
+
+---
+
+## Phase 1 — Ingest + Persistence
+
+**Status:** Completed
+
+### Goal
+
+Persist MQTT messages in InfluxDB through an ingest microservice.
+
+### Implemented
+
+- FastAPI ingest-service.
+- MQTT background subscriber.
+- InfluxDB 3 write integration.
+- Event envelope normalization.
+- Batch writer with queue.
+- Health/stat endpoints.
+
+### Important Design Choice
+
+The ingest-service is the gateway for sensor storage, not a universal writer for every type of system output.
+
+---
+
+## Phase 2 — Dataset Validation
+
+**Status:** Completed
+
+### Goal
+
+Validate the full infrastructure with real dataset rows rather than simple fake messages.
+
+### Implemented
+
+- Siddha Parquet loading.
+- Deterministic replay.
+- MQTT publishing.
+- Structured IMU writes.
+- Batch performance validation.
+- Metrics:
+  - `queue_depth`
+  - `failed_batch_count`
+  - `retried_line_count`
+  - `dropped_line_count`
+
+### Data Flow
 
 ```text
-Data → Broker → Storage → Processing → Storage
+Siddha Dataset
+→ siddha-sensor-sim
+→ EMQX
+→ ingest-service
+→ InfluxDB: imu_raw_full_rows
 ```
 
-Specifically:
+### Thesis Reasoning
+
+The system had to prove that it can ingest large, structured sensor data reproducibly before adding ML.
+
+---
+
+## Phase 3 — HAR Microservice
+
+**Status:** Completed
+
+### Goal
+
+Add processing after storage using an ONNX activity recognition model.
+
+### Implemented
+
+- HAR service.
+- InfluxDB polling.
+- Stream grouping by device and recording.
+- Deterministic ordering.
+- Sliding windows.
+- ONNX inference.
+- Prediction writing.
+
+### Data Flow
 
 ```text
-Dataset → MQTT → Ingest → InfluxDB (raw)
-                              ↓
-                         HAR Service
-                              ↓
-                   InfluxDB (predictions)
+InfluxDB: imu_raw_full_rows
+→ har-service
+→ InfluxDB: har_predictions_7_activity
 ```
 
-### Implementation Details
-
-#### 1. HAR Microservice
-
-- Separate service (`har-service`) in its own Docker container
-- Polls IMU data from InfluxDB (DB polling, not MQTT streaming)
-- Groups data by `(device, recording_id)`
-- Builds sliding windows from ordered rows
-- Runs ONNX inference via adapter pattern
-- Writes predictions back to InfluxDB
-
-#### 2. Windowing
-
-- Window size: configurable via `HAR_WINDOW_SIZE` (validated: 40)
-- Stride: configurable via `HAR_WINDOW_STRIDE` (validated: 20)
-- Deterministic ordering via SQL: `ORDER BY time ASC, sample_idx ASC`
-- Rows filtered by device and recording in the `WHERE` clause before windowing
-
-#### 3. Model Integration
-
-- ONNX model: `L2MU_plain_leaky.onnx` (PyTorch 2.2.1, ONNX opset 17, 3230 nodes)
-- Input shape: `[40, 1, 6]` — 40 timesteps × 1 batch × 6 features
-- Output shape: `[40, 1, 7]` — per-timestep prediction, 7 classes
-- Input layout: `gyro_then_accel` (gyroscope channels before accelerometer)
-- Temporal preprocessing: `none`
-- Score aggregation: `sum` across timesteps
-- Adapter pattern wraps the professor's `inference_engine.py` without modifying the original file
-
-#### 4. Activity Filtering
-
-The service filters by `allowed_activity_gt` (default: `F,G,O,P,Q,R,S`) to restrict processing to only the 7 activities the model was trained on. This prevents meaningless predictions on unsupported activity classes.
-
-#### 5. Critical Fixes
-
-The following issues were identified and resolved during integration:
-
-| Issue | Impact |
-| --- | --- |
-| Mixed-device windows (phone + watch) | Severely degraded performance |
-| Incorrect input layout interpretation | Model expected gyro-first, pipeline sent accel-first |
-| Inconsistent evaluation methodology | Initial evaluation mixed all 18 activities against a 7-class model |
-| Model–dataset mismatch assumptions | Assumed model covered all Siddha activities |
-
-**Fixed by:**
-
-- Grouping by `(device, recording_id)` to prevent cross-device contamination
-- Restricting processing to `device=watch` via `HAR_FILTER_DEVICE`
-- Validating preprocessing strategies via systematic sweep (see [Result.md](../Result.md))
-- Filtering to the 7 supported activity codes via `HAR_ALLOWED_ACTIVITY_GT`
-
-#### 6. Model Scope
-
-> **Important:** The supplied model has strict operational boundaries.
-
-The model is:
-
-- ✔ 7-class classifier
-- ✔ Optimized for wrist (watch) input
-- ❌ Not designed for the full 18-activity Siddha dataset
-- ❌ Not validated for phone input
-
-Supported activities:
-
-| Code | Activity | Label |
-| --- | --- | --- |
-| F | Typing | typing |
-| G | Brushing Teeth | teeth |
-| O | Playing Catch (Tennis) | catch |
-| P | Dribbling (Basketball) | dribbling |
-| Q | Writing | writing |
-| R | Clapping | clapping |
-| S | Folding Clothes | folding |
-
-#### 7. Prediction Storage
-
-Predictions are written to InfluxDB using line protocol. The measurement name is configurable via `HAR_PREDICTION_TABLE`.
-
-**Schema:**
-
-Tags:
-
-- `device`
-- `recording_id`
-- `model_name`
-- `input_layout`
-- `score_aggregation`
-
-Fields:
-
-- `predicted_label` (string)
-- `activity_gt` (string)
-- `confidence` (float)
-- `window_start_dataset_ts` (float)
-- `window_end_dataset_ts` (float)
-- `window_size` (integer)
-- `window_stride` (integer)
-
-Timestamp: derived from `window_end_dataset_ts` (nanosecond epoch).
-
-#### 8. Duplicate Prediction Prevention
-
-The service tracks `last_written_window_end_ts` per `(device, recording_id)` stream to avoid re-writing predictions for windows that have already been processed. Streams where the maximum `dataset_ts` hasn't changed since the last cycle are skipped entirely.
-
-#### 9. Final Validated Configuration
+### Validated Runtime
 
 | Parameter | Value |
-| --- | --- |
-| `HAR_FILTER_DEVICE` | `watch` |
-| `HAR_INPUT_LAYOUT` | `gyro_then_accel` |
-| `HAR_TEMPORAL_PREPROCESS` | `none` |
-| `HAR_SCORE_AGGREGATION` | `sum` |
-| `HAR_WINDOW_SIZE` | `40` |
-| `HAR_WINDOW_STRIDE` | `20` |
-| `HAR_ALLOWED_ACTIVITY_GT` | `F,G,O,P,Q,R,S` |
-| `HAR_MAX_WINDOWS_PER_STREAM` | `0` (unlimited) |
+|---|---|
+| Device | `watch` |
+| Input layout | `gyro_then_accel` |
+| Temporal preprocessing | `none` |
+| Score aggregation | `sum` |
+| Supported activities | `F,G,O,P,Q,R,S` |
 
-### Performance Result
+### Important Limitation
 
-Validated accuracy: **85.0%** (119/140 windows correct) on the 7 supported activities, using watch-only data with `gyro_then_accel` layout and `sum` aggregation.
+The model supports only seven Siddha activities:
 
-Per-activity breakdown:
+```text
+F, G, O, P, Q, R, S
+```
 
-| Activity | Accuracy |
-| --- | --- |
-| Playing Catch (Tennis) | 95.0% |
-| Dribbling (Basketball) | 95.0% |
-| Clapping | 90.0% |
-| Brushing Teeth | 85.0% |
-| Folding Clothes | 85.0% |
-| Typing | 80.0% |
-| Writing | 65.0% |
-
-Full analysis: [Result.md](../Result.md)
-
-### Phase 3 Outcome
-
-- ✔ Full end-to-end pipeline working
-- ✔ Model integrated and validated at 85% accuracy
-- ✔ Predictions stored in database
-- ✔ Comprehensive evaluation tooling created (`inspect_model.py`, `evaluate_model.py`, `fix_finder.py`)
-- ✔ System ready for real sensor input
-
-### Limitations
-
-- Model supports only 7 of 18 Siddha activities
-- Validated only on watch-like (wrist) data
-- Phone-based inference is unreliable
-- Writing activity has lowest accuracy (65%) — confused with Folding Clothes
-
-
-### Status
-
-**Phase 3: COMPLETED**
+It is not a full 18-activity classifier.
 
 ---
 
-## Phase 4 — Real Edge Gateways (Deferred)
+# Phase 4 — Real Watch Pipeline
 
-Real producers are introduced only after infrastructure and processing are stable. The Siddha simulator remains as a deterministic baseline.
+**Status:** Next
 
-### 4A — Sensor Gateway
+## Goal
 
-- `sensor_gateway` microservice reading from real hardware (BLE/UART)
-- Publishes to `tennis/sensor/<id>/events`
+Integrate the MetaWear bracelet as a real hardware sensor source and run real-time HAR inference.
 
-### 4B — Vision Gateway
+## Target Data Flow
 
-- `vision_gateway` microservice with YOLO-based ball detection
-- Reads RTSP/USB/video sources
-- Publishes to `tennis/camera/<id>/ball`
+```text
+MetaWear Bracelet
+→ BLE
+→ metawear_bridge
+→ EMQX: tennis/watch/raw
+→ watch_cleaner_service
+→ EMQX: tennis/watch/clean
+→ ingest-service
+→ InfluxDB: watch_imu_clean
+
+tennis/watch/clean
+→ har-service in MQTT mode
+→ InfluxDB: real_har_predictions
+```
+
+## Implemented Before Starting This Phase
+
+- The bracelet can connect over BLE.
+- Accelerometer and gyroscope data are received.
+- Sampling rate was adjusted to approximately 25 Hz.
+
+## New Components
+
+### `metawear_bridge`
+
+Protocol adapter:
+
+```text
+BLE → MQTT
+```
+
+Publishes raw events to:
+
+```text
+tennis/watch/raw
+```
+
+### `watch_cleaner_service`
+
+Sensor-specific cleaning layer.
+
+Responsibilities:
+
+- validate values,
+- normalize timestamps,
+- ensure complete IMU rows,
+- publish clean rows.
+
+Publishes to:
+
+```text
+tennis/watch/clean
+```
+
+### HAR MQTT Mode
+
+HAR will support:
+
+```env
+HAR_MODE=mqtt
+```
+
+for real-time watch inference.
+
+The existing Phase 3 mode remains:
+
+```env
+HAR_MODE=db
+```
+
+for reproducible dataset evaluation.
+
+## Phase 4 Done When
+
+- MetaWear data reaches `tennis/watch/raw`.
+- Cleaner publishes valid rows to `tennis/watch/clean`.
+- Ingest stores clean rows in `watch_imu_clean`.
+- HAR consumes clean rows in MQTT mode.
+- Predictions are written to `real_har_predictions`.
+- Delay and throughput can be observed.
 
 ---
 
-## Phase 5 — Domain Semantics (Future)
+# Phase 5 — EEG/ECG Dataset Sources
 
-Convert low-level telemetry and predictions into tennis-level semantic events (bounce, serve, fault, out).
+**Status:** Planned
+
+## Goal
+
+Demonstrate multi-source extensibility using two additional sensor data sources.
+
+These are dataset-based sources, not physical hardware integrations.
+
+## Scope
+
+Add:
+
+```text
+eeg_dataset_sim → eeg_cleaner → ingest-service → InfluxDB: eeg_clean
+ecg_dataset_sim → ecg_cleaner → ingest-service → InfluxDB: ecg_clean
+```
+
+## Important Limitation
+
+No ML will be implemented for EEG or ECG in this thesis.
+
+This is intentional.
+
+The goal is to show that the architecture supports heterogeneous sensor sources. Sensor-specific ML for EEG/ECG is future work.
+
+## Thesis Reasoning
+
+This phase demonstrates extensibility without expanding the scope into multiple ML research problems.
 
 ---
 
-## Phase 6 — Observability and Evaluation (Ongoing)
+# Phase 6 — Grafana Visualization
 
-### Core Metrics
+**Status:** Planned
 
-- End-to-end latency (publish → storage)
-- Ingestion throughput at various replay speeds
-- HAR inference latency per window
-- End-to-end latency from `dataset_ts` to prediction
-- Broker restart recovery
-- Data consistency (published vs stored count)
-- MQTT QoS impact on delivery
-- Replay mode comparison (`realtime` vs `fast`)
+## Goal
 
-### Methodology
+Visualize stored sensor data and predictions.
 
-Experiments use controlled configurations (replay mode, QoS, batch size) and measure correctness, latency, throughput, and resource usage for reproducible and comparable results.
+## Required Path
+
+```text
+InfluxDB → Grafana
+```
+
+Dashboards:
+
+- current/last predicted activity,
+- prediction confidence over time,
+- IMU signals from `watch_imu_clean`,
+- historical prediction timeline,
+- session summary,
+- EEG/ECG signal browsers.
+
+## Optional Enhancement
+
+Grafana Live may be investigated for lower-latency display.
+
+However, the required thesis-safe version is Grafana reading from InfluxDB with short refresh intervals.
+
+## Done When
+
+- Grafana connects to InfluxDB.
+- Dashboard panels show real watch IMU rows.
+- Dashboard panels show prediction history.
+- Refresh behavior is documented and measured.

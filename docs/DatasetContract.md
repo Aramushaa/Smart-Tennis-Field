@@ -1,145 +1,350 @@
-# Siddha Dataset Contract
+# Data Contracts — Siddha, MetaWear, EEG, and ECG
 
-## 1. Purpose
+## Purpose
 
-This document defines how Siddha dataset rows are mapped into MQTT events and InfluxDB points.
+This document defines the payload and storage contracts used by the Smart Tennis Field system.
 
-The contract keeps the system reproducible across dataset replay, MQTT transport, ingestion, and storage. Without it, different services could interpret the same data differently.
+The system uses different sources:
 
-For the full data model and identity semantics, see [Architecture.md](Architecture.md).
+- Siddha dataset replay,
+- MetaWear watch hardware,
+- future EEG dataset source,
+- future ECG dataset source.
+
+The goal is to keep every stage explicit:
+
+```text
+source format → cleaner / normalizer → canonical clean format → storage / processing
+```
 
 ---
 
-## 2. Source Dataset Schema
+# 1. Siddha Dataset Contract
 
-The Siddha simulator reads rows from the Parquet dataset. Required columns:
+## 1.1 Source
+
+The Siddha simulator reads a Parquet dataset.
+
+Required source columns:
 
 | Column | Meaning |
-| --- | --- |
-| `device` | Acquisition source (`phone`, `watch`) |
-| `activity` | Ground-truth activity label |
-| `id` | Recording/session identifier |
-| `acc_x`, `acc_y`, `acc_z` | Accelerometer axes |
-| `gyro_x`, `gyro_y`, `gyro_z` | Gyroscope axes |
-| `timestamp` | Logical time inside the recording |
+|---|---|
+| `device` | source device, usually `phone` or `watch` |
+| `activity` | ground-truth activity code |
+| `id` | raw recording identifier |
+| `timestamp` | logical time inside recording |
+| `acc_x`, `acc_y`, `acc_z` | acceleration axes |
+| `gyro_x`, `gyro_y`, `gyro_z` | gyroscope axes |
 
----
-
-## 3. Internal Normalized Model
-
-Each validated dataset row is converted into a `SensorSample` dataclass:
-
-| SensorSample field | Source column |
-| --- | --- |
-| `device` | `device` |
-| `activity_gt` | `activity` |
-| `recording_id` | Derived session identifier: `<activity>_<id>` |
-| `dataset_ts` | `timestamp` |
-| `sample_idx` | Computed duplicate-order index, preserved for inspection and future identity strengthening |
-| `acc_x`, `acc_y`, `acc_z` | `acc_x`, `acc_y`, `acc_z` |
-| `gyro_x`, `gyro_y`, `gyro_z` | `gyro_x`, `gyro_y`, `gyro_z` |
-
-This model is the stable handoff between dataset parsing and MQTT publishing.
-
-For Siddha replay, `recording_id` is derived as `<activity>_<id>` (for example `A_11`) rather than using the raw dataset `id` directly. This avoids ambiguity between labeled sessions that reuse the same raw `id` across different activities.
-
----
-
-## 4. MQTT Topic Contract
-
-Pattern:
+## 1.2 MQTT Topic
 
 ```text
 tennis/sensor/<device>/events
 ```
 
-Example: `tennis/sensor/phone/events`
+Example:
 
-The ingest layer subscribes using `tennis/sensor/+/events`.
+```text
+tennis/sensor/watch/events
+```
 
----
-
-## 5. MQTT Payload Contract
-
-The simulator publishes JSON payloads with these fields:
+## 1.3 Normalized Siddha Payload
 
 ```json
 {
-  "device": "phone",
-  "recording_id": "A_11",
-  "activity_gt": "A",
-  "dataset_ts": 0.05,
-  "sample_idx": 0,
-  "acc_x": -2.776,
-  "acc_y": -0.295,
-  "acc_z": -2.380,
-  "gyro_x": -2.469,
-  "gyro_y": -12.002,
-  "gyro_z": -1.547,
-  "ts": "2026-03-30T11:24:26.693346+00:00"
+  "device": "watch",
+  "recording_id": "F_0",
+  "dataset_ts": 12.35,
+  "sample_idx": 42,
+  "acc_x": 0.1,
+  "acc_y": -0.2,
+  "acc_z": 9.7,
+  "gyro_x": 0.01,
+  "gyro_y": -0.02,
+  "gyro_z": 0.03,
+  "activity_gt": "F"
 }
 ```
 
-For timestamp and identity semantics, see [Architecture.md — Timestamp Semantics](Architecture.md#4-timestamp-semantics) and [Data Identity Model](Architecture.md#5-data-identity-model).
+## 1.4 Storage Table
+
+```text
+imu_raw_full_rows
+```
+
+## 1.5 Identity Model
+
+For Siddha IMU rows:
+
+```text
+measurement/table + device + recording_id + time
+```
+
+where:
+
+```text
+recording_id = <activity>_<id>
+time = dataset_ts mapped to Influx time
+```
+
+`sample_idx` is stored as a field for ordering/debugging, not as the primary identity component.
 
 ---
 
-## 6. Ingest Event Envelope
+# 2. MetaWear Raw Contract
 
-Before persistence, `ingest-service` wraps received MQTT messages into a normalized envelope:
+## 2.1 Source
+
+The MetaWear bracelet streams accelerometer and gyroscope data over BLE.
+
+The bracelet does not publish MQTT directly.
+
+Actual source path:
+
+```text
+MetaWear → BLE → metawear_bridge → MQTT
+```
+
+## 2.2 Raw MQTT Topic
+
+```text
+tennis/watch/raw
+```
+
+## 2.3 Raw Payload
+
+The raw payload is hardware-oriented and should not be consumed directly by ingest-service or HAR.
+
+Example:
 
 ```json
 {
-  "ts": "...",
-  "topic": "...",
-  "source": "mqtt",
-  "payload": {...}
+  "source": "metawear",
+  "device": "watch",
+  "recording_id": "real_metawear_session_001",
+  "sensor": "acc",
+  "sensor_ts": 1.24,
+  "x": 0.12,
+  "y": -0.81,
+  "z": 0.55
 }
 ```
 
-This envelope is stored in memory for debugging and in the generic `events` measurement in InfluxDB.
+or:
+
+```json
+{
+  "source": "metawear",
+  "device": "watch",
+  "recording_id": "real_metawear_session_001",
+  "sensor": "gyro",
+  "sensor_ts": 1.24,
+  "x": 1.2,
+  "y": -0.4,
+  "z": 0.8
+}
+```
 
 ---
 
-## 7. InfluxDB Mapping Rules
+# 3. MetaWear Clean Contract
 
-Each incoming MQTT sample produces two writes:
+## 3.1 Clean MQTT Topic
 
-1. **Generic event** → `events` measurement (full payload as JSON string)
-2. **Structured IMU** → `imu_raw` measurement (numeric fields, tags)
+```text
+tennis/watch/clean
+```
 
-For the complete `imu_raw` schema, tags, fields, and timestamp derivation, see [Architecture.md — Data Model](Architecture.md#3-data-model).
+## 3.2 Cleaner Responsibilities
 
-For the current validated Siddha configuration, `recording_id` is derived as `<activity>_<id>`, while `sample_idx` is retained as a field rather than a tag. This keeps duplicate-order metadata available without making it part of the current storage identity.
+The watch cleaner must:
+
+- verify required fields exist,
+- validate numeric values,
+- pair accelerometer and gyroscope data when needed,
+- normalize time to seconds since session start,
+- add `source = "metawear"`,
+- add or preserve `sample_idx`,
+- publish complete IMU rows only.
+
+## 3.3 Clean Payload
+
+```json
+{
+  "source": "metawear",
+  "device": "watch",
+  "recording_id": "real_metawear_session_001",
+  "sensor_ts": 12.48,
+  "dataset_ts": 12.48,
+  "sample_idx": 312,
+  "acc_x": 0.12,
+  "acc_y": -0.81,
+  "acc_z": 0.55,
+  "gyro_x": 1.2,
+  "gyro_y": -0.4,
+  "gyro_z": 0.8,
+  "activity_gt": "unknown",
+  "sampling_rate_hz": 25,
+  "quality": "ok"
+}
+```
+
+`dataset_ts` is preserved for compatibility with existing code. For real sensor documentation, its meaning is:
+
+```text
+seconds elapsed since the current recording/session started
+```
+
+## 3.4 Storage Table
+
+```text
+watch_imu_clean
+```
+
+## 3.5 Model Input
+
+The HAR service in MQTT mode consumes this clean topic and builds sliding windows in memory.
 
 ---
 
-## 8. Replay and Ordering
+# 4. HAR Prediction Contract
 
-The simulator derives a session identifier `<activity>_<id>` and replays rows in deterministic order consistent with session, device, logical timestamp, and duplicate-order index.
+## 4.1 Storage Table
 
-Replay controls:
+```text
+real_har_predictions
+```
 
-| Setting | Purpose |
-| --- | --- |
-| `replay_mode` | `realtime` or `fast` |
-| `replay_speed` | Multiplier for realtime mode |
-| `loop_forever` | One-pass or continuous replay |
-| `mqtt_qos` | Delivery guarantee level |
-| `mqtt_wait_for_publish` | Block until broker acknowledges |
+## 4.2 Prediction Producer
 
-Empty-string filter values are normalized to `None` so that missing configuration does not accidentally exclude all rows.
+Predictions are produced and written by:
 
-For transport reliability findings, see [Architecture.md — Data Integrity](Architecture.md#7-data-integrity-and-transport-reliability).
+```text
+har-service
+```
+
+They should not be routed through ingest-service.
+
+## 4.3 Prediction Row Fields
+
+A prediction row should include:
+
+| Field | Meaning |
+|---|---|
+| `device` | device used for inference |
+| `recording_id` | session identifier |
+| `predicted_label` | predicted activity label |
+| `confidence` | model confidence |
+| `window_start_ts` | start of input window |
+| `window_end_ts` | end of input window |
+| `window_size` | number of samples |
+| `window_stride` | stride used |
+| `input_layout` | model input layout |
+| `model_name` | model identifier if available |
+
+The prediction row should reference the input window, not duplicate all input samples.
 
 ---
 
-## 9. Contract Verification
+# 5. EEG Future Contract
 
-The contract can be verified at runtime:
+## 5.1 Phase
 
-- Source schema validation in the dataset loader
-- MQTT payload inspection in simulator logs
-- Schema inspection via `GET /events/schema`
-- IMU row inspection via `GET /imu`
-- Count summaries via `GET /stats`
+Planned for Phase 5.
+
+## 5.2 Scope
+
+Dataset-based source only.
+
+No EEG ML in the current thesis.
+
+## 5.3 Planned Flow
+
+```text
+eeg_dataset_sim
+→ eeg_cleaner
+→ ingest-service
+→ InfluxDB: eeg_clean
+```
+
+## 5.4 Example Clean Payload
+
+```json
+{
+  "source": "eeg_dataset",
+  "device": "eeg",
+  "recording_id": "eeg_session_001",
+  "sensor_ts": 1.24,
+  "sample_idx": 128,
+  "channel_1": 0.12,
+  "channel_2": 0.18,
+  "channel_3": -0.05,
+  "sampling_rate_hz": 128,
+  "quality": "ok"
+}
+```
+
+Actual fields depend on the selected EEG dataset.
+
+---
+
+# 6. ECG Future Contract
+
+## 6.1 Phase
+
+Planned for Phase 5.
+
+## 6.2 Scope
+
+Dataset-based source only.
+
+No ECG ML in the current thesis.
+
+## 6.3 Planned Flow
+
+```text
+ecg_dataset_sim
+→ ecg_cleaner
+→ ingest-service
+→ InfluxDB: ecg_clean
+```
+
+## 6.4 Example Clean Payload
+
+```json
+{
+  "source": "ecg_dataset",
+  "device": "ecg",
+  "recording_id": "ecg_session_001",
+  "sensor_ts": 1.24,
+  "sample_idx": 360,
+  "ecg_mv": 0.82,
+  "sampling_rate_hz": 360,
+  "quality": "ok"
+}
+```
+
+Actual fields depend on the selected ECG dataset.
+
+---
+
+# 7. Storage Rule
+
+The project stores:
+
+```text
+clean sensor data
+prediction data
+```
+
+It does not permanently store every raw hardware callback unless needed for debugging.
+
+Recommended tables:
+
+| Source | Table |
+|---|---|
+| Siddha IMU | `imu_raw_full_rows` |
+| MetaWear clean IMU | `watch_imu_clean` |
+| HAR predictions | `real_har_predictions` |
+| EEG dataset | `eeg_clean` |
+| ECG dataset | `ecg_clean` |
