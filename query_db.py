@@ -53,7 +53,7 @@ if __name__ == "__main__":
 
     # query_influx("SELECT COUNT(*) AS n_rows FROM har_predictions_7_activity;")
 
-    query_influx("SELECT activity_gt, COUNT(*) AS n_rows FROM har_predictions_7_activity GROUP BY activity_gt ORDER BY n_rows DESC;")
+    query_influx("SELECT * FROM real_imu_rows WHERE device = 'watch' ORDER BY time DESC LIMIT 20;")
 
     # query_influx("SELECT time, device, recording_id, activity_gt, dataset_ts, acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z FROM imu_raw WHERE device = 'watch' AND recording_id = '1' AND dataset_ts = 0.15;")
 
