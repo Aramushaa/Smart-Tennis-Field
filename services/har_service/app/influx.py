@@ -19,7 +19,7 @@ def escape_string_field(value: str) -> str:
 
 
 def write_line_protocol(line: str) -> None:
-    params = urlencode({"db": settings.influx_database})
+    params = urlencode({"db": settings.influx_database, "precision": "ns"})
     url = f"{settings.influx_host}/api/v3/write_lp?{params}"
 
     req = Request(

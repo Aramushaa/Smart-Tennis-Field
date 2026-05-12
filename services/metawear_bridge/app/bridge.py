@@ -1,3 +1,4 @@
+import signal
 import time
 from datetime import datetime, timezone
 
@@ -74,8 +75,27 @@ def my_function(sensor, timestamp, x, y, z):
 sensor = MetaWearClient(MAC_ADDRESS)
 sensor.set_callback(my_function)
 
+# Register SIGINT / SIGTERM so we always disconnect the BLE device cleanly.
+def _shutdown_handler(signum, frame):
+    sensor.stop_sampling()
+
+signal.signal(signal.SIGINT, _shutdown_handler)
+signal.signal(signal.SIGTERM, _shutdown_handler)
+
 print("Connecting to MetaWear...")
-sensor.connect()
-sensor.configure()
-print(f"Streaming RAW MetaWear data to MQTT topic: {MQTT_TOPIC}")
-sensor.start_sampling()
+try:
+    sensor.connect()
+    sensor.configure()
+    print(f"Streaming RAW MetaWear data to MQTT topic: {MQTT_TOPIC}")
+    sensor.start_sampling()
+except KeyboardInterrupt:
+    print("Stopping bridge (KeyboardInterrupt)...")
+except Exception as e:
+    print(f"Bridge error: {e}")
+finally:
+    print("Disconnecting MetaWear sensor...")
+    try:
+        sensor.disconnect()
+    except Exception as disc_err:
+        print(f"Error during disconnect: {disc_err}")
+    print("MetaWear bridge shut down.")

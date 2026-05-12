@@ -28,8 +28,6 @@ The project is intentionally split into microservices so that ingestion, cleanin
 | Phase 5 | Planned | EEG and ECG dataset-based sensors, storage only, no ML |
 | Phase 6 | Planned | Grafana dashboards for live and historical visualization |
 
-Camera-based functionality has been removed from the future scope because no real camera hardware is used in the final thesis implementation.
-
 ---
 
 ## 3. Final Architecture

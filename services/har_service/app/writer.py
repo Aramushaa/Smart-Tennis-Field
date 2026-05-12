@@ -3,6 +3,10 @@ from __future__ import annotations
 from .config import settings
 from .influx import escape_string_field, escape_tag_value, write_line_protocol
 
+# Must match the base epoch used by the ingest service for dataset rows
+# so that IMU data and prediction points share the same time axis.
+DATASET_BASE_EPOCH_NS = 1704067200_000_000_000
+
 
 def build_prediction_line(
     *,
@@ -12,14 +16,16 @@ def build_prediction_line(
     confidence: float,
     metadata: dict,
 ) -> str:
-    # DB-polling mode uses the dataset-relative timestamp for reproducible evaluation.
-    # MQTT live mode passes prediction_epoch_ns so Grafana can show predictions in real time.
-    point_ts = int(
-        metadata.get(
-            "prediction_epoch_ns",
-            int(float(metadata["end_dataset_ts"]) * 1_000_000_000),
+    # MQTT live mode passes prediction_epoch_ns (wall-clock) so Grafana can
+    # show predictions in real time.  DB-polling mode uses the synthetic base
+    # epoch + dataset_ts for deterministic, reproducible alignment with the
+    # dataset IMU rows stored by the ingest service.
+    if "prediction_epoch_ns" in metadata:
+        point_ts = int(metadata["prediction_epoch_ns"])
+    else:
+        point_ts = DATASET_BASE_EPOCH_NS + int(
+            float(metadata["end_dataset_ts"]) * 1_000_000_000
         )
-    )
 
     return (
         f"{settings.prediction_table},"

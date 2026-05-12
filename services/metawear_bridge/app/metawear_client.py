@@ -17,10 +17,16 @@ class MetaWearClient:
 
     def acc_data_handler(self, ctx, data):
         axis_values = self.r.findall(str(parse_value(data)))
+        if len(axis_values) < 3:
+            print("Invalid MetaWear ACC parse:", parse_value(data))
+            return
         self.cb('acc',data.contents.epoch, axis_values[0], axis_values[1], axis_values[2])
 
     def gyro_data_handler(self, ctx, data):
         axis_values = self.r.findall(str(parse_value(data)))
+        if len(axis_values) < 3:
+            print("Invalid MetaWear GYRO parse:", parse_value(data))
+            return
         self.cb('gyro',data.contents.epoch, axis_values[0], axis_values[1], axis_values[2])
 
     def default_callback(self, sensor, timestamp, x, y, z):

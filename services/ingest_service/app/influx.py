@@ -16,6 +16,7 @@ from .config import (
     INFLUX_FLUSH_INTERVAL_MS,
     INFLUX_HOST,
     INFLUX_IMU_TABLE,
+    INFLUX_MAX_QUEUE_SIZE,
     INFLUX_WATCH_IMU_TABLE,
     INFLUX_TABLE,
     INFLUX_TOKEN,
@@ -86,7 +87,16 @@ def _write_lp_v3(line_protocol: str, db: str, precision: str = "s") -> None:
 
 
 def _enqueue_line(line: str) -> None:
+    global _DROPPED_LINE_COUNT
+
     with _QUEUE_LOCK:
+        if len(_WRITE_QUEUE) >= INFLUX_MAX_QUEUE_SIZE:
+            _DROPPED_LINE_COUNT += 1
+            print(
+                f"[INFLUX] CRITICAL: queue full ({INFLUX_MAX_QUEUE_SIZE}), "
+                f"dropping line (total dropped: {_DROPPED_LINE_COUNT})"
+            )
+            return
         _WRITE_QUEUE.append(QueueItem(line=line))
         if len(_WRITE_QUEUE) >= INFLUX_BATCH_SIZE:
             _FLUSH_SIGNAL.set()
@@ -215,6 +225,11 @@ def stop_influx_writer() -> None:
     _WRITER_THREAD = None
 
 
+def escape_tag_value(value: str) -> str:
+    """Escape special characters in an InfluxDB line-protocol tag value."""
+    return str(value).replace(" ", "\\ ").replace(",", "\\,").replace("=", "\\=")
+
+
 def write_event_to_influx(ev: Dict[str, Any]) -> None:
     if not INFLUX_ENABLED:
         return
@@ -223,10 +238,13 @@ def write_event_to_influx(ev: Dict[str, Any]) -> None:
     stream, source_id = parse_topic(topic)
     ts_epoch = iso_to_epoch_nanos(ev.get("ts") or now_iso())
 
+    stream_tag = escape_tag_value(stream)
+    source_id_tag = escape_tag_value(source_id)
+
     payload_str = json.dumps(ev.get("payload", {}), ensure_ascii=False)
     escaped_payload = payload_str.replace("\\", "\\\\").replace('"', '\\"')
     line = (
-        f'{INFLUX_TABLE},stream={stream},source_id={source_id} '
+        f'{INFLUX_TABLE},stream={stream_tag},source_id={source_id_tag} '
         f'payload="{escaped_payload}" {ts_epoch}'
     )
     _enqueue_line(line)
@@ -304,8 +322,11 @@ def write_imu_raw_to_influx(payload: dict) -> None:
             str(activity_gt).replace("\\", "\\\\").replace('"', '\\"')
         )
 
+        device_tag = escape_tag_value(device)
+        recording_id_tag = escape_tag_value(recording_id)
+
         line = (
-            f"{target_table},device={device},recording_id={recording_id} "
+            f"{target_table},device={device_tag},recording_id={recording_id_tag} "
             f"sample_idx={sample_idx}i,"
             f"acc_x={acc_x},acc_y={acc_y},acc_z={acc_z},"
             f"gyro_x={gyro_x},gyro_y={gyro_y},gyro_z={gyro_z},"

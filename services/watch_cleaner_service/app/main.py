@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -43,6 +44,16 @@ class RawSensorSample:
 latest_acc: dict[tuple[str, str], RawSensorSample] = {}
 clean_sample_idx: dict[tuple[str, str], int] = {}
 
+# ── Observability counters ──────────────────────────────────────────────
+_COUNTERS = {
+    "raw_acc_received": 0,
+    "raw_gyro_received": 0,
+    "clean_rows_published": 0,
+    "dropped_missing_acc": 0,
+    "dropped_stale_pair": 0,
+    "dropped_invalid_value": 0,
+}
+
 client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=MQTT_CLIENT_ID)
 
 
@@ -79,6 +90,10 @@ def parse_raw_payload(payload: dict[str, Any]) -> RawSensorSample:
 def validate_sample(sample: RawSensorSample) -> None:
     bound = MAX_ABS_ACC if sample.sensor == "acc" else MAX_ABS_GYRO
     for axis, value in {"x": sample.x, "y": sample.y, "z": sample.z}.items():
+        if not math.isfinite(value):
+            raise ValueError(
+                f"{sample.sensor}.{axis} is not finite: {value}"
+            )
         if abs(value) > bound:
             raise ValueError(
                 f"{sample.sensor}.{axis} out of range: {value} > allowed abs {bound}"
@@ -120,16 +135,21 @@ def maybe_publish_clean(sample: RawSensorSample) -> None:
     key = (sample.device, sample.recording_id)
 
     if sample.sensor == "acc":
+        _COUNTERS["raw_acc_received"] += 1
         latest_acc[key] = sample
         return
 
+    _COUNTERS["raw_gyro_received"] += 1
+
     acc = latest_acc.get(key)
     if acc is None:
+        _COUNTERS["dropped_missing_acc"] += 1
         logger.debug("Dropping gyro because no ACC sample exists yet | key=%s", key)
         return
 
     pair_age = abs(sample.sensor_ts - acc.sensor_ts)
     if pair_age > MAX_PAIR_AGE_SECONDS:
+        _COUNTERS["dropped_stale_pair"] += 1
         logger.warning(
             "Dropping stale pair | key=%s | pair_age=%.3fs | max=%.3fs",
             key,
@@ -142,6 +162,8 @@ def maybe_publish_clean(sample: RawSensorSample) -> None:
     result = client.publish(CLEAN_TOPIC, json.dumps(clean_payload), qos=QOS)
     if result.rc != mqtt.MQTT_ERR_SUCCESS:
         logger.error("Failed to publish clean payload | rc=%s", result.rc)
+    else:
+        _COUNTERS["clean_rows_published"] += 1
 
 
 def on_connect(client_: mqtt.Client, userdata, flags, reason_code, properties=None) -> None:
@@ -157,6 +179,9 @@ def on_message(client_: mqtt.Client, userdata, msg) -> None:
         sample = parse_raw_payload(payload)
         validate_sample(sample)
         maybe_publish_clean(sample)
+    except ValueError:
+        _COUNTERS["dropped_invalid_value"] += 1
+        logger.warning("Dropped raw message (invalid value) | topic=%s", msg.topic)
     except Exception as exc:
         logger.warning("Dropped raw message | topic=%s | error=%s", msg.topic, exc)
 

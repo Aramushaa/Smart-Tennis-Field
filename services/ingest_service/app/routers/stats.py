@@ -1,39 +1,72 @@
 from fastapi import APIRouter
 
-from ..config import INFLUX_IMU_TABLE, INFLUX_TABLE, INFLUX_ENABLED
+from ..config import (
+    INFLUX_ENABLED,
+    INFLUX_IMU_TABLE,
+    INFLUX_TABLE,
+    INFLUX_WATCH_IMU_TABLE,
+    INFLUX_WRITE_GENERIC_EVENTS,
+)
 from ..influx import query_influx_sql, get_influx_writer_stats
 
 router = APIRouter(tags=["stats"])
 
 
+def _safe_count(table: str) -> int:
+    """Return the row count for *table*, or -1 if the table does not exist."""
+    try:
+        rows = query_influx_sql(f"SELECT COUNT(*) AS n FROM {table}")
+        return rows[0]["n"] if rows else 0
+    except Exception:
+        return -1
+
+
+def _safe_query(sql: str) -> list[dict] | None:
+    """Run *sql* and return results, or None on failure."""
+    try:
+        return query_influx_sql(sql)
+    except Exception:
+        return None
+
+
 @router.get("/stats")
 def get_stats():
     """
-    Return a compact operational summary of the stored data.
+    Return a compact operational summary of every data table and the
+    writer queue.  Each query is wrapped so one missing or empty table
+    does not crash the whole endpoint.
     """
-    events_count_sql = f"SELECT COUNT(*) AS n FROM {INFLUX_TABLE}"
-    imu_count_sql = f"SELECT COUNT(*) AS n FROM {INFLUX_IMU_TABLE}"
-    devices_sql = f"""
-    SELECT device, COUNT(*) AS n
-    FROM {INFLUX_IMU_TABLE}
-    GROUP BY device
-    ORDER BY n DESC
-    """.strip()
+    # ── row counts ───────────────────────────────────────────────────
+    events_count = (
+        _safe_count(INFLUX_TABLE) if INFLUX_WRITE_GENERIC_EVENTS else "disabled"
+    )
+    imu_count = _safe_count(INFLUX_IMU_TABLE)
+    watch_imu_count = _safe_count(INFLUX_WATCH_IMU_TABLE)
 
-    events_rows = query_influx_sql(events_count_sql)
-    imu_rows = query_influx_sql(imu_count_sql)
-    device_rows = query_influx_sql(devices_sql)
+    # ── per-device breakdown (dataset table) ────────────────────────
+    devices = _safe_query(
+        f"SELECT device, COUNT(*) AS n FROM {INFLUX_IMU_TABLE} "
+        f"GROUP BY device ORDER BY n DESC"
+    )
 
-    events_count = events_rows[0]["n"] if events_rows else 0
-    imu_count = imu_rows[0]["n"] if imu_rows else 0
-
+    # ── writer internals ────────────────────────────────────────────
     writer_stats = get_influx_writer_stats() if INFLUX_ENABLED else None
 
     return {
-        "events_measurement": INFLUX_TABLE,
-        "imu_measurement": INFLUX_IMU_TABLE,
-        "events_count": events_count,
-        "imu_count": imu_count,
-        "devices": device_rows,
+        "tables": {
+            "events_full_rows": {
+                "measurement": INFLUX_TABLE,
+                "row_count": events_count,
+            },
+            "imu_raw_full_rows": {
+                "measurement": INFLUX_IMU_TABLE,
+                "row_count": imu_count,
+            },
+            "watch_imu_clean": {
+                "measurement": INFLUX_WATCH_IMU_TABLE,
+                "row_count": watch_imu_count,
+            },
+        },
+        "devices": devices,
         "influx_writer": writer_stats,
     }
