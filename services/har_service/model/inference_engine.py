@@ -51,6 +51,37 @@ class InferenceEngine:
                 return dim
         return None
 
+    def _resolve_expected_input_shape(self) -> list[int | str | None]:
+        if self.session is None:
+            raise RuntimeError("Inference session is not initialized")
+
+        return list(self.session.get_inputs()[0].shape)
+
+    def _validate_input_tensor_shape(self, model_input: np.ndarray) -> None:
+        expected_shape = self._resolve_expected_input_shape()
+        actual_shape = list(model_input.shape)
+
+        if len(expected_shape) != len(actual_shape):
+            raise ValueError(
+                "Input rank mismatch: "
+                f"model expects rank {len(expected_shape)} shape={expected_shape}, "
+                f"got rank {len(actual_shape)} shape={actual_shape}"
+            )
+
+        mismatches: list[str] = []
+        for idx, expected_dim in enumerate(expected_shape):
+            if isinstance(expected_dim, int) and expected_dim > 0 and expected_dim != actual_shape[idx]:
+                mismatches.append(
+                    f"dim[{idx}] expected {expected_dim}, got {actual_shape[idx]}"
+                )
+
+        if mismatches:
+            raise ValueError(
+                "Input shape mismatch: "
+                f"model expects shape={expected_shape}, got shape={actual_shape}. "
+                + ", ".join(mismatches)
+            )
+
     def _build_input_tensor(self, accelerometer, gyroscope) -> np.ndarray:
         acc = [
             accelerometer["x"],
@@ -134,6 +165,7 @@ class InferenceEngine:
         # Load the model
         self.session = InferenceSession(self.model_path, sess_options=session_options)
         output_classes = self._resolve_output_classes()
+        input_shape = self._resolve_expected_input_shape()
 
         if output_classes is not None and len(self.activity_labels) != output_classes:
             raise ValueError(
@@ -142,6 +174,7 @@ class InferenceEngine:
                 f"Loaded labels={self.activity_labels!r}"
             )
 
+        self._debug_print("expected input shape:", input_shape)
         self._debug_print("model output classes:", output_classes)
         self._debug_print("input layout:", self.input_layout)
         self._debug_print("temporal preprocess:", self.temporal_preprocess)
@@ -159,6 +192,7 @@ class InferenceEngine:
         self._debug_print("expected input type:", input_meta.type)
         self._debug_print("actual model_input shape:", model_input.shape)
         self._debug_print("actual model_input dtype:", model_input.dtype)
+        self._validate_input_tensor_shape(model_input)
 
         inference_inputs = {input_meta.name: model_input}
         output = self.session.run(None, inference_inputs)
