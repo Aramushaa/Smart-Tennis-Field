@@ -78,11 +78,11 @@ services:
     restart: unless-stopped
 
 
-  data-cleaner-service:
+  watch-cleaner-service:
     build:
-      context: ./services/data_cleaner_service
+      context: ./services/watch_cleaner_service
       dockerfile: Dockerfile
-    container_name: data-cleaner-service
+    container_name: watch-cleaner-service
     env_file:
       - .env
     depends_on:
