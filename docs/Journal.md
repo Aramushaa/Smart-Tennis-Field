@@ -270,36 +270,20 @@ Future work may include dedicated EEG/ECG models.
 
 # 12. Phase 4 Validation Result
 
-The real MetaWear watch pipeline was successfully executed.
+Recording ID: `phase4_live_validation_001`  
+Test duration: ~385 seconds  
+Raw publish rate: ~26 ACC/sec + ~26 GYRO/sec  
+Clean rows stored: 9,599  
+Expected rows: ~9,625  
+Row difference: -26 rows / 0.27%  
+HAR predictions stored: 463  
+Approx prediction interval: 0.83 seconds  
+Queue depth: 0  
+Failed batches: 0  
+Retries: 0  
+Dropped lines: 0  
+Writer thread alive: true
 
-Implemented flow:
+Result: Phase 4 completed successfully.
 
-```text
-MetaWear → BLE → metawear_bridge → EMQX: tennis/watch/raw
-→ watch_cleaner_service → EMQX: tennis/watch/clean
-→ ingest-service → InfluxDB: watch_imu_clean
-```
-
-In parallel:
-
-```text
-tennis/watch/clean → har-service MQTT mode → InfluxDB: real_har_predictions
-```
-
-Working HAR live configuration:
-
-- `HAR_INPUT_MODE=mqtt_stream`
-- `HAR_WINDOW_SIZE=40`
-- `HAR_WINDOW_STRIDE=20`
-- `HAR_INPUT_LAYOUT=gyro_then_accel`
-- `HAR_TEMPORAL_PREPROCESS=none`
-- `HAR_SCORE_AGGREGATION=sum`
-
-Documented validation numbers currently captured in the repo:
-
-- raw bridge publish rate: approximately `25` ACC messages/sec and `25` GYRO messages/sec
-- model window duration: `1.6` seconds at `25 Hz`
-- prediction interval: approximately `0.8` seconds at `25 Hz`
-
-These numbers confirm that the live HAR path is configured for continuous inference on the clean MetaWear stream. Additional end-to-end latency and sustained throughput measurements can be recorded during formal dashboard validation in Phase 5.
-```
+Phase 5 will visualize the validated live pipeline in Grafana using InfluxDB as the source of truth.

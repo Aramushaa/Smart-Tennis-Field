@@ -28,7 +28,7 @@ Siddha Dataset
 → InfluxDB: har_predictions_7_activity
 ```
 
-The Phase 4 target pipeline is:
+The validated Phase 4 pipeline is:
 
 ```text
 MetaWear Bracelet

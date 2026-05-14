@@ -253,6 +253,16 @@ A prediction row should include:
 
 The prediction row should reference the input window, not duplicate all input samples.
 
+## 4.4 Validated Phase 4 Live Configuration
+
+The validated Phase 4 live configuration uses:
+
+- `HAR_WINDOW_SIZE=40`
+- `HAR_WINDOW_STRIDE=20`
+- `HAR_INPUT_LAYOUT=gyro_then_accel`
+- `HAR_TEMPORAL_PREPROCESS=none`
+- `HAR_SCORE_AGGREGATION=sum`
+
 ---
 
 # 5. EEG Future Contract

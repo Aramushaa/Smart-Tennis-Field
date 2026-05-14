@@ -178,11 +178,16 @@ tennis/watch/clean
 → InfluxDB: real_har_predictions
 ```
 
-## Current Baseline
+## Validation Result
 
-- The bracelet can connect over BLE.
-- Accelerometer and gyroscope data are received.
-- Sampling rate was adjusted to approximately 25 Hz.
+Phase 4 was validated with recording ID `phase4_live_validation_001`.
+
+- MetaWear connected successfully over BLE.
+- Raw ACC/GYRO data was published at approximately 26 Hz.
+- Watch cleaner produced 9,599 clean IMU rows.
+- HAR MQTT mode produced 463 live predictions.
+- Ingest writer finished with queue depth 0.
+- Failed batches, retries, and dropped lines were all 0.
 
 ## New Components
 
@@ -243,6 +248,8 @@ for reproducible dataset evaluation.
 - HAR consumes clean rows in MQTT mode.
 - Predictions are written to `real_har_predictions`.
 - Delay and throughput can be observed.
+
+All completion criteria were satisfied during the Phase 4 validation test.
 
 ---
 

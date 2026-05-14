@@ -390,6 +390,30 @@ LIMIT 20;
 
 ---
 
+## Phase 4 Validation Summary
+
+A live MetaWear validation test was executed using recording ID `phase4_live_validation_001`.
+
+| Metric | Result |
+|---|---:|
+| Streaming duration | ~385 seconds |
+| Clean IMU rows stored | 9,599 |
+| HAR predictions stored | 463 |
+| Approx. clean row rate | ~24.9 rows/sec |
+| Approx. prediction interval | ~0.83 sec |
+| Influx queue depth | 0 |
+| Failed batches | 0 |
+| Retried lines | 0 |
+| Dropped lines | 0 |
+
+The test validates the complete live path:
+
+`MetaWear → BLE → MQTT raw → watch cleaner → MQTT clean → ingest-service → InfluxDB → HAR MQTT mode → prediction storage`.
+
+Detailed report: `docs/Validation/phase4_validation_report.md`.
+
+---
+
 ## 10. Optional: Run Siddha Dataset Replay
 
 The Siddha simulator is optional and is controlled by the Compose profile `replay`.
