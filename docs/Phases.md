@@ -14,7 +14,7 @@ The project first validated transport, persistence, dataset replay, and HAR infe
 | Phase 1 — Ingest + Persistence | Completed | Store MQTT data in InfluxDB |
 | Phase 2 — Dataset Validation | Completed | Replay Siddha dataset through the full pipeline |
 | Phase 3 — HAR Microservice | Completed | Run ONNX HAR inference and store predictions |
-| Phase 4 — Real Watch Pipeline | Next | Integrate MetaWear watch with cleaner + real-time HAR |
+| Phase 4 — Real Watch Pipeline | Current | Integrate MetaWear watch with cleaner + real-time HAR |
 | Phase 5 — EEG/ECG Dataset Sources | Planned | Add two heterogeneous dataset-based sensors, no ML |
 | Phase 6 — Grafana Visualization | Planned | Visualize live-ish and historical data |
 
@@ -155,7 +155,7 @@ It is not a full 18-activity classifier.
 
 # Phase 4 — Real Watch Pipeline
 
-**Status:** Next
+**Status:** Current
 
 ## Goal
 
@@ -178,7 +178,7 @@ tennis/watch/clean
 → InfluxDB: real_har_predictions
 ```
 
-## Implemented Before Starting This Phase
+## Current Baseline
 
 - The bracelet can connect over BLE.
 - Accelerometer and gyroscope data are received.
@@ -219,10 +219,10 @@ tennis/watch/clean
 
 ### HAR MQTT Mode
 
-HAR will support:
+HAR uses:
 
 ```env
-HAR_MODE=mqtt
+HAR_INPUT_MODE=mqtt_stream
 ```
 
 for real-time watch inference.
@@ -230,7 +230,7 @@ for real-time watch inference.
 The existing Phase 3 mode remains:
 
 ```env
-HAR_MODE=db
+HAR_INPUT_MODE=db_polling
 ```
 
 for reproducible dataset evaluation.

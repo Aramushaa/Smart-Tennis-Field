@@ -124,9 +124,13 @@ Example:
   "recording_id": "real_metawear_session_001",
   "sensor": "acc",
   "sensor_ts": 1.24,
+  "metawear_epoch_ms": 1715678901234,
+  "sample_idx": 42,
   "x": 0.12,
   "y": -0.81,
-  "z": 0.55
+  "z": 0.55,
+  "sampling_rate_hz": 25,
+  "ts": "2026-05-14T10:15:30Z"
 }
 ```
 
@@ -139,9 +143,13 @@ or:
   "recording_id": "real_metawear_session_001",
   "sensor": "gyro",
   "sensor_ts": 1.24,
+  "metawear_epoch_ms": 1715678901234,
+  "sample_idx": 42,
   "x": 1.2,
   "y": -0.4,
-  "z": 0.8
+  "z": 0.8,
+  "sampling_rate_hz": 25,
+  "ts": "2026-05-14T10:15:30Z"
 }
 ```
 
@@ -185,7 +193,8 @@ The watch cleaner must:
   "gyro_z": 0.8,
   "activity_gt": "unknown",
   "sampling_rate_hz": 25,
-  "quality": "ok"
+  "quality": "ok",
+  "ts": "2026-05-14T10:15:31Z"
 }
 ```
 
@@ -235,8 +244,8 @@ A prediction row should include:
 | `recording_id` | session identifier |
 | `predicted_label` | predicted activity label |
 | `confidence` | model confidence |
-| `window_start_ts` | start of input window |
-| `window_end_ts` | end of input window |
+| `window_start_dataset_ts` | start of input window |
+| `window_end_dataset_ts` | end of input window |
 | `window_size` | number of samples |
 | `window_stride` | stride used |
 | `input_layout` | model input layout |

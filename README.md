@@ -207,7 +207,7 @@ smart-tennis-field/
 | `ingest-service` | Stores clean canonical sensor data |
 | `siddha-sensor-sim` | Optional dataset replay simulator |
 | `metawear_bridge` | Local BLE → MQTT adapter for MetaWear bracelet |
-| `data-cleaner-service` | Converts raw watch events into clean IMU rows |
+| `watch-cleaner-service` | Converts raw watch events into clean IMU rows |
 | `har-service` | Runs ONNX HAR inference and stores predictions |
 | `grafana` | Planned visualization service |
 
@@ -279,7 +279,7 @@ MQTT_PORT=1883
 From the project root:
 
 ```bash
-docker compose up -d emqx influxdb3 influxdb3-explorer data-cleaner-service ingest-service har-service
+docker compose up -d emqx influxdb3 influxdb3-explorer watch-cleaner-service ingest-service har-service
 ```
 
 Check services:
@@ -309,7 +309,7 @@ Raw publish rate per second: {'acc': 25, 'gyro': 25}
 ### Step 3 — Check cleaner logs
 
 ```bash
-docker compose logs -f data-cleaner-service
+docker compose logs -f watch-cleaner-service
 ```
 
 Expected:
@@ -465,8 +465,8 @@ HAR_MQTT_TOPIC=tennis/watch/clean
 HAR_PREDICTION_TABLE=real_har_predictions
 HAR_FILTER_DEVICE=watch
 HAR_ALLOWED_ACTIVITY_GT=
-HAR_WINDOW_SIZE=50
-HAR_WINDOW_STRIDE=25
+HAR_WINDOW_SIZE=40
+HAR_WINDOW_STRIDE=20
 ```
 
 Flow:
@@ -478,21 +478,23 @@ MQTT tennis/watch/clean → HAR → InfluxDB real_har_predictions
 At 25 Hz:
 
 ```text
-window_size=50  → about 2 seconds of data
-window_stride=25 → about 1 new prediction per second
+window_size=40  → about 1.6 seconds at 25 Hz
+window_stride=20 → about 0.8 seconds between predictions at 25 Hz
 ```
 
 ---
 
 ## 12. Environment Variables
 
+The tables below show code-level defaults. The provided `.env.example` and your local `.env` override these at runtime.
+
 ### 12.1 MQTT / Ingest Variables
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `MQTT_HOST` | `emqx` | MQTT broker host used inside Docker |
+| `MQTT_HOST` | `localhost` | MQTT broker host |
 | `MQTT_PORT` | `1883` | MQTT broker port inside Docker |
-| `SUB_TOPICS` | `tennis/watch/clean,tennis/sensor/+/events` | Comma-separated topics ingest-service subscribes to |
+| `SUB_TOPICS` | `tennis/sensor/+/events,tennis/camera/+/ball` | Comma-separated topics ingest-service subscribes to |
 | `PUB_TOPIC` | `tennis/sensor/1/events` | Optional topic used by `/publish` endpoint |
 | `EVENT_BUFFER_MAX` | `100` | Max number of recent events kept in memory |
 
@@ -510,16 +512,17 @@ Camera topics are not required in the final scope.
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `INFLUX_ENABLED` | `1` | Enables InfluxDB writing |
-| `INFLUX_HOST` | `http://influxdb3:8181` | InfluxDB URL inside Docker |
+| `INFLUX_ENABLED` | `0` | Enables InfluxDB writing |
+| `INFLUX_HOST` | `http://localhost:8181` | InfluxDB URL |
 | `INFLUX_TOKEN` | empty | InfluxDB token |
 | `INFLUX_DATABASE` | `tennis` | InfluxDB database name |
-| `INFLUX_TABLE` | `events_full_rows` | Generic event table |
-| `INFLUX_IMU_TABLE` | `imu_raw_full_rows` | Dataset IMU table |
+| `INFLUX_TABLE` | `events` | Generic event table |
+| `INFLUX_IMU_TABLE` | `imu_raw` | Dataset IMU table |
 | `INFLUX_WATCH_IMU_TABLE` | `watch_imu_clean` | Real MetaWear clean IMU table |
-| `INFLUX_BATCH_SIZE` | `1000` | Number of lines per batch write |
-| `INFLUX_FLUSH_INTERVAL_MS` | `300` | Batch flush interval |
-| `INFLUX_WRITE_GENERIC_EVENTS` | `0` | Whether to also write generic event envelopes |
+| `INFLUX_BATCH_SIZE` | `500` | Number of lines per batch write |
+| `INFLUX_FLUSH_INTERVAL_MS` | `200` | Batch flush interval |
+| `INFLUX_MAX_QUEUE_SIZE` | `50000` | Max queued lines before dropping writes |
+| `INFLUX_WRITE_GENERIC_EVENTS` | `1` | Whether to also write generic event envelopes |
 
 You can rename tables by changing:
 
@@ -585,14 +588,14 @@ CLEANER_DEFAULT_ACTIVITY_GT=unknown
 | `SIDDHA_MQTT_BROKER_PORT` | `1883` | MQTT port for simulator |
 | `SIDDHA_MQTT_TOPIC_PREFIX` | `tennis/sensor` | Topic prefix for simulated sensor messages |
 | `SIDDHA_DATASET_PATH` | `/app/dataset/data.parquet` | Dataset path inside container |
-| `SIDDHA_REPLAY_MODE` | `fast` | Replay mode |
+| `SIDDHA_REPLAY_MODE` | `realtime` or `fast` | Replay mode |
 | `SIDDHA_REPLAY_SPEED` | `1.0` | Replay speed multiplier |
 | `SIDDHA_DEFAULT_DEVICE_FILTER` | empty | Optional device filter, e.g. `watch` |
 | `SIDDHA_DEFAULT_ACTIVITY_FILTER` | empty | Optional activity filter, e.g. `F` |
 | `SIDDHA_DEFAULT_RECORDING_ID_FILTER` | empty | Optional recording filter |
-| `SIDDHA_LOOP_FOREVER` | `false` | Replay repeatedly if true |
-| `SIDDHA_MQTT_QOS` | `1` | MQTT QoS |
-| `SIDDHA_MQTT_WAIT_FOR_PUBLISH` | `true` | Wait for publish confirmation |
+| `SIDDHA_LOOP_FOREVER` | `false` or `true` | Replay repeatedly if true |
+| `SIDDHA_MQTT_QOS` | `1` or `0` | MQTT QoS |
+| `SIDDHA_MQTT_WAIT_FOR_PUBLISH` | `true` or `false` | Wait for publish confirmation |
 
 Example: replay only watch activity `F`:
 
@@ -619,7 +622,7 @@ docker compose --profile replay up siddha-sensor-sim
 | `HAR_MQTT_HOST` | `emqx` | MQTT host for live mode |
 | `HAR_MQTT_PORT` | `1883` | MQTT port for live mode |
 | `HAR_MQTT_TOPIC` | `tennis/watch/clean` | Clean IMU topic for live mode |
-| `HAR_MQTT_QOS` | `1` | MQTT QoS |
+| `HAR_MQTT_QOS` | `1` or `0` | MQTT QoS |
 | `HAR_INFLUX_HOST` | `http://influxdb3:8181` | InfluxDB URL |
 | `HAR_INFLUX_TOKEN` | empty | InfluxDB token for HAR writes/queries |
 | `HAR_INFLUX_DATABASE` | `tennis` | InfluxDB database |
@@ -631,14 +634,15 @@ docker compose --profile replay up siddha-sensor-sim
 | `HAR_INPUT_LAYOUT` | `gyro_then_accel` | Model input layout |
 | `HAR_TEMPORAL_PREPROCESS` | `none` | Temporal preprocessing mode |
 | `HAR_SCORE_AGGREGATION` | `sum` | Score aggregation strategy |
-| `HAR_WINDOW_SIZE` | `40` or `50` | Sliding window size |
-| `HAR_WINDOW_STRIDE` | `20` or `25` | Sliding window stride |
-| `HAR_MAX_WINDOWS_PER_STREAM` | `0` | `0` means process all windows |
+| `HAR_WINDOW_SIZE` | `40` | Sliding window size |
+| `HAR_WINDOW_STRIDE` | `20` | Sliding window stride |
+| `HAR_MAX_WINDOWS_PER_STREAM` | `10` | Max windows processed per stream in one DB-mode pass |
 | `HAR_QUERY_LIMIT` | `5000` | Max DB rows fetched per query |
+| `HAR_MQTT_PREDICTION_TOPIC` | `tennis/watch/predictions` | MQTT topic for live prediction republish |
 | `HAR_PREDICTION_TOP_K` | `3` | Number of top predictions to keep internally/log |
 | `HAR_DEBUG_INFERENCE` | `false` | Enables extra inference logs |
-| `HAR_FILTER_DEVICE` | `watch` | Optional device filter |
-| `HAR_FILTER_RECORDING_ID` | empty | Optional recording filter |
+| `HAR_FILTER_DEVICE` | empty or `watch` or `phone` | Optional device filter |
+| `HAR_FILTER_RECORDING_ID` | empty or `<recording_id>` | Optional recording filter |
 | `HAR_ALLOWED_ACTIVITY_GT` | `F,G,O,P,Q,R,S` | Allowed labels for dataset mode; empty for live mode |
 
 Recommended live Phase 4 configuration:
@@ -649,8 +653,8 @@ HAR_MQTT_TOPIC=tennis/watch/clean
 HAR_PREDICTION_TABLE=real_har_predictions
 HAR_FILTER_DEVICE=watch
 HAR_ALLOWED_ACTIVITY_GT=
-HAR_WINDOW_SIZE=50
-HAR_WINDOW_STRIDE=25
+HAR_WINDOW_SIZE=40
+HAR_WINDOW_STRIDE=20
 ```
 
 Recommended Phase 3 dataset configuration:
@@ -714,7 +718,7 @@ docker compose up -d emqx influxdb3 influxdb3-explorer
 ### Start Phase 4 services
 
 ```bash
-docker compose up -d data-cleaner-service ingest-service har-service
+docker compose up -d watch-cleaner-service ingest-service har-service
 ```
 
 ### Stop all services
@@ -726,14 +730,14 @@ docker compose down
 ### Rebuild after code changes
 
 ```bash
-docker compose build ingest-service data-cleaner-service har-service
+docker compose build ingest-service watch-cleaner-service har-service
 ```
 
 ### Follow logs
 
 ```bash
 docker compose logs -f ingest-service
-docker compose logs -f data-cleaner-service
+docker compose logs -f watch-cleaner-service
 docker compose logs -f har-service
 ```
 
@@ -802,7 +806,7 @@ InfluxDB creates tables only after the first successful write.
 Check:
 
 ```bash
-docker compose logs -f data-cleaner-service
+docker compose logs -f watch-cleaner-service
 docker compose logs -f ingest-service
 curl http://localhost:8000/stats
 ```

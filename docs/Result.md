@@ -96,8 +96,8 @@ The prediction row references the input window by:
 
 ```text
 recording_id
-window_start_ts
-window_end_ts
+window_start_dataset_ts
+window_end_dataset_ts
 ```
 
 It does not duplicate all raw input samples.

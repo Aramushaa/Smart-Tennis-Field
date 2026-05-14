@@ -2,7 +2,7 @@
 
 ## Current System Context
 
-The project is now entering **Phase 4**.
+The project is currently in **Phase 4**.
 
 Completed phases:
 
@@ -12,7 +12,7 @@ Completed phases:
 | Phase 1 | Completed | FastAPI ingest-service + InfluxDB persistence |
 | Phase 2 | Completed | Siddha dataset replay pipeline validated |
 | Phase 3 | Completed | HAR microservice with ONNX inference and prediction storage |
-| Phase 4 | Next | Real MetaWear watch pipeline with cleaner + live HAR mode |
+| Phase 4 | Current | Real MetaWear watch pipeline with cleaner + live HAR mode |
 
 The current implemented Phase 3 pipeline is:
 
@@ -346,8 +346,8 @@ device
 recording_id
 predicted_label
 confidence
-window_start_ts
-window_end_ts
+window_start_dataset_ts
+window_end_dataset_ts
 window_size
 window_stride
 ```
