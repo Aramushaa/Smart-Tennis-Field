@@ -5,7 +5,7 @@ load_dotenv()
 
 MQTT_HOST = os.getenv("CLEANER_MQTT_HOST", os.getenv("MQTT_HOST", "emqx"))
 MQTT_PORT = int(os.getenv("CLEANER_MQTT_PORT", os.getenv("MQTT_PORT", "1883")))
-MQTT_CLIENT_ID = os.getenv("CLEANER_MQTT_CLIENT_ID", "data-cleaner-service")
+MQTT_CLIENT_ID = os.getenv("CLEANER_MQTT_CLIENT_ID", "watch-cleaner-service")
 
 RAW_TOPIC = os.getenv("CLEANER_RAW_TOPIC", "tennis/watch/raw")
 CLEAN_TOPIC = os.getenv("CLEANER_CLEAN_TOPIC", "tennis/watch/clean")

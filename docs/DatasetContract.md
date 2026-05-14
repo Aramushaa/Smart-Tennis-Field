@@ -259,7 +259,7 @@ The prediction row should reference the input window, not duplicate all input sa
 
 ## 5.1 Phase
 
-Planned for Phase 5.
+Planned for Phase 6.
 
 ## 5.2 Scope
 
@@ -301,7 +301,7 @@ Actual fields depend on the selected EEG dataset.
 
 ## 6.1 Phase
 
-Planned for Phase 5.
+Planned for Phase 6.
 
 ## 6.2 Scope
 

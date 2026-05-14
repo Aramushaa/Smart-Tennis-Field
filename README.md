@@ -24,9 +24,9 @@ The project is intentionally split into microservices so that ingestion, cleanin
 | Phase 1 | Completed | ingest-service + InfluxDB storage |
 | Phase 2 | Completed | Siddha dataset replay into MQTT and InfluxDB |
 | Phase 3 | Completed | HAR ONNX service with DB-polling mode and prediction storage |
-| Phase 4 | Current | Real MetaWear watch pipeline with cleaner + live HAR mode |
-| Phase 5 | Planned | EEG and ECG dataset-based sensors, storage only, no ML |
-| Phase 6 | Planned | Grafana dashboards for live and historical visualization |
+| Phase 4 | Completed | Real MetaWear watch pipeline with cleaner + live HAR mode |
+| Phase 5 | Current | Grafana dashboards for live and historical visualization |
+| Phase 6 | Planned | EEG and ECG dataset-based sensors, storage only, no ML |
 
 ---
 
@@ -187,7 +187,7 @@ smart-tennis-field/
     │   ├── Dockerfile
     │   └── requirements.txt
     │
-    └── data_cleaner_service/
+    └── watch_cleaner_service/
         ├── app/
         │   ├── main.py
         │   └── config.py
@@ -209,7 +209,7 @@ smart-tennis-field/
 | `metawear_bridge` | Local BLE → MQTT adapter for MetaWear bracelet |
 | `watch-cleaner-service` | Converts raw watch events into clean IMU rows |
 | `har-service` | Runs ONNX HAR inference and stores predictions |
-| `grafana` | Planned visualization service |
+| `grafana` | Dashboard visualization service |
 
 ---
 
@@ -562,7 +562,7 @@ METAWEAR_MQTT_TOPIC=tennis/watch/raw
 |---|---|---|
 | `CLEANER_MQTT_HOST` | `emqx` | MQTT host for cleaner service |
 | `CLEANER_MQTT_PORT` | `1883` | MQTT port for cleaner service |
-| `CLEANER_MQTT_CLIENT_ID` | `data-cleaner-service` | MQTT client id |
+| `CLEANER_MQTT_CLIENT_ID` | `watch-cleaner-service` | MQTT client id |
 | `CLEANER_RAW_TOPIC` | `tennis/watch/raw` | Raw watch input topic |
 | `CLEANER_CLEAN_TOPIC` | `tennis/watch/clean` | Clean watch output topic |
 | `CLEANER_MQTT_QOS` | `1` | MQTT QoS |
@@ -671,9 +671,15 @@ HAR_WINDOW_STRIDE=20
 
 ---
 
-### 12.7 Grafana Variables
+### 12.7 Phase 5 — Grafana Visualization
 
-Grafana is planned as the final visualization phase.
+Grafana is the next phase after the successful live MetaWear pipeline.
+
+Required visualization path:
+
+```text
+InfluxDB → Grafana
+```
 
 Default URL:
 
@@ -695,15 +701,14 @@ GF_SECURITY_ADMIN_USER=admin
 GF_SECURITY_ADMIN_PASSWORD=admin
 ```
 
-Recommended dashboard panels:
+The dashboard will visualize:
 
-- current predicted activity,
-- confidence over time,
-- prediction history,
-- ACC/GYRO live signal,
-- session summary,
-- EEG signal browser in Phase 5,
-- ECG signal browser in Phase 5.
+- live watch IMU signal from `watch_imu_clean`
+- current/last predicted activity from `real_har_predictions`
+- confidence over time
+- prediction history
+- session summary
+- ingestion / prediction health indicators where possible
 
 ---
 
@@ -887,7 +892,24 @@ dataset_ts = 1710000000000
 
 ## 16. Updated Future Work
 
-### Phase 5 — EEG and ECG Dataset Sensors
+### Phase 5 — Grafana Visualization
+
+Grafana will visualize:
+
+```text
+InfluxDB → Grafana
+```
+
+- live watch IMU signal from `watch_imu_clean`
+- current/last predicted activity from `real_har_predictions`
+- confidence over time
+- prediction history
+- session summary
+- ingestion / prediction health indicators where possible
+
+Grafana auto-refresh is sufficient for thesis visualization. Grafana Live can be considered only if a real push-based panel is required and implemented fully.
+
+### Phase 6 — EEG and ECG Dataset Sensors
 
 Planned flow:
 
@@ -897,18 +919,6 @@ ecg_dataset_sim → ecg_cleaner → ingest-service → InfluxDB: ecg_clean
 ```
 
 No ML is implemented for EEG/ECG in this thesis phase. Their purpose is to prove multi-source extensibility.
-
-### Phase 6 — Grafana Visualization
-
-Grafana will visualize:
-
-- clean watch IMU data,
-- HAR predictions,
-- confidence over time,
-- historical sessions,
-- EEG/ECG stored dataset signals.
-
-Grafana auto-refresh is sufficient for thesis visualization. Grafana Live can be considered only if a real push-based panel is required and implemented fully.
 
 ---
 

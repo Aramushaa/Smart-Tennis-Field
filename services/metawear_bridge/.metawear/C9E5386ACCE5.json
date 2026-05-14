@@ -1,10 +1,10 @@
 {
   "info": {
-    "firmware": "1.7.2",
     "model": "8",
     "hardware": "0.1",
     "manufacturer": "MbientLab Inc",
-    "serial": "0557A9"
+    "serial": "0557A9",
+    "firmware": "1.7.2"
   },
   "cpp_state": [
     2,
@@ -720,8 +720,8 @@
     19,
     0,
     1,
-    220,
-    174,
+    136,
+    115,
     46,
     207,
     157,

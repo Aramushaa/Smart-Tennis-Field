@@ -14,9 +14,9 @@ The project first validated transport, persistence, dataset replay, and HAR infe
 | Phase 1 — Ingest + Persistence | Completed | Store MQTT data in InfluxDB |
 | Phase 2 — Dataset Validation | Completed | Replay Siddha dataset through the full pipeline |
 | Phase 3 — HAR Microservice | Completed | Run ONNX HAR inference and store predictions |
-| Phase 4 — Real Watch Pipeline | Current | Integrate MetaWear watch with cleaner + real-time HAR |
-| Phase 5 — EEG/ECG Dataset Sources | Planned | Add two heterogeneous dataset-based sensors, no ML |
-| Phase 6 — Grafana Visualization | Planned | Visualize live-ish and historical data |
+| Phase 4 — Real Watch Pipeline | Completed | Integrate MetaWear watch with cleaner + real-time HAR |
+| Phase 5 — Grafana Visualization | Current | Visualize live-ish and historical data |
+| Phase 6 — EEG/ECG Dataset Sources | Planned | Add two heterogeneous dataset-based sensors, no ML |
 
 Camera-based features are removed from future phases because no camera hardware is available and camera tracking is not part of the final thesis contribution.
 
@@ -155,7 +155,7 @@ It is not a full 18-activity classifier.
 
 # Phase 4 — Real Watch Pipeline
 
-**Status:** Current
+**Status:** Completed
 
 ## Goal
 
@@ -246,7 +246,45 @@ for reproducible dataset evaluation.
 
 ---
 
-# Phase 5 — EEG/ECG Dataset Sources
+# Phase 5 — Grafana Visualization
+
+**Status:** Current
+
+## Goal
+
+Visualize stored sensor data and predictions.
+
+## Required Path
+
+```text
+InfluxDB → Grafana
+```
+
+Dashboards:
+
+- live watch IMU signal from `watch_imu_clean`
+- current/last predicted activity from `real_har_predictions`
+- prediction confidence over time
+- historical prediction timeline
+- session summary
+- ingestion / prediction health indicators where possible
+
+## Optional Enhancement
+
+Grafana Live may be investigated for lower-latency display.
+
+However, the required thesis-safe version is Grafana reading from InfluxDB with short refresh intervals.
+
+## Done When
+
+- Grafana connects to InfluxDB.
+- Dashboard panels show real watch IMU rows.
+- Dashboard panels show prediction history.
+- Refresh behavior is documented and measured.
+
+---
+
+# Phase 6 — EEG/ECG Dataset Sources
 
 **Status:** Planned
 
@@ -276,41 +314,3 @@ The goal is to show that the architecture supports heterogeneous sensor sources.
 ## Thesis Reasoning
 
 This phase demonstrates extensibility without expanding the scope into multiple ML research problems.
-
----
-
-# Phase 6 — Grafana Visualization
-
-**Status:** Planned
-
-## Goal
-
-Visualize stored sensor data and predictions.
-
-## Required Path
-
-```text
-InfluxDB → Grafana
-```
-
-Dashboards:
-
-- current/last predicted activity,
-- prediction confidence over time,
-- IMU signals from `watch_imu_clean`,
-- historical prediction timeline,
-- session summary,
-- EEG/ECG signal browsers.
-
-## Optional Enhancement
-
-Grafana Live may be investigated for lower-latency display.
-
-However, the required thesis-safe version is Grafana reading from InfluxDB with short refresh intervals.
-
-## Done When
-
-- Grafana connects to InfluxDB.
-- Dashboard panels show real watch IMU rows.
-- Dashboard panels show prediction history.
-- Refresh behavior is documented and measured.

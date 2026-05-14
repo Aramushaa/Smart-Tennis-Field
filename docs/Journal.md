@@ -24,7 +24,7 @@ to:
 Data → Broker → Storage → Processing → Storage
 ```
 
-and now, for Phase 4:
+and now, after Phase 4 validation:
 
 ```text
 Real Sensor → Protocol Adapter → Broker → Cleaner → Storage + Processing → Visualization
@@ -222,9 +222,38 @@ Legacy camera experiments may remain documented as early exploration, but not as
 
 ---
 
-# 10. Phase 5 Plan — EEG/ECG Dataset Sources
+# 10. Phase 5 Plan — Grafana Visualization
 
-Phase 5 will add two additional dataset-based sensor sources:
+Grafana is the next phase after Phase 4 validation.
+
+Required path:
+
+```text
+InfluxDB → Grafana
+```
+
+Primary dashboard scope:
+
+- live watch IMU signal from `watch_imu_clean`
+- current/last predicted activity from `real_har_predictions`
+- confidence over time
+- prediction history
+- session summary
+- ingestion / prediction health indicators where possible
+
+Optional path:
+
+```text
+HAR → Grafana Live
+```
+
+Grafana Live should be implemented only if it is verified and does not distract from the thesis core.
+
+---
+
+# 11. Phase 6 Plan — EEG/ECG Dataset Sources
+
+Phase 6 will add two additional dataset-based sensor sources:
 
 ```text
 EEG dataset
@@ -239,44 +268,38 @@ Future work may include dedicated EEG/ECG models.
 
 ---
 
-# 11. Phase 6 Plan — Grafana Visualization
+# 12. Phase 4 Validation Result
 
-Grafana is planned as the visualization layer.
+The real MetaWear watch pipeline was successfully executed.
 
-Required path:
+Implemented flow:
 
 ```text
-InfluxDB → Grafana
+MetaWear → BLE → metawear_bridge → EMQX: tennis/watch/raw
+→ watch_cleaner_service → EMQX: tennis/watch/clean
+→ ingest-service → InfluxDB: watch_imu_clean
 ```
 
-Optional path:
+In parallel:
 
 ```text
-HAR → Grafana Live
+tennis/watch/clean → har-service MQTT mode → InfluxDB: real_har_predictions
 ```
 
-Grafana Live should be implemented only if it is verified and does not distract from the thesis core.
+Working HAR live configuration:
 
----
+- `HAR_INPUT_MODE=mqtt_stream`
+- `HAR_WINDOW_SIZE=40`
+- `HAR_WINDOW_STRIDE=20`
+- `HAR_INPUT_LAYOUT=gyro_then_accel`
+- `HAR_TEMPORAL_PREPROCESS=none`
+- `HAR_SCORE_AGGREGATION=sum`
 
-# 12. Current Next Step
+Documented validation numbers currently captured in the repo:
 
-Before coding Phase 4, update the documentation to reflect:
+- raw bridge publish rate: approximately `25` ACC messages/sec and `25` GYRO messages/sec
+- model window duration: `1.6` seconds at `25 Hz`
+- prediction interval: approximately `0.8` seconds at `25 Hz`
 
-- new Phase 4 architecture,
-- removal of camera from future scope,
-- prediction direct-write rule,
-- clean IMU storage rule,
-- Phase 5 EEG/ECG dataset-only scope,
-- Phase 6 Grafana visualization scope.
-
-After documentation is updated, begin implementation in this order:
-
-```text
-1. metawear_bridge raw MQTT output
-2. watch_cleaner_service
-3. ingest clean watch table
-4. HAR MQTT mode
-5. prediction storage
-6. validation queries
+These numbers confirm that the live HAR path is configured for continuous inference on the clean MetaWear stream. Additional end-to-end latency and sustained throughput measurements can be recorded during formal dashboard validation in Phase 5.
 ```

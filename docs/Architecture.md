@@ -2,7 +2,7 @@
 
 ## Current System Context
 
-The project is currently in **Phase 4**.
+The project is currently in **Phase 5 — Grafana Visualization**.
 
 Completed phases:
 
@@ -12,7 +12,9 @@ Completed phases:
 | Phase 1 | Completed | FastAPI ingest-service + InfluxDB persistence |
 | Phase 2 | Completed | Siddha dataset replay pipeline validated |
 | Phase 3 | Completed | HAR microservice with ONNX inference and prediction storage |
-| Phase 4 | Current | Real MetaWear watch pipeline with cleaner + live HAR mode |
+| Phase 4 | Completed | Real MetaWear watch pipeline with cleaner + live HAR mode |
+| Phase 5 | Current | Grafana dashboards for live and historical visualization |
+| Phase 6 | Planned | EEG and ECG dataset-based sensors, storage only, no ML |
 
 The current implemented Phase 3 pipeline is:
 
@@ -272,7 +274,7 @@ Prediction rows should reference the input time window. They should not duplicat
 
 ### 2.8 Grafana — Visualization Layer
 
-Grafana is planned as the final visualization phase.
+Grafana is the next phase after Phase 4 validation.
 
 Required visualization path:
 
