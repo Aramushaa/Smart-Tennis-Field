@@ -1,0 +1,15 @@
+apiVersion: 1
+
+datasources:
+  - name: InfluxDB3-Tennis
+    uid: influxdb3_tennis
+    type: influxdb
+    access: proxy
+    url: http://influxdb3:8181
+    isDefault: true
+    jsonData:
+      version: SQL
+      dbName: tennis
+      insecureGrpc: true
+    secureJsonData:
+      token: ${INFLUX_TOKEN}

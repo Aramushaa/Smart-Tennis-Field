@@ -91,14 +91,26 @@ services:
     restart: unless-stopped
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:12.2.0
     container_name: grafana
     ports:
       - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_INSTALL_PLUGINS: grafana-mqtt-datasource
+      GF_DASHBOARDS_MIN_REFRESH_INTERVAL: 1s
+
+      # This passes the token from your .env file into the Grafana container
+      INFLUX_TOKEN: ${INFLUX_TOKEN}
+
     volumes:
       - grafana_data:/var/lib/grafana
+      - ./services/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./services/grafana/dashboards:/var/lib/grafana/dashboards:ro
     depends_on:
       - influxdb3
+      - emqx
     restart: unless-stopped
 
 volumes:

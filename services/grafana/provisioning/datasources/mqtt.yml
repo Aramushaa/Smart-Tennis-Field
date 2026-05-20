@@ -1,0 +1,12 @@
+apiVersion: 1
+
+datasources:
+  - name: MQTT-Live
+    uid: mqtt_live
+    type: grafana-mqtt-datasource
+    jsonData:
+      uri: tcp://emqx:1883
+      clientID: grafana-mqtt-live
+      tlsAuth: false
+      tlsAuthWithCACert: false
+      tlsSkipVerify: false
