@@ -25,12 +25,12 @@ The project is intentionally split into microservices so that ingestion, cleanin
 | Phase 2 | Completed | Siddha dataset replay into MQTT and InfluxDB |
 | Phase 3 | Completed | HAR ONNX service with DB-polling mode and prediction storage |
 | Phase 4 | Completed | Real MetaWear watch pipeline with cleaner + live HAR mode |
-| Phase 5 | Current | Grafana dashboards for live and historical visualization |
-| Phase 6 | Planned | EEG and ECG dataset-based sensors, storage only, no ML |
+| Phase 5 | Completed | Grafana dashboards for live IMU and HAR prediction visualization |
+| Phase 6 | Current | EEG and ECG dataset-based sensor extension, storage and visualization only, no ML |
 
 ---
 
-## 3. Final Architecture
+## 3. Current Architecture
 
 ### 3.1 Phase 4 Real Watch Pipeline
 
@@ -63,7 +63,38 @@ watch_imu_clean             real_har_predictions
         └──────────── Grafana ────┘
 ```
 
-### 3.2 Existing Dataset Evaluation Pipeline
+### 3.2 Phase 5 Visualization Pipeline
+
+```text
+MetaWear Bracelet
+        │ BLE
+        ▼
+metawear_bridge
+        │
+        ▼
+EMQX: tennis/watch/raw
+        │
+        ▼
+watch_cleaner_service
+        │
+        ▼
+EMQX: tennis/watch/clean
+        │                         │
+        ▼                         ▼
+ingest-service              har-service
+        │                         │
+        ▼                         ▼
+InfluxDB                    InfluxDB
+watch_imu_clean             real_har_predictions
+        │                         │
+        └──────────── Grafana ────┘
+```
+
+Grafana visualizes the validated live pipeline using InfluxDB as the persistent source of truth. The dashboard includes live IMU signals, latest predicted activity, confidence, prediction history, and session-level monitoring panels.
+
+The optional MQTT-based Grafana live panel was not required because the InfluxDB-backed dashboard can refresh at 1 second, which is sufficient for thesis-scale live demonstration.
+
+### 3.3 Existing Dataset Evaluation Pipeline
 
 ```text
 Siddha Parquet Dataset
@@ -187,12 +218,23 @@ smart-tennis-field/
     │   ├── Dockerfile
     │   └── requirements.txt
     │
-    └── watch_cleaner_service/
-        ├── app/
-        │   ├── main.py
-        │   └── config.py
-        ├── Dockerfile
-        └── requirements.txt
+    ├── watch_cleaner_service/
+    │   ├── app/
+    │   │   ├── main.py
+    │   │   └── config.py
+    │   ├── Dockerfile
+    │   └── requirements.txt
+    │
+    ├── grafana/
+    │   ├── provisioning/
+    │   │   ├── datasources/
+    │   │   └── dashboards/
+    │   └── dashboards/
+    │
+    ├── eeg_dataset_sim/              # planned Phase 6
+    ├── eeg_cleaner_service/          # planned Phase 6
+    ├── ecg_dataset_sim/              # planned Phase 6
+    └── ecg_cleaner_service/          # planned Phase 6
 ```
 
 ---
@@ -209,7 +251,7 @@ smart-tennis-field/
 | `metawear_bridge` | Local BLE → MQTT adapter for MetaWear bracelet |
 | `watch-cleaner-service` | Converts raw watch events into clean IMU rows |
 | `har-service` | Runs ONNX HAR inference and stores predictions |
-| `grafana` | Dashboard visualization service |
+| `grafana` | Visualizes live IMU data, HAR predictions, confidence, and validation metrics from InfluxDB |
 
 ---
 
@@ -279,7 +321,7 @@ MQTT_PORT=1883
 From the project root:
 
 ```bash
-docker compose up -d emqx influxdb3 influxdb3-explorer watch-cleaner-service ingest-service har-service
+docker compose up -d emqx influxdb3 influxdb3-explorer watch-cleaner-service ingest-service har-service grafana
 ```
 
 Check services:
@@ -411,6 +453,33 @@ The test validates the complete live path:
 `MetaWear → BLE → MQTT raw → watch cleaner → MQTT clean → ingest-service → InfluxDB → HAR MQTT mode → prediction storage`.
 
 Detailed report: `docs/Validation/phase4_validation_report.md`.
+
+---
+
+## Phase 5 Validation Summary
+
+Grafana was added as the visualization layer for the validated live watch pipeline.
+
+| Item | Result |
+|---|---|
+| Grafana container | Running through Docker Compose |
+| Grafana URL | `http://localhost:3000` |
+| InfluxDB datasource | Connected |
+| Dashboard refresh | 1 second |
+| IMU table visualized | `watch_imu_clean` |
+| Prediction table visualized | `real_har_predictions` |
+| MQTT live panel | Not used in final Phase 5 design |
+| Source of truth | InfluxDB |
+
+The dashboard validates the visualization path:
+
+```text
+InfluxDB → Grafana
+```
+
+The live dashboard shows cleaned IMU signals, current HAR prediction, confidence, prediction history, and storage counters.
+
+Detailed report: `docs/Validation/phase5_grafana_validation_report.md`.
 
 ---
 
@@ -697,7 +766,7 @@ HAR_WINDOW_STRIDE=20
 
 ### 12.7 Phase 5 — Grafana Visualization
 
-Grafana is the next phase after the successful live MetaWear pipeline.
+Phase 5 is implemented. Grafana visualizes the live MetaWear + HAR pipeline using InfluxDB as the persistent source of truth.
 
 Required visualization path:
 
@@ -711,28 +780,33 @@ Default URL:
 http://localhost:3000
 ```
 
-Default login is usually:
+Default credentials:
 
 ```text
 username: admin
 password: admin
 ```
 
-You can optionally set:
+The Docker Compose configuration sets the dashboard minimum refresh interval to 1 second:
 
 ```env
-GF_SECURITY_ADMIN_USER=admin
-GF_SECURITY_ADMIN_PASSWORD=admin
+GF_DASHBOARDS_MIN_REFRESH_INTERVAL=1s
 ```
 
-The dashboard will visualize:
+The dashboard visualizes:
 
-- live watch IMU signal from `watch_imu_clean`
-- current/last predicted activity from `real_har_predictions`
-- confidence over time
-- prediction history
-- session summary
-- ingestion / prediction health indicators where possible
+- live watch accelerometer and gyroscope signals from `watch_imu_clean`,
+- latest predicted activity from `real_har_predictions`,
+- current prediction confidence,
+- confidence over time,
+- prediction timeline/history,
+- stored clean IMU row count,
+- stored prediction count,
+- session summary panels where useful.
+
+The optional MQTT-based Grafana live visualization was not used in the final Phase 5 design because the InfluxDB-backed dashboard refreshes at 1 second, which is sufficient for the validated live HAR pipeline.
+
+InfluxDB remains the persistent and reproducible source of truth.
 
 ---
 
@@ -741,7 +815,7 @@ The dashboard will visualize:
 ### Start core infrastructure
 
 ```bash
-docker compose up -d emqx influxdb3 influxdb3-explorer
+docker compose up -d emqx influxdb3 influxdb3-explorer grafana
 ```
 
 ### Start Phase 4 services
@@ -918,7 +992,7 @@ dataset_ts = 1710000000000
 
 ### Phase 5 — Grafana Visualization
 
-Grafana will visualize:
+Phase 5 is completed. Grafana visualizes:
 
 ```text
 InfluxDB → Grafana
