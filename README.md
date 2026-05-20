@@ -314,7 +314,7 @@ MQTT_PORT=1883
 
 ---
 
-## 9. How to Run Phase 4: Real Watch Pipeline
+## 9. How to Run the Live Watch + Grafana Pipeline
 
 ### Step 1 — Start backend services
 
@@ -471,6 +471,8 @@ Grafana was added as the visualization layer for the validated live watch pipeli
 | MQTT live panel | Not used in final Phase 5 design |
 | Source of truth | InfluxDB |
 
+The dashboard uses InfluxDB queries rather than MQTT streaming, so visualization remains tied to stored and reproducible data.
+
 The dashboard validates the visualization path:
 
 ```text
@@ -587,7 +589,7 @@ The tables below show code-level defaults. The provided `.env.example` and your 
 |---|---|---|
 | `MQTT_HOST` | `localhost` | MQTT broker host |
 | `MQTT_PORT` | `1883` | MQTT broker port inside Docker |
-| `SUB_TOPICS` | `tennis/sensor/+/events,tennis/camera/+/ball` | Comma-separated topics ingest-service subscribes to |
+| `SUB_TOPICS` | `tennis/watch/clean,tennis/sensor/+/events` | Comma-separated topics ingest-service subscribes to |
 | `PUB_TOPIC` | `tennis/sensor/1/events` | Optional topic used by `/publish` endpoint |
 | `EVENT_BUFFER_MAX` | `100` | Max number of recent events kept in memory |
 
@@ -596,8 +598,6 @@ Recommended Phase 4 value:
 ```env
 SUB_TOPICS=tennis/watch/clean,tennis/sensor/+/events
 ```
-
-Camera topics are not required in the final scope.
 
 ---
 
@@ -988,7 +988,7 @@ dataset_ts = 1710000000000
 
 ---
 
-## 16. Updated Future Work
+## 16. Completed and Planned Extensions
 
 ### Phase 5 — Grafana Visualization
 

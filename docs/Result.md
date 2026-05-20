@@ -60,27 +60,27 @@ It does not prove:
 
 ---
 
-## 4. Phase 4 Evaluation Plan
+## 4. Phase 4 Live Pipeline Validation
 
-Phase 4 is not mainly about accuracy.
+Phase 4 validated the real MetaWear live pipeline. It was not primarily an accuracy test; it validated acquisition, cleaning, ingestion, HAR inference, and prediction storage.
 
-Phase 4 validates the real-time pipeline:
+Validated pipeline:
 
 ```text
 MetaWear → bridge → cleaner → ingest + HAR → prediction storage
 ```
 
-Evaluation metrics should include:
-
-| Metric | Why it matters |
-|---|---|
-| clean rows per second | verifies acquisition and cleaner throughput |
-| dropped clean samples | verifies cleaner reliability |
-| ingest queue depth | verifies storage can keep up |
-| HAR prediction latency | verifies real-time behavior |
-| predictions per second | verifies processing throughput |
-| confidence over time | supports visualization |
-| end-to-end delay | proves demo responsiveness |
+| Metric | Result |
+|---|---:|
+| Streaming duration | ~385 seconds |
+| Clean IMU rows stored | 9,599 |
+| HAR predictions stored | 463 |
+| Approx. clean row rate | ~24.9 rows/sec |
+| Approx. prediction interval | ~0.83 sec |
+| Ingest queue depth | 0 |
+| Failed batches | 0 |
+| Retried lines | 0 |
+| Dropped lines | 0 |
 
 ---
 
@@ -106,7 +106,7 @@ It does not duplicate all raw input samples.
 
 ## 6. Visualization Interpretation
 
-Grafana will be used to visualize:
+Grafana is used to visualize:
 
 - real watch IMU signal history,
 - current/last predicted activity,
@@ -116,4 +116,30 @@ Grafana will be used to visualize:
 
 Grafana auto-refresh from InfluxDB is the required implementation.
 
-Grafana Live is an optional enhancement only if verified and implemented.
+Grafana Live / MQTT visualization was considered but not used in the final Phase 5 design because InfluxDB-backed Grafana panels refresh at 1 second and remain tied to persistent stored data.
+
+---
+
+## 7. Phase 5 Visualization Result
+
+Phase 5 completed the visualization layer.
+
+Implemented visualization path:
+
+```text
+InfluxDB → Grafana
+```
+
+The Grafana dashboard shows:
+
+- live watch IMU signals from `watch_imu_clean`,
+- current/last predicted activity from `real_har_predictions`,
+- prediction confidence,
+- confidence over time,
+- prediction history,
+- stored clean IMU row count,
+- stored prediction count.
+
+The dashboard uses a 1-second refresh interval. This was sufficient for the live HAR pipeline, where predictions are produced approximately every 0.8 seconds.
+
+The final Phase 5 design does not require MQTT/Grafana Live.

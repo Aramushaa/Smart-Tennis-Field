@@ -24,10 +24,10 @@ to:
 Data → Broker → Storage → Processing → Storage
 ```
 
-and now, after Phase 4 validation:
+and after Phase 5:
 
 ```text
-Real Sensor → Protocol Adapter → Broker → Cleaner → Storage + Processing → Visualization
+Real Sensor → Protocol Adapter → Broker → Cleaner → Storage + Processing → Storage → Visualization
 ```
 
 ---
@@ -222,9 +222,9 @@ Legacy camera experiments may remain documented as early exploration, but not as
 
 ---
 
-# 10. Phase 5 Plan — Grafana Visualization
+# 10. Phase 5 — Grafana Visualization
 
-Grafana is the next phase after Phase 4 validation.
+Phase 5 implemented Grafana as the visualization layer for the validated live MetaWear + HAR pipeline.
 
 Required path:
 
@@ -241,13 +241,9 @@ Primary dashboard scope:
 - session summary
 - ingestion / prediction health indicators where possible
 
-Optional path:
+The optional Grafana Live / MQTT path was not implemented because InfluxDB-backed panels with a 1-second refresh interval were sufficient for thesis-scale live visualization.
 
-```text
-HAR → Grafana Live
-```
-
-Grafana Live should be implemented only if it is verified and does not distract from the thesis core.
+This keeps the visualization layer simpler and preserves InfluxDB as the persistent source of truth.
 
 ---
 
@@ -286,4 +282,30 @@ Writer thread alive: true
 
 Result: Phase 4 completed successfully.
 
-Phase 5 will visualize the validated live pipeline in Grafana using InfluxDB as the source of truth.
+Phase 5 visualized the validated live pipeline in Grafana using InfluxDB as the source of truth.
+
+---
+
+# 13. Phase 5 Validation Result
+
+Grafana was added to the Docker Compose stack and connected to InfluxDB.
+
+The dashboard visualizes:
+
+- live watch accelerometer and gyroscope signals from `watch_imu_clean`,
+- latest predicted activity from `real_har_predictions`,
+- prediction confidence,
+- confidence over time,
+- prediction history,
+- stored clean IMU row count,
+- stored prediction count.
+
+The dashboard uses a 1-second refresh interval through:
+
+```env
+GF_DASHBOARDS_MIN_REFRESH_INTERVAL=1s
+```
+
+The optional MQTT/Grafana Live visualization path was not used because the InfluxDB-backed dashboard was sufficient for live thesis demonstration.
+
+Result: Phase 5 completed successfully.

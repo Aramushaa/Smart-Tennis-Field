@@ -2,9 +2,9 @@
 
 ## Current System Context
 
-The project is currently in **Phase 5 — Grafana Visualization**.
+The project has completed **Phase 5 — Grafana Visualization** and is now moving toward **Phase 6 — EEG/ECG dataset-based sensor extension**.
 
-Completed phases:
+Phase status:
 
 | Phase | Status | Main result |
 |---|---|---|
@@ -13,8 +13,8 @@ Completed phases:
 | Phase 2 | Completed | Siddha dataset replay pipeline validated |
 | Phase 3 | Completed | HAR microservice with ONNX inference and prediction storage |
 | Phase 4 | Completed | Real MetaWear watch pipeline with cleaner + live HAR mode |
-| Phase 5 | Current | Grafana dashboards for live and historical visualization |
-| Phase 6 | Planned | EEG and ECG dataset-based sensors, storage only, no ML |
+| Phase 5 | Completed | Grafana dashboards for live IMU and HAR prediction visualization |
+| Phase 6 | Next | EEG and ECG dataset-based sensors, storage and visualization only, no ML |
 
 The current implemented Phase 3 pipeline is:
 
@@ -274,7 +274,7 @@ Prediction rows should reference the input time window. They should not duplicat
 
 ### 2.8 Grafana — Visualization Layer
 
-Grafana is the next phase after Phase 4 validation.
+Grafana is implemented as the Phase 5 visualization layer.
 
 Required visualization path:
 
@@ -290,15 +290,7 @@ This supports:
 - session summaries,
 - near-real-time dashboards with auto-refresh.
 
-Optional advanced visualization path:
-
-```text
-HAR service → Grafana Live
-```
-
-Grafana Live may provide lower latency, but it should be treated as an optional enhancement unless fully verified and implemented.
-
-The required thesis-safe approach is Grafana reading from InfluxDB.
+The final Phase 5 dashboard uses InfluxDB-backed Grafana panels with a 1-second refresh interval. Grafana Live / MQTT visualization was not required because the InfluxDB dashboard update speed was sufficient for thesis-scale live monitoring.
 
 ---
 
@@ -389,7 +381,7 @@ The current choice is centralized local processing because it is:
 
 ---
 
-## 6. Final Phase 4 Architecture
+## 6. Current Implemented Architecture
 
 ```text
 MetaWear Bracelet (BLE)

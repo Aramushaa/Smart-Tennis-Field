@@ -11,12 +11,15 @@
 
 | Step | Detail |
 |------|--------|
-| Docker services started | 7 containers: emqx, influxdb3, ingest-service, har-service, watch-cleaner-service, influxdb3-explorer, grafana |
+| Docker services started | 7 containers: emqx, influxdb3, ingest-service, har-service, watch-cleaner-service, influxdb3-explorer |
 | MetaWear bridge started | `python -m app.bridge` via project `.venv` |
 | BLE connection | Successful over BLE to `C9:E5:38:6A:CC:E5` |
 | Observed raw publish rate | **26 acc + 26 gyro per second** (stable) |
 | Streaming duration | ~385 seconds (13:20:01 → 13:26:26 UTC) |
 | Bridge stopped | Terminated after streaming window |
+
+> [!NOTE]
+> Grafana was not running during this test
 
 ---
 
@@ -80,7 +83,7 @@ All rows have the correct schema and values:
 
 | Field | Sample Value | Status |
 |-------|-------------|--------|
-| `predicted_label` | `catch` | ✅ (consistent prediction for stationary sensor) |
+| `predicted_label` | `catch` | ✅ mapped HAR label |
 | `confidence` | 70–99% | ✅ |
 | `model_name` | `L2MU_plain_leaky` | ✅ |
 | `input_layout` | `gyro_then_accel` | ✅ |
@@ -90,7 +93,7 @@ All rows have the correct schema and values:
 | `recording_id` | `phase4_live_validation_001` | ✅ |
 
 > [!NOTE]
-> The model predicts "catch" for a stationary sensor — this is expected behavior since the model was trained on the Siddha dataset and "catch" may be the closest activity class to a still/resting posture.
+> The model predicts one of the supported Siddha HAR activity classes, not tennis-specific stroke labels. The observed prediction is interpreted as model/domain-shift behavior, not as a pipeline failure.
 
 ---
 
@@ -146,7 +149,7 @@ curl http://localhost:8000/stats
 | writer_thread_alive | true | true | ✅ PASS |
 
 > [!IMPORTANT]
-> **All 9 criteria passed.** The end-to-end pipeline — MetaWear BLE → MQTT → Watch Cleaner → Ingest Service → InfluxDB → HAR Service → Predictions — is validated and operational for thesis-scale live testing, with only a small startup shortfall.
+> **All 9 validation criteria passed within thesis-scale tolerance.** The end-to-end pipeline — MetaWear BLE → MQTT → Watch Cleaner → Ingest Service → InfluxDB → HAR Service → Predictions — is validated and operational for thesis-scale live testing, with only a small startup shortfall.
 
 ---
 
@@ -156,6 +159,6 @@ The live MetaWear sensor integration pipeline is validated and operational for t
 
 1. **Captures** raw BLE sensor data at 26 Hz (acc + gyro)
 2. **Cleans & merges** acc/gyro pairs into canonical 6-axis IMU rows
-3. **Ingests** clean rows to InfluxDB with zero data loss
-4. **Predicts** activity labels in real-time using the HAR model
+3. **Ingests** clean rows to InfluxDB with zero ingest-layer drops; the observed 0.27% row shortfall occurred during startup/pairing tolerance
+4. **Predicts** activity labels in near-real-time using the HAR model at approximately 0.83 seconds per prediction
 5. **Maintains** healthy writer state with zero failures, retries, or drops

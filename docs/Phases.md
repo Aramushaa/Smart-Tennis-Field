@@ -1,8 +1,8 @@
 # Phases — Smart Tennis Field Roadmap
 
-This roadmap reflects the updated Phase 4 direction.
+This roadmap reflects the completed Phase 5 visualization layer and the planned Phase 6 EEG/ECG extension.
 
-The project first validated transport, persistence, dataset replay, and HAR inference. It now moves toward real sensor integration and later multi-source extensibility.
+The project first validated transport, persistence, dataset replay, HAR inference, live watch integration, and Grafana visualization. It now moves toward multi-source extensibility.
 
 ---
 
@@ -15,8 +15,8 @@ The project first validated transport, persistence, dataset replay, and HAR infe
 | Phase 2 — Dataset Validation | Completed | Replay Siddha dataset through the full pipeline |
 | Phase 3 — HAR Microservice | Completed | Run ONNX HAR inference and store predictions |
 | Phase 4 — Real Watch Pipeline | Completed | Integrate MetaWear watch with cleaner + real-time HAR |
-| Phase 5 — Grafana Visualization | Current | Visualize live-ish and historical data |
-| Phase 6 — EEG/ECG Dataset Sources | Planned | Add two heterogeneous dataset-based sensors, no ML |
+| Phase 5 — Grafana Visualization | Completed | Visualize live IMU data and HAR predictions from InfluxDB |
+| Phase 6 — EEG/ECG Dataset Sources | Next | Add two heterogeneous dataset-based sensors, storage and visualization only, no ML |
 
 Camera-based features are removed from future phases because no camera hardware is available and camera tracking is not part of the final thesis contribution.
 
@@ -255,7 +255,7 @@ All completion criteria were satisfied during the Phase 4 validation test.
 
 # Phase 5 — Grafana Visualization
 
-**Status:** Current
+**Status:** Completed
 
 ## Goal
 
@@ -278,22 +278,21 @@ Dashboards:
 
 ## Optional Enhancement
 
-Grafana Live may be investigated for lower-latency display.
-
-However, the required thesis-safe version is Grafana reading from InfluxDB with short refresh intervals.
+Grafana Live / MQTT visualization was considered but not implemented. The InfluxDB-backed dashboard refreshes at 1 second, which is sufficient for the validated live pipeline.
 
 ## Done When
 
 - Grafana connects to InfluxDB.
-- Dashboard panels show real watch IMU rows.
-- Dashboard panels show prediction history.
-- Refresh behavior is documented and measured.
+- Dashboard panels show real watch IMU rows from `watch_imu_clean`.
+- Dashboard panels show HAR predictions from `real_har_predictions`.
+- Dashboard refresh is configured for 1 second.
+- MQTT/Grafana Live is not required for the final Phase 5 design.
 
 ---
 
 # Phase 6 — EEG/ECG Dataset Sources
 
-**Status:** Planned
+**Status:** Next
 
 ## Goal
 
@@ -306,8 +305,21 @@ These are dataset-based sources, not physical hardware integrations.
 Add:
 
 ```text
-eeg_dataset_sim → eeg_cleaner → ingest-service → InfluxDB: eeg_clean
-ecg_dataset_sim → ecg_cleaner → ingest-service → InfluxDB: ecg_clean
+eeg_dataset_sim
+→ EMQX: tennis/eeg/raw
+→ eeg_cleaner_service
+→ EMQX: tennis/eeg/clean
+→ ingest-service
+→ InfluxDB: eeg_clean
+→ Grafana
+
+ecg_dataset_sim
+→ EMQX: tennis/ecg/raw
+→ ecg_cleaner_service
+→ EMQX: tennis/ecg/clean
+→ ingest-service
+→ InfluxDB: ecg_clean
+→ Grafana
 ```
 
 ## Important Limitation

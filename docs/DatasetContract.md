@@ -281,9 +281,12 @@ No EEG ML in the current thesis.
 
 ```text
 eeg_dataset_sim
-→ eeg_cleaner
+→ EMQX: tennis/eeg/raw
+→ eeg_cleaner_service
+→ EMQX: tennis/eeg/clean
 → ingest-service
 → InfluxDB: eeg_clean
+→ Grafana
 ```
 
 ## 5.4 Example Clean Payload
@@ -299,7 +302,8 @@ eeg_dataset_sim
   "channel_2": 0.18,
   "channel_3": -0.05,
   "sampling_rate_hz": 128,
-  "quality": "ok"
+  "quality": "ok",
+  "ts": "2026-05-20T10:15:31Z"
 }
 ```
 
@@ -323,9 +327,12 @@ No ECG ML in the current thesis.
 
 ```text
 ecg_dataset_sim
-→ ecg_cleaner
+→ EMQX: tennis/ecg/raw
+→ ecg_cleaner_service
+→ EMQX: tennis/ecg/clean
 → ingest-service
 → InfluxDB: ecg_clean
+→ Grafana
 ```
 
 ## 6.4 Example Clean Payload
@@ -339,7 +346,8 @@ ecg_dataset_sim
   "sample_idx": 360,
   "ecg_mv": 0.82,
   "sampling_rate_hz": 360,
-  "quality": "ok"
+  "quality": "ok",
+  "ts": "2026-05-20T10:15:31Z"
 }
 ```
 
