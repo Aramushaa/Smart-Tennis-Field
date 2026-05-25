@@ -1,5 +1,6 @@
 # services/ingest_service/app/influx.py
 import json
+import math
 import threading
 from collections import deque
 from dataclasses import dataclass
@@ -12,6 +13,8 @@ from urllib.request import Request, urlopen
 from .config import (
     INFLUX_BATCH_SIZE,
     INFLUX_DATABASE,
+    INFLUX_ECG_TABLE,
+    INFLUX_EEG_TABLE,
     INFLUX_ENABLED,
     INFLUX_FLUSH_INTERVAL_MS,
     INFLUX_HOST,
@@ -230,6 +233,31 @@ def escape_tag_value(value: str) -> str:
     return str(value).replace(" ", "\\ ").replace(",", "\\,").replace("=", "\\=")
 
 
+def escape_key(value: str) -> str:
+    """Escape a line-protocol measurement, tag key, or field key."""
+    return str(value).replace("\\", "\\\\").replace(" ", "\\ ").replace(",", "\\,").replace("=", "\\=")
+
+
+def escape_field_string(value: Any) -> str:
+    return str(value).replace("\\", "\\\\").replace('"', '\\"')
+
+
+def _finite_float(value: Any, name: str) -> float:
+    number = float(value)
+    if not math.isfinite(number):
+        raise ValueError(f"{name} must be finite")
+    return number
+
+
+def _biosignal_timestamp(payload: dict) -> int:
+    if payload.get("ts"):
+        return iso_to_epoch_nanos(str(payload["ts"]))
+
+    base_epoch_ns = 1704067200_000_000_000
+    dataset_ts_ns = int(float(payload.get("dataset_ts", payload.get("sensor_ts", 0.0))) * 1_000_000_000)
+    return base_epoch_ns + dataset_ts_ns
+
+
 def write_event_to_influx(ev: Dict[str, Any]) -> None:
     if not INFLUX_ENABLED:
         return
@@ -336,3 +364,95 @@ def write_imu_raw_to_influx(payload: dict) -> None:
         _enqueue_line(line)
     except Exception as e:
         print(f"[Influx IMU] Error: {e}")
+
+
+def write_eeg_to_influx(payload: dict) -> None:
+    """
+    Write clean EEG rows into the configured EEG measurement.
+    """
+    if not INFLUX_ENABLED:
+        return
+
+    try:
+        channels = payload.get("channels")
+        if not isinstance(channels, dict) or not channels:
+            raise ValueError("channels must be a non-empty object")
+
+        device = escape_tag_value(payload.get("device", "eeg"))
+        subject = escape_tag_value(payload.get("subject", "unknown"))
+        task = escape_tag_value(payload.get("task", "unknown"))
+        recording_id = escape_tag_value(payload.get("recording_id", "unknown"))
+        source = escape_tag_value(payload.get("source", "openneuro_ds006848"))
+
+        sample_idx = int(payload.get("sample_idx", 0))
+        dataset_ts = _finite_float(payload.get("dataset_ts", payload.get("sensor_ts", 0.0)), "dataset_ts")
+        sensor_ts = _finite_float(payload.get("sensor_ts", dataset_ts), "sensor_ts")
+        sampling_rate_hz = _finite_float(payload.get("sampling_rate_hz", 0.0), "sampling_rate_hz")
+        channel_count = int(payload.get("channel_count", len(channels)))
+        quality = escape_field_string(payload.get("quality", "ok"))
+
+        fields = [
+            f"sample_idx={sample_idx}i",
+            f"dataset_ts={dataset_ts}",
+            f"sensor_ts={sensor_ts}",
+            f"sampling_rate_hz={sampling_rate_hz}",
+            f"channel_count={channel_count}i",
+            f'quality="{quality}"',
+        ]
+
+        for name, value in channels.items():
+            channel_value = _finite_float(value, f"channels.{name}")
+            fields.append(f"{escape_key(name)}={channel_value}")
+
+        ts_epoch = _biosignal_timestamp(payload)
+        line = (
+            f"{INFLUX_EEG_TABLE},device={device},subject={subject},task={task},"
+            f"recording_id={recording_id},source={source} "
+            f"{','.join(fields)} {ts_epoch}"
+        )
+        _enqueue_line(line)
+    except Exception as e:
+        print(f"[Influx EEG] Error: {e}")
+
+
+def write_ecg_to_influx(payload: dict) -> None:
+    """
+    Write clean ECG rows into the configured ECG measurement.
+    """
+    if not INFLUX_ENABLED:
+        return
+
+    try:
+        device = escape_tag_value(payload.get("device", "ecg"))
+        subject = escape_tag_value(payload.get("subject", "unknown"))
+        task = escape_tag_value(payload.get("task", "unknown"))
+        recording_id = escape_tag_value(payload.get("recording_id", "unknown"))
+        source = escape_tag_value(payload.get("source", "openneuro_ds006848"))
+
+        sample_idx = int(payload.get("sample_idx", 0))
+        dataset_ts = _finite_float(payload.get("dataset_ts", payload.get("sensor_ts", 0.0)), "dataset_ts")
+        sensor_ts = _finite_float(payload.get("sensor_ts", dataset_ts), "sensor_ts")
+        sampling_rate_hz = _finite_float(payload.get("sampling_rate_hz", 0.0), "sampling_rate_hz")
+        ecg_value = _finite_float(payload.get("ecg_value"), "ecg_value")
+        quality = escape_field_string(payload.get("quality", "ok"))
+        unit = escape_field_string(payload.get("unit", "V"))
+
+        fields = [
+            f"sample_idx={sample_idx}i",
+            f"dataset_ts={dataset_ts}",
+            f"sensor_ts={sensor_ts}",
+            f"sampling_rate_hz={sampling_rate_hz}",
+            f"ecg_value={ecg_value}",
+            f'quality="{quality}"',
+            f'unit="{unit}"',
+        ]
+
+        ts_epoch = _biosignal_timestamp(payload)
+        line = (
+            f"{INFLUX_ECG_TABLE},device={device},subject={subject},task={task},"
+            f"recording_id={recording_id},source={source} "
+            f"{','.join(fields)} {ts_epoch}"
+        )
+        _enqueue_line(line)
+    except Exception as e:
+        print(f"[Influx ECG] Error: {e}")

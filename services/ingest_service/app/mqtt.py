@@ -17,7 +17,12 @@ from .config import (
     INFLUX_ENABLED,
     INFLUX_WRITE_GENERIC_EVENTS,
 )
-from .influx import write_event_to_influx, write_imu_raw_to_influx
+from .influx import (
+    write_ecg_to_influx,
+    write_eeg_to_influx,
+    write_event_to_influx,
+    write_imu_raw_to_influx,
+)
 
 
 EVENTS: Deque[Dict[str, Any]] = deque(maxlen=EVENT_BUFFER_MAX)
@@ -58,8 +63,16 @@ def _enqueue_influx_writes(ev: Dict[str, Any], payload_obj: Any) -> None:
         if INFLUX_WRITE_GENERIC_EVENTS:
             write_event_to_influx(ev)
 
+        if not isinstance(payload_obj, dict):
+            return
+
+        device = payload_obj.get("device")
         required_imu_fields = {"acc_x", "acc_y", "acc_z", "gyro_x", "gyro_y", "gyro_z"}
-        if isinstance(payload_obj, dict) and required_imu_fields.issubset(payload_obj.keys()):
+        if device == "eeg":
+            write_eeg_to_influx(payload_obj)
+        elif device == "ecg":
+            write_ecg_to_influx(payload_obj)
+        elif required_imu_fields.issubset(payload_obj.keys()):
             write_imu_raw_to_influx(payload_obj)
     except Exception as e:
         print("[INFLUX] write error:", e)

@@ -63,6 +63,62 @@ services:
       - ./dataset:/app/dataset:ro
     restart: on-failure
 
+  eeg-dataset-sim:
+    profiles: ["phase6"]
+    build:
+      context: ./services/eeg_dataset_sim
+      dockerfile: Dockerfile
+    container_name: eeg-dataset-sim
+    env_file:
+      - .env
+    depends_on:
+      emqx:
+        condition: service_healthy
+    volumes:
+      - ./dataset:/app/dataset:ro
+    restart: on-failure
+
+  eeg-cleaner-service:
+    profiles: ["phase6"]
+    build:
+      context: ./services/eeg_cleaner_service
+      dockerfile: Dockerfile
+    container_name: eeg-cleaner-service
+    env_file:
+      - .env
+    depends_on:
+      emqx:
+        condition: service_healthy
+    restart: unless-stopped
+
+  ecg-dataset-sim:
+    profiles: ["phase6"]
+    build:
+      context: ./services/ecg_dataset_sim
+      dockerfile: Dockerfile
+    container_name: ecg-dataset-sim
+    env_file:
+      - .env
+    depends_on:
+      emqx:
+        condition: service_healthy
+    volumes:
+      - ./dataset:/app/dataset:ro
+    restart: on-failure
+
+  ecg-cleaner-service:
+    profiles: ["phase6"]
+    build:
+      context: ./services/ecg_cleaner_service
+      dockerfile: Dockerfile
+    container_name: ecg-cleaner-service
+    env_file:
+      - .env
+    depends_on:
+      emqx:
+        condition: service_healthy
+    restart: unless-stopped
+
   har-service:
     build:
       context: ./services/har_service

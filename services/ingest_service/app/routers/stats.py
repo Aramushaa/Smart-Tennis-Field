@@ -2,6 +2,8 @@ from fastapi import APIRouter
 
 from ..config import (
     INFLUX_ENABLED,
+    INFLUX_ECG_TABLE,
+    INFLUX_EEG_TABLE,
     INFLUX_IMU_TABLE,
     INFLUX_TABLE,
     INFLUX_WATCH_IMU_TABLE,
@@ -42,6 +44,8 @@ def get_stats():
     )
     imu_count = _safe_count(INFLUX_IMU_TABLE)
     watch_imu_count = _safe_count(INFLUX_WATCH_IMU_TABLE)
+    eeg_count = _safe_count(INFLUX_EEG_TABLE)
+    ecg_count = _safe_count(INFLUX_ECG_TABLE)
 
     # ── per-device breakdown (dataset table) ────────────────────────
     devices = _safe_query(
@@ -65,6 +69,14 @@ def get_stats():
             "watch_imu_clean": {
                 "measurement": INFLUX_WATCH_IMU_TABLE,
                 "row_count": watch_imu_count,
+            },
+            "eeg_clean": {
+                "measurement": INFLUX_EEG_TABLE,
+                "row_count": eeg_count,
+            },
+            "ecg_clean": {
+                "measurement": INFLUX_ECG_TABLE,
+                "row_count": ecg_count,
             },
         },
         "devices": devices,

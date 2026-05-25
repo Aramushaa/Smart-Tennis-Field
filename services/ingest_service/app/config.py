@@ -44,6 +44,15 @@ INFLUX_WATCH_IMU_TABLE = validate_table_name(
     "INFLUX_WATCH_IMU_TABLE",
 )
 
+INFLUX_EEG_TABLE = validate_table_name(
+    os.getenv("INFLUX_EEG_TABLE", "eeg_clean"),
+    "INFLUX_EEG_TABLE",
+)
+INFLUX_ECG_TABLE = validate_table_name(
+    os.getenv("INFLUX_ECG_TABLE", "ecg_clean"),
+    "INFLUX_ECG_TABLE",
+)
+
 INFLUX_BATCH_SIZE = int(os.getenv("INFLUX_BATCH_SIZE", "500"))
 INFLUX_FLUSH_INTERVAL_MS = int(os.getenv("INFLUX_FLUSH_INTERVAL_MS", "200"))
 INFLUX_MAX_QUEUE_SIZE = int(os.getenv("INFLUX_MAX_QUEUE_SIZE", "50000"))
