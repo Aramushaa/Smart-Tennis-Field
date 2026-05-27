@@ -2,7 +2,7 @@
   "info": {
     "model": "8",
     "hardware": "0.1",
-    "manufacturer": "MbientLab Inc",
+    "manufacturer": "MbientLab",
     "serial": "0557A9",
     "firmware": "1.7.2"
   },
@@ -720,8 +720,8 @@
     19,
     0,
     1,
-    214,
-    207,
+    133,
+    10,
     45,
     207,
     157,

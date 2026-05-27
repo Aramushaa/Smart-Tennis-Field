@@ -250,11 +250,14 @@ def _finite_float(value: Any, name: str) -> float:
 
 
 def _biosignal_timestamp(payload: dict) -> int:
-    if payload.get("ts"):
-        return iso_to_epoch_nanos(str(payload["ts"]))
-
+    """
+    Dataset biosignals should use deterministic dataset time.
+    This allows repeated replay of the same subject/task/recording
+    to overwrite the same logical points instead of appending duplicates.
+    """
     base_epoch_ns = 1704067200_000_000_000
-    dataset_ts_ns = int(float(payload.get("dataset_ts", payload.get("sensor_ts", 0.0))) * 1_000_000_000)
+    dataset_ts = float(payload.get("dataset_ts", payload.get("sensor_ts", 0.0)))
+    dataset_ts_ns = int(dataset_ts * 1_000_000_000)
     return base_epoch_ns + dataset_ts_ns
 
 
