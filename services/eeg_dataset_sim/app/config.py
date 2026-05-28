@@ -17,6 +17,7 @@ SUBJECT = os.getenv("EEG_SUBJECT", "sub-001")
 TASK = os.getenv("EEG_TASK", "verbalwm")
 MAX_SECONDS = _float_env("EEG_MAX_SECONDS", 30.0)
 REPLAY_SPEED = _float_env("EEG_REPLAY_SPEED", 1.0)
+STARTUP_DELAY_SECONDS = _float_env("EEG_STARTUP_DELAY_SECONDS", 5.0)
 CHANNEL_LIMIT = _int_env("EEG_CHANNEL_LIMIT", 8)
 DOWNSAMPLE_HZ = _float_env("EEG_DOWNSAMPLE_HZ", 100.0)
 

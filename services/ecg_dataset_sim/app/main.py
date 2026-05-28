@@ -13,6 +13,7 @@ from .config import (
     MQTT_QOS,
     RAW_TOPIC,
     REPLAY_SPEED,
+    STARTUP_DELAY_SECONDS,
     SUBJECT,
     TASK,
 )
@@ -57,6 +58,10 @@ def main() -> None:
         except Exception as exc:
             logger.warning("Broker not ready, retrying in 3s | error=%s", exc)
             time.sleep(3)
+
+    if STARTUP_DELAY_SECONDS > 0:
+        logger.info("Waiting before replay | startup_delay_seconds=%s", STARTUP_DELAY_SECONDS)
+        time.sleep(STARTUP_DELAY_SECONDS)
 
     previous: Optional[EcgSample] = None
     count = 0
