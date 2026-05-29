@@ -69,13 +69,13 @@ flowchart LR
     EEGSIM -->|tennis/eeg/raw| EMQX[EMQX MQTT Broker]
     ECGSIM -->|tennis/ecg/raw| EMQX
 
-    EMQX --> EEGC[eeg-cleaner-service]
-    EMQX --> ECGC[ecg-cleaner-service]
+    EMQX -->|tennis/eeg/raw| EEGC[eeg-cleaner-service]
+    EMQX -->|tennis/ecg/raw| ECGC[ecg-cleaner-service]
 
     EEGC -->|tennis/eeg/clean| EMQX
     ECGC -->|tennis/ecg/clean| EMQX
 
-    EMQX --> ING[ingest-service]
+    EMQX -->|tennis/&lt;eeg or ecg&gt;/raw| ING[ingest-service]
     ING -->|eeg_clean| DB[(InfluxDB 3)]
     ING -->|ecg_clean| DB
 
