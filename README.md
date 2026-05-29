@@ -219,17 +219,27 @@ Provisioned dashboard:
 Smart Tennis Field - Live Dashboard
 ```
 
-## Validation Highlights
+## Architecture Diagrams
 
-| Validation | Result |
+Detailed diagrams are available in [`docs/diagrams`](docs/diagrams):
+
+- System overview
+- Docker Compose topology
+- Real watch pipeline
+- Siddha dataset pipeline
+- EEG/ECG fake-sensor pipeline
+- Data ownership and storage
+
+Thesis diagram mapping:
+
+| Thesis section | Diagram |
 |---|---|
-| Phase 4 live MetaWear rows | 9,599 clean IMU rows |
-| Phase 4 live HAR predictions | 463 predictions |
-| Phase 4 queue depth | 0 |
-| Phase 4 failed/retried/dropped writes | 0 |
-| Phase 5 Grafana | InfluxDB-backed dashboard |
-| Phase 6 EEG replay | Validated fake-sensor pipeline |
-| Phase 6 ECG replay | Validated fake-sensor pipeline |
+| System architecture | `01-system-overview` |
+| Deployment | `02-docker-compose-topology` |
+| Real hardware integration | `03-watch-pipeline` |
+| Dataset validation | `04-siddha-dataset-pipeline` |
+| Extensibility | `05-eeg-ecg-fake-sensor-pipeline` |
+| Database/schema design | `06-data-ownership-and-storage` |
 
 ## Documentation
 
