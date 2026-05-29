@@ -2,10 +2,6 @@
 
 Smart Tennis Field is a Docker-based IoT thesis project for collecting, cleaning, storing, processing, and visualizing wearable and dataset-based sensor streams. It validates a microservice architecture for MetaWear watch ingestion, ONNX human activity recognition (HAR), Siddha dataset replay, EEG/ECG dataset fake sensors, InfluxDB storage, and Grafana visualization.
 
-```text
-Data Source -> Adapter/Simulator -> MQTT Broker -> Cleaner -> Storage / Processing -> Visualization
-```
-
 ## Phase Status
 
 | Phase | Status | Result |
@@ -18,50 +14,72 @@ Data Source -> Adapter/Simulator -> MQTT Broker -> Cleaner -> Storage / Processi
 | Phase 5 | Completed | Grafana dashboard from InfluxDB |
 | Phase 6 | Completed | EEG/ECG dataset fake sensors and storage |
 
-## Main Data Flows
+## Architecture
+
+The project follows a modular IoT pipeline:
+
+```mermaid
+flowchart LR
+    DS[Data Source] --> AD[Adapter / Simulator]
+    AD --> MQTT[MQTT Broker]
+    MQTT --> CL[Cleaner / Normalizer]
+    CL --> ST[Storage / Processing]
+    ST --> VIS[Visualization]
+```
+
+## Implemented Data Flows
 
 ### Real Watch + HAR
 
-```text
-MetaWear Bracelet
--> BLE
--> metawear_bridge
--> EMQX: tennis/watch/raw
--> watch-cleaner-service
--> EMQX: tennis/watch/clean
--> ingest-service
--> InfluxDB: watch_imu_clean
--> Grafana
+```mermaid
+flowchart LR
+    MW[MetaWear Bracelet] -->|BLE| MB[metawear_bridge]
+    MB -->|tennis/watch/raw| EMQX[EMQX MQTT Broker]
+    EMQX --> WC[watch-cleaner-service]
+    WC -->|tennis/watch/clean| EMQX
 
-tennis/watch/clean
--> har-service
--> InfluxDB: real_har_predictions
--> Grafana
+    EMQX --> ING[ingest-service]
+    ING -->|watch_imu_clean| DB[(InfluxDB 3)]
+
+    EMQX --> HAR[har-service<br/>MQTT stream mode]
+    HAR -->|real_har_predictions| DB
+
+    DB --> G[Grafana<br/>Live Watch + HAR Dashboard]
 ```
 
 ### Siddha Dataset Replay
 
-```text
-Siddha Parquet Dataset
--> siddha-sensor-sim
--> EMQX
--> ingest-service
--> InfluxDB: imu_raw_full_rows
--> har-service DB mode
--> InfluxDB: har_predictions_7_activity
+```mermaid
+flowchart LR
+    SD[Siddha Parquet Dataset] --> SIM[siddha-sensor-sim]
+    SIM -->|tennis/sensor/&lt;device&gt;/events| EMQX[EMQX MQTT Broker]
+    EMQX --> ING[ingest-service]
+    ING -->|imu_raw_full_rows| DB[(InfluxDB 3)]
+    DB --> HAR[har-service<br/>DB polling mode]
+    HAR -->|har_predictions_7_activity| DB
 ```
 
 ### EEG/ECG Fake Sensors
 
-```text
-OpenNeuro ds006848
--> eeg-dataset-sim / ecg-dataset-sim
--> EMQX raw topics
--> eeg-cleaner-service / ecg-cleaner-service
--> EMQX clean topics
--> ingest-service
--> InfluxDB: eeg_clean / ecg_clean
--> Grafana
+```mermaid
+flowchart LR
+    OD[OpenNeuro ds006848] --> EEGSIM[eeg-dataset-sim]
+    OD --> ECGSIM[ecg-dataset-sim]
+
+    EEGSIM -->|tennis/eeg/raw| EMQX[EMQX MQTT Broker]
+    ECGSIM -->|tennis/ecg/raw| EMQX
+
+    EMQX --> EEGC[eeg-cleaner-service]
+    EMQX --> ECGC[ecg-cleaner-service]
+
+    EEGC -->|tennis/eeg/clean| EMQX
+    ECGC -->|tennis/ecg/clean| EMQX
+
+    EMQX --> ING[ingest-service]
+    ING -->|eeg_clean| DB[(InfluxDB 3)]
+    ING -->|ecg_clean| DB
+
+    DB --> G[Grafana<br/>EEG/ECG Dashboard]
 ```
 
 ## Services
