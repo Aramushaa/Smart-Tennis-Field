@@ -1,288 +1,96 @@
-# Smart Tennis Field — IoT + Real-Time HAR Pipeline
+# Smart Tennis Field — IoT Sensor Pipeline + Live HAR
 
-## 1. Project Overview
-
-Smart Tennis Field is a Docker-based IoT thesis project for collecting, storing, processing, and visualizing sensor data.
-
-The project started with a reproducible dataset replay pipeline and is now extended with a real MetaWear bracelet for live human activity recognition (HAR).
-
-The core architectural loop is:
+Smart Tennis Field is a Docker-based IoT thesis project for collecting, cleaning, storing, processing, and visualizing wearable and dataset-based sensor streams. It validates a microservice architecture for MetaWear watch ingestion, ONNX human activity recognition (HAR), Siddha dataset replay, EEG/ECG dataset fake sensors, InfluxDB storage, and Grafana visualization.
 
 ```text
-Data source → MQTT Broker → Cleaning / Normalization → Storage → Processing → Storage → Visualization
+Data Source -> Adapter/Simulator -> MQTT Broker -> Cleaner -> Storage / Processing -> Visualization
 ```
 
-The project is intentionally split into microservices so that ingestion, cleaning, storage, machine learning, and visualization can evolve independently.
+## Phase Status
 
----
+| Phase | Status | Result |
+|---|---|---|
+| Phase 0 | Completed | EMQX MQTT broker validated |
+| Phase 1 | Completed | Ingest-service and InfluxDB storage |
+| Phase 2 | Completed | Siddha dataset replay stored in InfluxDB |
+| Phase 3 | Completed | ONNX HAR service with DB polling mode |
+| Phase 4 | Completed | Real MetaWear watch pipeline and live HAR |
+| Phase 5 | Completed | Grafana dashboard from InfluxDB |
+| Phase 6 | Completed | EEG/ECG dataset fake sensors and storage |
 
-## 2. Current Phase Status
+## Main Data Flows
 
-| Phase | Status | Description |
-|---|---:|---|
-| Phase 0 | Completed | MQTT broker with EMQX validated |
-| Phase 1 | Completed | ingest-service + InfluxDB storage |
-| Phase 2 | Completed | Siddha dataset replay into MQTT and InfluxDB |
-| Phase 3 | Completed | HAR ONNX service with DB-polling mode and prediction storage |
-| Phase 4 | Completed | Real MetaWear watch pipeline with cleaner + live HAR mode |
-| Phase 5 | Completed | Grafana dashboards for live IMU and HAR prediction visualization |
-| Phase 6 | Current | EEG and ECG dataset-based sensor extension, storage and visualization only, no ML |
-
----
-
-## 3. Current Architecture
-
-### 3.1 Phase 4 Real Watch Pipeline
+### Real Watch + HAR
 
 ```text
 MetaWear Bracelet
-        │
-        │ BLE
-        ▼
-metawear_bridge
-BLE → MQTT protocol adapter
-        │
-        ▼
-EMQX topic: tennis/watch/raw
-        │
-        ▼
-watch_cleaner_service
-validate + normalize + pair ACC/GYRO
-        │
-        ▼
-EMQX topic: tennis/watch/clean
-        │                         │
-        ▼                         ▼
-ingest-service              har-service
-stores clean IMU            MQTT stream mode
-        │                         │
-        ▼                         ▼
-InfluxDB                    InfluxDB
-watch_imu_clean             real_har_predictions
-        │                         │
-        └──────────── Grafana ────┘
+-> BLE
+-> metawear_bridge
+-> EMQX: tennis/watch/raw
+-> watch-cleaner-service
+-> EMQX: tennis/watch/clean
+-> ingest-service
+-> InfluxDB: watch_imu_clean
+-> Grafana
+
+tennis/watch/clean
+-> har-service
+-> InfluxDB: real_har_predictions
+-> Grafana
 ```
 
-### 3.2 Phase 5 Visualization Pipeline
-
-```text
-MetaWear Bracelet
-        │ BLE
-        ▼
-metawear_bridge
-        │
-        ▼
-EMQX: tennis/watch/raw
-        │
-        ▼
-watch_cleaner_service
-        │
-        ▼
-EMQX: tennis/watch/clean
-        │                         │
-        ▼                         ▼
-ingest-service              har-service
-        │                         │
-        ▼                         ▼
-InfluxDB                    InfluxDB
-watch_imu_clean             real_har_predictions
-        │                         │
-        └──────────── Grafana ────┘
-```
-
-Grafana visualizes the validated live pipeline using InfluxDB as the persistent source of truth. The dashboard includes live IMU signals, latest predicted activity, confidence, prediction history, and session-level monitoring panels.
-
-The optional MQTT-based Grafana live panel was not required because the InfluxDB-backed dashboard can refresh at 1 second, which is sufficient for thesis-scale live demonstration.
-
-### 3.3 Existing Dataset Evaluation Pipeline
+### Siddha Dataset Replay
 
 ```text
 Siddha Parquet Dataset
-        │
-        ▼
-siddha-sensor-sim
-        │
-        ▼
-EMQX
-        │
-        ▼
-ingest-service
-        │
-        ▼
-InfluxDB: imu_raw_full_rows
-        │
-        ▼
-har-service DB mode
-        │
-        ▼
-InfluxDB: har_predictions_7_activity
+-> siddha-sensor-sim
+-> EMQX
+-> ingest-service
+-> InfluxDB: imu_raw_full_rows
+-> har-service DB mode
+-> InfluxDB: har_predictions_7_activity
 ```
 
-The Siddha simulator is optional and should be started only when dataset replay is needed.
-
----
-
-## 4. Why the Architecture Is Designed This Way
-
-### 4.1 Why use a cleaner service?
-
-The MetaWear bracelet sends raw accelerometer and gyroscope events. These raw events are not directly suitable for storage or HAR inference.
-
-The cleaner service is responsible for:
-
-- validating numeric values,
-- rejecting impossible sensor readings,
-- pairing accelerometer and gyroscope samples,
-- normalizing timestamps,
-- generating clean sample indexes,
-- publishing a canonical clean IMU row.
-
-This keeps sensor-specific logic out of the ingest-service and HAR service.
-
-### 4.2 Why does HAR write predictions directly to InfluxDB?
-
-The ingest-service owns sensor data ingestion. The HAR service owns prediction output.
-
-Therefore the correct prediction path is:
+### EEG/ECG Fake Sensors
 
 ```text
-HAR service → InfluxDB
+OpenNeuro ds006848
+-> eeg-dataset-sim / ecg-dataset-sim
+-> EMQX raw topics
+-> eeg-cleaner-service / ecg-cleaner-service
+-> EMQX clean topics
+-> ingest-service
+-> InfluxDB: eeg_clean / ecg_clean
+-> Grafana
 ```
 
-not:
-
-```text
-HAR service → MQTT → ingest-service → InfluxDB
-```
-
-This avoids making ingest-service responsible for every possible ML prediction schema.
-
-### 4.3 Why store clean IMU and predictions separately?
-
-Clean IMU rows are the model input. Prediction rows are the model output.
-
-The prediction table should not duplicate full raw windows. Instead, predictions store metadata such as:
-
-- device,
-- recording_id,
-- predicted_label,
-- confidence,
-- window_start_dataset_ts,
-- window_end_dataset_ts,
-- window_size,
-- window_stride.
-
-This keeps storage efficient and makes the system reproducible.
-
----
-
-## 5. Repository Structure
-
-```text
-smart-tennis-field/
-│
-├── docker-compose.yml
-├── .env.example
-├── query_db.py
-├── rows_number.py
-├── rows_example.py
-│
-├── dataset/
-│   └── data.parquet                  # optional Siddha dataset file
-│
-└── services/
-    ├── ingest_service/
-    │   ├── app/
-    │   ├── Dockerfile
-    │   └── requirements.txt
-    │
-    ├── siddha_sensor_sim/
-    │   ├── app/
-    │   ├── Dockerfile
-    │   └── requirements.txt
-    │
-    ├── har_service/
-    │   ├── app/
-    │   ├── model/
-    │   │   ├── L2MU_plain_leaky.onnx
-    │   │   └── labels.txt
-    │   ├── Dockerfile
-    │   └── requirements.txt
-    │
-    ├── metawear_bridge/
-    │   ├── app/
-    │   │   ├── bridge.py
-    │   │   ├── config.py
-    │   │   ├── metawear_client.py
-    │   │   └── mqtt_publisher.py
-    │   ├── Dockerfile
-    │   └── requirements.txt
-    │
-    ├── watch_cleaner_service/
-    │   ├── app/
-    │   │   ├── main.py
-    │   │   └── config.py
-    │   ├── Dockerfile
-    │   └── requirements.txt
-    │
-    ├── grafana/
-    │   ├── provisioning/
-    │   │   ├── datasources/
-    │   │   └── dashboards/
-    │   └── dashboards/
-    │
-    ├── eeg_dataset_sim/              # planned Phase 6
-    ├── eeg_cleaner_service/          # planned Phase 6
-    ├── ecg_dataset_sim/              # planned Phase 6
-    └── ecg_cleaner_service/          # planned Phase 6
-```
-
----
-
-## 6. Main Services
+## Services
 
 | Service | Purpose |
 |---|---|
 | `emqx` | MQTT broker |
 | `influxdb3` | Time-series database |
 | `influxdb3-explorer` | InfluxDB web UI |
-| `ingest-service` | Stores clean canonical sensor data |
-| `siddha-sensor-sim` | Optional dataset replay simulator |
-| `metawear_bridge` | Local BLE → MQTT adapter for MetaWear bracelet |
-| `watch-cleaner-service` | Converts raw watch events into clean IMU rows |
-| `har-service` | Runs ONNX HAR inference and stores predictions |
-| `grafana` | Visualizes live IMU data, HAR predictions, confidence, and validation metrics from InfluxDB |
+| `ingest-service` | Stores clean sensor data |
+| `siddha-sensor-sim` | Replays Siddha IMU dataset |
+| `metawear_bridge` | Local BLE-to-MQTT adapter for MetaWear |
+| `watch-cleaner-service` | Cleans and pairs watch ACC/GYRO rows |
+| `har-service` | Runs ONNX HAR inference |
+| `grafana` | Visualizes stored sensor and prediction data |
+| `eeg-dataset-sim` | Replays EEG samples from OpenNeuro |
+| `eeg-cleaner-service` | Validates and normalizes EEG rows |
+| `ecg-dataset-sim` | Replays ECG samples from OpenNeuro |
+| `ecg-cleaner-service` | Validates and normalizes ECG rows |
 
----
+## Requirements
 
-## 7. Requirements
+- Docker Desktop and Docker Compose.
+- Python 3.11 or newer.
+- InfluxDB token.
+- MetaWear bracelet for the live watch pipeline.
+- OpenNeuro ds006848 dataset subset for Phase 6.
 
-### 7.1 System Requirements
-
-- Docker Desktop
-- Docker Compose
-- Python 3.11 or newer
-- A working MetaWear bracelet for Phase 4
-- Bluetooth available on the host machine
-- InfluxDB token configured
-
-### 7.2 Python Requirements for Local MetaWear Bridge
-
-The MetaWear bridge is normally run outside Docker because Bluetooth access from Docker is harder, especially on Windows.
-
-From the project root:
-
-```bash
-cd services/metawear_bridge
-python -m venv .venv
-.venv\Scripts\activate       # Windows PowerShell
-# source .venv/bin/activate   # Linux/macOS
-pip install -r requirements.txt
-```
-
----
-
-## 8. Environment Setup
+## Environment Setup
 
 Create your local environment file:
 
@@ -290,755 +98,152 @@ Create your local environment file:
 cp .env.example .env
 ```
 
-Then edit `.env` and set at least:
+Set at least:
 
 ```env
 INFLUX_TOKEN=YOUR_TOKEN_HERE
 HAR_INFLUX_TOKEN=YOUR_TOKEN_HERE
 METAWEAR_MAC_ADDRESS=YOUR_METAWEAR_MAC_ADDRESS
-```
 
-On Windows, the MetaWear bridge usually connects to EMQX through the host-mapped port:
-
-```env
+# Local MetaWear bridge on Windows
 METAWEAR_MQTT_HOST=localhost
 METAWEAR_MQTT_PORT=2883
-```
 
-Inside Docker services, MQTT uses the Docker service name:
-
-```env
+# Docker services
 MQTT_HOST=emqx
 MQTT_PORT=1883
+
+# Phase 6 defaults
+EEG_MAX_SECONDS=600
+ECG_MAX_SECONDS=600
+EEG_DOWNSAMPLE_HZ=100
+ECG_DOWNSAMPLE_HZ=100
+INFLUX_EEG_TABLE=eeg_clean
+INFLUX_ECG_TABLE=ecg_clean
 ```
 
----
-
-## 9. How to Run the Live Watch + Grafana Pipeline
-
-### Step 1 — Start backend services
-
-From the project root:
+## Quick Start
 
 ```bash
-docker compose up -d emqx influxdb3 influxdb3-explorer watch-cleaner-service ingest-service har-service grafana
-```
-
-Check services:
-
-```bash
+docker compose up -d emqx influxdb3 influxdb3-explorer ingest-service grafana
 docker compose ps
-```
-
-### Step 2 — Run MetaWear bridge locally
-
-In a separate terminal:
-
-```bash
-cd services/metawear_bridge
-python -m app.bridge
-```
-
-Expected output:
-
-```text
-Connecting to MetaWear...
-Connected to XX:XX:XX:XX:XX:XX over BLE
-Streaming RAW MetaWear data to MQTT topic: tennis/watch/raw
-Raw publish rate per second: {'acc': 25, 'gyro': 25}
-```
-
-### Step 3 — Check cleaner logs
-
-```bash
-docker compose logs -f watch-cleaner-service
-```
-
-Expected:
-
-```text
-Subscribed to raw topic: tennis/watch/raw
-Publishing clean rows to: tennis/watch/clean
-```
-
-### Step 4 — Check ingest-service health
-
-```bash
 curl http://localhost:8000/health
 curl http://localhost:8000/stats
 ```
 
-Important fields:
+## Run Live Watch + HAR
 
-```text
-queue_depth
-failed_batch_count
-retried_line_count
-dropped_line_count
-writer_thread_alive
-```
-
-### Step 5 — Check clean watch data in InfluxDB
-
-Open InfluxDB Explorer:
-
-```text
-http://localhost:8888
-```
-
-Run:
-
-```sql
-SELECT *
-FROM watch_imu_clean
-WHERE device = 'watch'
-ORDER BY time DESC
-LIMIT 20;
-```
-
-Expected fields:
-
-```text
-device
-recording_id
-sample_idx
-acc_x, acc_y, acc_z
-gyro_x, gyro_y, gyro_z
-dataset_ts
-activity_gt
-```
-
-### Step 6 — Check HAR predictions
+Start backend services:
 
 ```bash
+docker compose up -d emqx influxdb3 influxdb3-explorer ingest-service watch-cleaner-service har-service grafana
+```
+
+Run the MetaWear bridge locally:
+
+```bash
+cd services/metawear_bridge
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+python -m app.bridge
+```
+
+Check logs:
+
+```bash
+docker compose logs -f watch-cleaner-service
+docker compose logs -f ingest-service
 docker compose logs -f har-service
 ```
 
-Expected:
+## Run Siddha Replay
 
-```text
-Live prediction | device=watch | recording_id=... | predicted=... | confidence=...
-```
-
-Then query:
-
-```sql
-SELECT *
-FROM real_har_predictions
-WHERE device = 'watch'
-ORDER BY time DESC
-LIMIT 20;
-```
-
----
-
-## Phase 4 Validation Summary
-
-A live MetaWear validation test was executed using recording ID `phase4_live_validation_001`.
-
-| Metric | Result |
-|---|---:|
-| Streaming duration | ~385 seconds |
-| Clean IMU rows stored | 9,599 |
-| HAR predictions stored | 463 |
-| Approx. clean row rate | ~24.9 rows/sec |
-| Approx. prediction interval | ~0.83 sec |
-| Influx queue depth | 0 |
-| Failed batches | 0 |
-| Retried lines | 0 |
-| Dropped lines | 0 |
-
-The test validates the complete live path:
-
-`MetaWear → BLE → MQTT raw → watch cleaner → MQTT clean → ingest-service → InfluxDB → HAR MQTT mode → prediction storage`.
-
-Detailed report: `docs/Validation/phase4_validation_report.md`.
-
----
-
-## Phase 5 Validation Summary
-
-Grafana was added as the visualization layer for the validated live watch pipeline.
-
-| Item | Result |
-|---|---|
-| Grafana container | Running through Docker Compose |
-| Grafana URL | `http://localhost:3000` |
-| InfluxDB datasource | Connected |
-| Dashboard refresh | 1 second |
-| IMU table visualized | `watch_imu_clean` |
-| Prediction table visualized | `real_har_predictions` |
-| MQTT live panel | Not used in final Phase 5 design |
-| Source of truth | InfluxDB |
-
-The dashboard uses InfluxDB queries rather than MQTT streaming, so visualization remains tied to stored and reproducible data.
-
-The dashboard validates the visualization path:
-
-```text
-InfluxDB → Grafana
-```
-
-The live dashboard shows cleaned IMU signals, current HAR prediction, confidence, prediction history, and storage counters.
-
-Detailed report: `docs/Validation/phase5_grafana_validation_report.md`.
-
----
-
-## 10. Optional: Run Siddha Dataset Replay
-
-The Siddha simulator is optional and is controlled by the Compose profile `replay`.
-
-To replay the Siddha dataset into InfluxDB, place your dataset at:
-
-```text
-dataset/data.parquet
-```
-
-Then run:
-
-```bash
-docker compose --profile replay up siddha-sensor-sim
-```
-
-This command starts only the simulator profile service. The simulator publishes dataset rows to MQTT, and ingest-service writes them to InfluxDB.
-
-Recommended: start the backend first:
+Place the Siddha dataset at `dataset/data.parquet`, then run:
 
 ```bash
 docker compose up -d emqx influxdb3 ingest-service
-```
-
-Then run replay:
-
-```bash
 docker compose --profile replay up siddha-sensor-sim
 ```
 
-Check stored dataset rows:
+Check stored rows:
 
 ```sql
-SELECT COUNT(*) AS n
-FROM imu_raw_full_rows;
+SELECT COUNT(*) AS n FROM imu_raw_full_rows;
 ```
 
-Do not run Siddha replay and real MetaWear tests at the same time unless you intentionally want mixed workload testing.
+## Run EEG/ECG Phase 6
 
----
-
-## 11. HAR Modes
-
-The HAR service supports two modes.
-
-### 11.1 DB Polling Mode
-
-Used for reproducible Phase 3 dataset evaluation.
-
-```env
-HAR_INPUT_MODE=db_polling
-HAR_IMU_TABLE=imu_raw_full_rows
-HAR_PREDICTION_TABLE=har_predictions_7_activity
-HAR_FILTER_DEVICE=watch
-HAR_ALLOWED_ACTIVITY_GT=F,G,O,P,Q,R,S
-HAR_WINDOW_SIZE=40
-HAR_WINDOW_STRIDE=20
-```
-
-Flow:
-
-```text
-InfluxDB imu_raw_full_rows → HAR → InfluxDB har_predictions_7_activity
-```
-
-### 11.2 MQTT Stream Mode
-
-Used for Phase 4 live MetaWear prediction.
-
-```env
-HAR_INPUT_MODE=mqtt_stream
-HAR_MQTT_TOPIC=tennis/watch/clean
-HAR_PREDICTION_TABLE=real_har_predictions
-HAR_FILTER_DEVICE=watch
-HAR_ALLOWED_ACTIVITY_GT=
-HAR_WINDOW_SIZE=40
-HAR_WINDOW_STRIDE=20
-```
-
-Flow:
-
-```text
-MQTT tennis/watch/clean → HAR → InfluxDB real_har_predictions
-```
-
-At 25 Hz:
-
-```text
-window_size=40  → about 1.6 seconds at 25 Hz
-window_stride=20 → about 0.8 seconds between predictions at 25 Hz
-```
-
----
-
-## 12. Environment Variables
-
-The tables below show code-level defaults. The provided `.env.example` and your local `.env` override these at runtime.
-
-### 12.1 MQTT / Ingest Variables
-
-| Variable | Default | Meaning |
-|---|---|---|
-| `MQTT_HOST` | `localhost` | MQTT broker host |
-| `MQTT_PORT` | `1883` | MQTT broker port inside Docker |
-| `SUB_TOPICS` | `tennis/watch/clean,tennis/sensor/+/events` | Comma-separated topics ingest-service subscribes to |
-| `PUB_TOPIC` | `tennis/sensor/1/events` | Optional topic used by `/publish` endpoint |
-| `EVENT_BUFFER_MAX` | `100` | Max number of recent events kept in memory |
-
-Recommended Phase 4 value:
-
-```env
-SUB_TOPICS=tennis/watch/clean,tennis/sensor/+/events
-```
-
----
-
-### 12.2 InfluxDB Variables
-
-| Variable | Default | Meaning |
-|---|---|---|
-| `INFLUX_ENABLED` | `0` | Enables InfluxDB writing |
-| `INFLUX_HOST` | `http://localhost:8181` | InfluxDB URL |
-| `INFLUX_TOKEN` | empty | InfluxDB token |
-| `INFLUX_DATABASE` | `tennis` | InfluxDB database name |
-| `INFLUX_TABLE` | `events` | Generic event table |
-| `INFLUX_IMU_TABLE` | `imu_raw` | Dataset IMU table |
-| `INFLUX_WATCH_IMU_TABLE` | `watch_imu_clean` | Real MetaWear clean IMU table |
-| `INFLUX_BATCH_SIZE` | `500` | Number of lines per batch write |
-| `INFLUX_FLUSH_INTERVAL_MS` | `200` | Batch flush interval |
-| `INFLUX_MAX_QUEUE_SIZE` | `50000` | Max queued lines before dropping writes |
-| `INFLUX_WRITE_GENERIC_EVENTS` | `1` | Whether to also write generic event envelopes |
-
-You can rename tables by changing:
-
-```env
-INFLUX_IMU_TABLE=my_dataset_imu_table
-INFLUX_WATCH_IMU_TABLE=my_watch_table
-```
-
----
-
-### 12.3 MetaWear Bridge Variables
-
-| Variable | Default | Meaning |
-|---|---|---|
-| `METAWEAR_MAC_ADDRESS` | `YOUR_MAC_ADDRESS_HERE` | BLE MAC address of the bracelet |
-| `METAWEAR_DEVICE_NAME` | `watch` | Device tag stored in messages |
-| `METAWEAR_RECORDING_ID` | `real_metawear_session_001` | Session / recording identifier |
-| `METAWEAR_SAMPLING_RATE_HZ` | `25` | Expected MetaWear sampling rate |
-| `METAWEAR_MQTT_HOST` | `localhost` | MQTT host from local bridge |
-| `METAWEAR_MQTT_PORT` | `2883` | Host-mapped MQTT port |
-| `METAWEAR_MQTT_TOPIC` | `tennis/watch/raw` | Raw watch topic |
-
-Example:
-
-```env
-METAWEAR_MAC_ADDRESS=C9:E5:38:6A:CC:E5
-METAWEAR_RECORDING_ID=forehand_test_001
-METAWEAR_SAMPLING_RATE_HZ=25
-METAWEAR_MQTT_TOPIC=tennis/watch/raw
-```
-
----
-
-### 12.4 Data Cleaner Variables
-
-| Variable | Default | Meaning |
-|---|---|---|
-| `CLEANER_MQTT_HOST` | `emqx` | MQTT host for cleaner service |
-| `CLEANER_MQTT_PORT` | `1883` | MQTT port for cleaner service |
-| `CLEANER_MQTT_CLIENT_ID` | `watch-cleaner-service` | MQTT client id |
-| `CLEANER_RAW_TOPIC` | `tennis/watch/raw` | Raw watch input topic |
-| `CLEANER_CLEAN_TOPIC` | `tennis/watch/clean` | Clean watch output topic |
-| `CLEANER_MQTT_QOS` | `1` | MQTT QoS |
-| `CLEANER_MAX_ABS_ACC` | `80` | Maximum allowed absolute acceleration value |
-| `CLEANER_MAX_ABS_GYRO` | `2500` | Maximum allowed absolute gyroscope value |
-| `CLEANER_MAX_PAIR_AGE_SECONDS` | `0.25` | Max allowed time gap between acc and gyro pair |
-| `CLEANER_DEFAULT_ACTIVITY_GT` | `unknown` | Ground-truth label for real sensor rows |
-
-Example:
-
-```env
-CLEANER_MAX_PAIR_AGE_SECONDS=0.25
-CLEANER_DEFAULT_ACTIVITY_GT=unknown
-```
-
----
-
-### 12.5 Siddha Simulator Variables
-
-| Variable | Default | Meaning |
-|---|---|---|
-| `SIDDHA_MQTT_BROKER_HOST` | `emqx` | MQTT host for simulator |
-| `SIDDHA_MQTT_BROKER_PORT` | `1883` | MQTT port for simulator |
-| `SIDDHA_MQTT_TOPIC_PREFIX` | `tennis/sensor` | Topic prefix for simulated sensor messages |
-| `SIDDHA_DATASET_PATH` | `/app/dataset/data.parquet` | Dataset path inside container |
-| `SIDDHA_REPLAY_MODE` | `realtime` or `fast` | Replay mode |
-| `SIDDHA_REPLAY_SPEED` | `1.0` | Replay speed multiplier |
-| `SIDDHA_DEFAULT_DEVICE_FILTER` | empty | Optional device filter, e.g. `watch` |
-| `SIDDHA_DEFAULT_ACTIVITY_FILTER` | empty | Optional activity filter, e.g. `F` |
-| `SIDDHA_DEFAULT_RECORDING_ID_FILTER` | empty | Optional recording filter |
-| `SIDDHA_LOOP_FOREVER` | `false` or `true` | Replay repeatedly if true |
-| `SIDDHA_MQTT_QOS` | `1` or `0` | MQTT QoS |
-| `SIDDHA_MQTT_WAIT_FOR_PUBLISH` | `true` or `false` | Wait for publish confirmation |
-
-Example: replay only watch activity `F`:
-
-```env
-SIDDHA_DEFAULT_DEVICE_FILTER=watch
-SIDDHA_DEFAULT_ACTIVITY_FILTER=F
-SIDDHA_REPLAY_MODE=fast
-```
-
-Then run:
+Place the OpenNeuro dataset at `dataset/openneuro_ds006848/`.
 
 ```bash
-docker compose --profile replay up siddha-sensor-sim
+python3 reset_phase6_tables.py
+docker compose --profile phase6 build
+docker compose --profile phase6 up -d eeg-cleaner-service ecg-cleaner-service
+docker compose --profile phase6 up -d eeg-dataset-sim
+docker compose --profile phase6 up -d ecg-dataset-sim
 ```
 
----
-
-### 12.6 HAR Service Variables
-
-| Variable | Default | Meaning |
-|---|---|---|
-| `HAR_INPUT_MODE` | `db_polling` | `db_polling` or `mqtt_stream` |
-| `HAR_POLL_INTERVAL_SECONDS` | `5` | DB polling interval |
-| `HAR_MQTT_HOST` | `emqx` | MQTT host for live mode |
-| `HAR_MQTT_PORT` | `1883` | MQTT port for live mode |
-| `HAR_MQTT_TOPIC` | `tennis/watch/clean` | Clean IMU topic for live mode |
-| `HAR_MQTT_QOS` | `1` or `0` | MQTT QoS |
-| `HAR_INFLUX_HOST` | `http://influxdb3:8181` | InfluxDB URL |
-| `HAR_INFLUX_TOKEN` | empty | InfluxDB token for HAR writes/queries |
-| `HAR_INFLUX_DATABASE` | `tennis` | InfluxDB database |
-| `HAR_IMU_TABLE` | `imu_raw_full_rows` | IMU input table for DB mode |
-| `HAR_PREDICTION_TABLE` | `har_predictions_7_activity` | Prediction output table |
-| `HAR_MODEL_PATH` | `/app/model/L2MU_plain_leaky.onnx` | ONNX model path |
-| `HAR_LABELS_PATH` | `/app/model/labels.txt` | Label file path |
-| `HAR_MODEL_NAME` | `L2MU_plain_leaky` | Model name stored in prediction table |
-| `HAR_INPUT_LAYOUT` | `gyro_then_accel` | Model input layout |
-| `HAR_TEMPORAL_PREPROCESS` | `none` | Temporal preprocessing mode |
-| `HAR_SCORE_AGGREGATION` | `sum` | Score aggregation strategy |
-| `HAR_WINDOW_SIZE` | `40` | Sliding window size |
-| `HAR_WINDOW_STRIDE` | `20` | Sliding window stride |
-| `HAR_MAX_WINDOWS_PER_STREAM` | `10` | Max windows processed per stream in one DB-mode pass |
-| `HAR_QUERY_LIMIT` | `5000` | Max DB rows fetched per query |
-| `HAR_MQTT_PREDICTION_TOPIC` | `tennis/watch/predictions` | MQTT topic for live prediction republish |
-| `HAR_PREDICTION_TOP_K` | `3` | Number of top predictions to keep internally/log |
-| `HAR_DEBUG_INFERENCE` | `false` | Enables extra inference logs |
-| `HAR_FILTER_DEVICE` | empty or `watch` or `phone` | Optional device filter |
-| `HAR_FILTER_RECORDING_ID` | empty or `<recording_id>` | Optional recording filter |
-| `HAR_ALLOWED_ACTIVITY_GT` | `F,G,O,P,Q,R,S` | Allowed labels for dataset mode; empty for live mode |
-
-Recommended live Phase 4 configuration:
-
-```env
-HAR_INPUT_MODE=mqtt_stream
-HAR_MQTT_TOPIC=tennis/watch/clean
-HAR_PREDICTION_TABLE=real_har_predictions
-HAR_FILTER_DEVICE=watch
-HAR_ALLOWED_ACTIVITY_GT=
-HAR_WINDOW_SIZE=40
-HAR_WINDOW_STRIDE=20
-```
-
-Recommended Phase 3 dataset configuration:
-
-```env
-HAR_INPUT_MODE=db_polling
-HAR_IMU_TABLE=imu_raw_full_rows
-HAR_PREDICTION_TABLE=har_predictions_7_activity
-HAR_FILTER_DEVICE=watch
-HAR_ALLOWED_ACTIVITY_GT=F,G,O,P,Q,R,S
-HAR_WINDOW_SIZE=40
-HAR_WINDOW_STRIDE=20
-```
-
----
-
-### 12.7 Phase 5 — Grafana Visualization
-
-Phase 5 is implemented. Grafana visualizes the live MetaWear + HAR pipeline using InfluxDB as the persistent source of truth.
-
-Required visualization path:
-
-```text
-InfluxDB → Grafana
-```
-
-Default URL:
-
-```text
-http://localhost:3000
-```
-
-Default credentials:
-
-```text
-username: admin
-password: admin
-```
-
-The Docker Compose configuration sets the dashboard minimum refresh interval to 1 second:
-
-```env
-GF_DASHBOARDS_MIN_REFRESH_INTERVAL=1s
-```
-
-The dashboard visualizes:
-
-- live watch accelerometer and gyroscope signals from `watch_imu_clean`,
-- latest predicted activity from `real_har_predictions`,
-- current prediction confidence,
-- confidence over time,
-- prediction timeline/history,
-- stored clean IMU row count,
-- stored prediction count,
-- session summary panels where useful.
-
-The optional MQTT-based Grafana live visualization was not used in the final Phase 5 design because the InfluxDB-backed dashboard refreshes at 1 second, which is sufficient for the validated live HAR pipeline.
-
-InfluxDB remains the persistent and reproducible source of truth.
-
----
-
-## 13. Useful Commands
-
-### Start core infrastructure
+Check logs:
 
 ```bash
-docker compose up -d emqx influxdb3 influxdb3-explorer grafana
-```
-
-### Start Phase 4 services
-
-```bash
-docker compose up -d watch-cleaner-service ingest-service har-service
-```
-
-### Stop all services
-
-```bash
-docker compose down
-```
-
-### Rebuild after code changes
-
-```bash
-docker compose build ingest-service watch-cleaner-service har-service
-```
-
-### Follow logs
-
-```bash
+docker compose logs -f eeg-dataset-sim
+docker compose logs -f ecg-dataset-sim
+docker compose logs -f eeg-cleaner-service
+docker compose logs -f ecg-cleaner-service
 docker compose logs -f ingest-service
-docker compose logs -f watch-cleaner-service
-docker compose logs -f har-service
 ```
 
-### Run optional Siddha replay
+Expected default Phase 6 validation with 600 seconds at 100 Hz:
 
-```bash
-docker compose --profile replay up siddha-sensor-sim
-```
-
----
-
-## 14. Useful InfluxDB Queries
-
-### Check clean watch rows
+| Table | Expected rows |
+|---|---:|
+| `eeg_clean` | about 60,000 |
+| `ecg_clean` | about 60,000 |
 
 ```sql
-SELECT *
-FROM watch_imu_clean
-WHERE device = 'watch'
-ORDER BY time DESC
-LIMIT 20;
+SELECT COUNT(*) AS n FROM eeg_clean;
+SELECT COUNT(*) AS n FROM ecg_clean;
 ```
 
-### Count clean watch rows
+## Dashboards
 
-```sql
-SELECT COUNT(*) AS n
-FROM watch_imu_clean
-WHERE device = 'watch';
-```
+| Tool | URL | Login |
+|---|---|---|
+| Grafana | `http://localhost:3000` | `admin` / `admin` |
+| InfluxDB Explorer | `http://localhost:8888` | token from `.env` |
 
-### Check live predictions
-
-```sql
-SELECT *
-FROM real_har_predictions
-WHERE device = 'watch'
-ORDER BY time DESC
-LIMIT 20;
-```
-
-### Check dataset rows
-
-```sql
-SELECT COUNT(*) AS n
-FROM imu_raw_full_rows;
-```
-
-### Check dataset HAR predictions
-
-```sql
-SELECT *
-FROM har_predictions_7_activity
-ORDER BY time DESC
-LIMIT 20;
-```
-
----
-
-## 15. Troubleshooting
-
-### `watch_imu_clean` does not exist
-
-InfluxDB creates tables only after the first successful write.
-
-Check:
-
-```bash
-docker compose logs -f watch-cleaner-service
-docker compose logs -f ingest-service
-curl http://localhost:8000/stats
-```
-
-Common causes:
-
-- MetaWear bridge is not running,
-- cleaner is not receiving `tennis/watch/raw`,
-- ingest-service is not subscribed to `tennis/watch/clean`,
-- Influx token is missing,
-- batch writer failed.
-
-### HAR gives HTTP 400
-
-Usually means HAR is querying a table that does not exist or a SQL query is invalid.
-
-For live Phase 4, make sure:
-
-```env
-HAR_INPUT_MODE=mqtt_stream
-```
-
-For DB mode, make sure the table in `HAR_IMU_TABLE` exists.
-
-### No predictions are written
-
-Check:
-
-```bash
-docker compose logs -f har-service
-```
-
-Possible causes:
-
-- not enough rows to fill a window,
-- wrong `HAR_MQTT_TOPIC`,
-- `HAR_ALLOWED_ACTIVITY_GT` is filtering live rows,
-- model path is wrong,
-- cleaner is dropping samples due to stale ACC/GYRO pairs.
-
-For live mode, use:
-
-```env
-HAR_ALLOWED_ACTIVITY_GT=
-```
-
-### MetaWear cannot connect
-
-Common causes:
-
-- wrong MAC address,
-- device still connected to phone,
-- Bluetooth disabled,
-- Windows Bluetooth discovery issue,
-- bracelet not advertising.
-
-Disconnect the bracelet from mobile apps before running the Python bridge.
-
-### Data appears in wrong time range
-
-Real watch rows should use wall-clock `ts` for InfluxDB time and relative `dataset_ts` / `sensor_ts` for model windows.
-
-Do not send epoch milliseconds as `dataset_ts`.
-
-Correct:
+Provisioned dashboard:
 
 ```text
-sensor_ts = seconds since session start
+Smart Tennis Field - Live Dashboard
 ```
 
-Wrong:
+## Validation Highlights
 
-```text
-dataset_ts = 1710000000000
-```
+| Validation | Result |
+|---|---|
+| Phase 4 live MetaWear rows | 9,599 clean IMU rows |
+| Phase 4 live HAR predictions | 463 predictions |
+| Phase 4 queue depth | 0 |
+| Phase 4 failed/retried/dropped writes | 0 |
+| Phase 5 Grafana | InfluxDB-backed dashboard |
+| Phase 6 EEG replay | Validated fake-sensor pipeline |
+| Phase 6 ECG replay | Validated fake-sensor pipeline |
 
----
+## Documentation
 
-## 16. Completed and Planned Extensions
+- [Architecture](docs/Architecture.md)
+- [Dataset contract](docs/DatasetContract.md)
+- [Phases](docs/Phases.md)
+- [Results](docs/Result.md)
+- [Phase 4 validation](docs/Validation/phase4_validation_report.md)
+- [Phase 5 Grafana validation](docs/Validation/phase5_grafana_validation_report.md)
 
-### Phase 5 — Grafana Visualization
+## Scope Notes
 
-Phase 5 is completed. Grafana visualizes:
-
-```text
-InfluxDB → Grafana
-```
-
-- live watch IMU signal from `watch_imu_clean`
-- current/last predicted activity from `real_har_predictions`
-- confidence over time
-- prediction history
-- session summary
-- ingestion / prediction health indicators where possible
-
-Grafana auto-refresh is sufficient for thesis visualization. Grafana Live can be considered only if a real push-based panel is required and implemented fully.
-
-### Phase 6 — EEG and ECG Dataset Sensors
-
-Planned flow:
-
-```text
-eeg_dataset_sim → eeg_cleaner → ingest-service → InfluxDB: eeg_clean
-ecg_dataset_sim → ecg_cleaner → ingest-service → InfluxDB: ecg_clean
-```
-
-No ML is implemented for EEG/ECG in this thesis phase. Their purpose is to prove multi-source extensibility.
-
----
-
-## 17. Thesis Summary
-
-This project demonstrates a reproducible IoT microservice architecture for wearable sensor ingestion and activity recognition.
-
-The final design separates:
-
-```text
-protocol adaptation → cleaning → ingestion → storage → inference → visualization
-```
-
-This separation improves:
-
-- reliability,
-- observability,
-- reproducibility,
-- extensibility,
-- thesis defensibility.
-
-The system supports both:
-
-- reproducible dataset evaluation through DB polling,
-- live real-sensor inference through MQTT stream processing.
+- EEG/ECG ML is not implemented.
+- The HAR model is not tennis-specific.
+- Clean sensor data and predictions are stored separately.
+- Grafana uses InfluxDB as the source of truth.
+- This project is validated for thesis-scale live testing, not production deployment.

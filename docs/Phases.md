@@ -1,8 +1,8 @@
 # Phases — Smart Tennis Field Roadmap
 
-This roadmap reflects the completed Phase 5 visualization layer and the planned Phase 6 EEG/ECG extension.
+This roadmap reflects the completed Phase 5 visualization layer and the completed Phase 6 EEG/ECG extension.
 
-The project first validated transport, persistence, dataset replay, HAR inference, live watch integration, and Grafana visualization. It now moves toward multi-source extensibility.
+The project validates transport, persistence, dataset replay, HAR inference, live watch integration, Grafana visualization, and multi-source extensibility.
 
 ---
 
@@ -16,7 +16,7 @@ The project first validated transport, persistence, dataset replay, HAR inferenc
 | Phase 3 — HAR Microservice | Completed | Run ONNX HAR inference and store predictions |
 | Phase 4 — Real Watch Pipeline | Completed | Integrate MetaWear watch with cleaner + real-time HAR |
 | Phase 5 — Grafana Visualization | Completed | Visualize live IMU data and HAR predictions from InfluxDB |
-| Phase 6 — EEG/ECG Dataset Sources | Next | Add two heterogeneous dataset-based sensors, storage and visualization only, no ML |
+| Phase 6 — EEG/ECG Dataset Sources | Completed | Add two heterogeneous dataset-based sensors, storage and visualization only, no ML |
 
 Camera-based features are removed from future phases because no camera hardware is available and camera tracking is not part of the final thesis contribution.
 
@@ -292,7 +292,7 @@ Grafana Live / MQTT visualization was considered but not implemented. The Influx
 
 # Phase 6 — EEG/ECG Dataset Sources
 
-**Status:** Next
+**Status:** Completed
 
 ## Goal
 
@@ -302,7 +302,7 @@ These are dataset-based sources, not physical hardware integrations.
 
 ## Scope
 
-Add:
+Implemented:
 
 ```text
 eeg_dataset_sim
@@ -324,7 +324,7 @@ ecg_dataset_sim
 
 ## Important Limitation
 
-No ML will be implemented for EEG or ECG in this thesis.
+No ML is implemented for EEG or ECG in this thesis.
 
 This is intentional.
 

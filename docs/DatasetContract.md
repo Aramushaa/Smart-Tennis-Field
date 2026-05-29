@@ -265,11 +265,11 @@ The validated Phase 4 live configuration uses:
 
 ---
 
-# 5. EEG Future Contract
+# 5. EEG Contract
 
 ## 5.1 Phase
 
-Planned for Phase 6.
+Implemented in Phase 6.
 
 ## 5.2 Scope
 
@@ -277,7 +277,7 @@ Dataset-based source only.
 
 No EEG ML in the current thesis.
 
-## 5.3 Planned Flow
+## 5.3 Flow
 
 ```text
 eeg_dataset_sim
@@ -311,11 +311,11 @@ Actual fields depend on the selected EEG dataset.
 
 ---
 
-# 6. ECG Future Contract
+# 6. ECG Contract
 
 ## 6.1 Phase
 
-Planned for Phase 6.
+Implemented in Phase 6.
 
 ## 6.2 Scope
 
@@ -323,7 +323,7 @@ Dataset-based source only.
 
 No ECG ML in the current thesis.
 
-## 6.3 Planned Flow
+## 6.3 Flow
 
 ```text
 ecg_dataset_sim

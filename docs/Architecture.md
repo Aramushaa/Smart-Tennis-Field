@@ -2,7 +2,7 @@
 
 ## Current System Context
 
-The project has completed **Phase 5 — Grafana Visualization** and is now moving toward **Phase 6 — EEG/ECG dataset-based sensor extension**.
+The project has completed **Phase 6 — EEG/ECG dataset-based sensor extension**.
 
 Phase status:
 
@@ -14,7 +14,7 @@ Phase status:
 | Phase 3 | Completed | HAR microservice with ONNX inference and prediction storage |
 | Phase 4 | Completed | Real MetaWear watch pipeline with cleaner + live HAR mode |
 | Phase 5 | Completed | Grafana dashboards for live IMU and HAR prediction visualization |
-| Phase 6 | Next | EEG and ECG dataset-based sensors, storage and visualization only, no ML |
+| Phase 6 | Completed | EEG and ECG dataset-based sensors, storage and visualization only, no ML |
 
 The current implemented Phase 3 pipeline is:
 
