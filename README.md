@@ -75,7 +75,7 @@ flowchart LR
     EEGC -->|tennis/eeg/clean| EMQX
     ECGC -->|tennis/ecg/clean| EMQX
 
-    EMQX -->|tennis/&lt;eeg or ecg&gt;/raw| ING[ingest-service]
+    EMQX -->|tennis/&lt;eeg or ecg&gt;/clean| ING[ingest-service]
     ING -->|eeg_clean| DB[(InfluxDB 3)]
     ING -->|ecg_clean| DB
 
