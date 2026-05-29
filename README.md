@@ -223,18 +223,6 @@ Smart Tennis Field - Live Dashboard
 
 Detailed diagrams are available in [`docs/diagrams`](docs/diagrams):
 
-- System overview
-- Docker Compose topology
-- Real watch pipeline
-- Siddha dataset pipeline
-- EEG/ECG fake-sensor pipeline
-- Data ownership and storage
-
-```md
-## Architecture Diagrams
-
-Detailed diagrams are available in [`docs/diagrams`](docs/diagrams):
-
 | Diagram | Purpose |
 |---|---|
 | [`01-system-overview`](docs/diagrams/01-system-overview.md) | Full project architecture |
