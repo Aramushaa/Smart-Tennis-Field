@@ -13,6 +13,7 @@ router = APIRouter(tags=["events"])
 
 
 @router.get("/events")
+@router.get("/debug/events")
 def get_events(
     limit: int = Query(50, ge=1, le=500),
     from_ts: Optional[str] = Query(None, alias="from"),
@@ -58,6 +59,20 @@ class PublishIn(BaseModel):
 
 
 @router.post("/publish")
+@router.post("/debug/publish")
 def publish(data: PublishIn):
-    mqtt_client.publish(data.topic, json.dumps(data.payload), qos=0)
-    return {"sent": True, "topic": data.topic, "payload": data.payload}
+    result = mqtt_client.publish(data.topic, json.dumps(data.payload), qos=0)
+    mqtt_rc = int(result.rc)
+
+    if mqtt_rc != 0:
+        raise HTTPException(
+            status_code=503,
+            detail=f"MQTT publish failed with rc={mqtt_rc}",
+        )
+
+    return {
+        "sent": True,
+        "topic": data.topic,
+        "payload": data.payload,
+        "mqtt_rc": mqtt_rc,
+    }

@@ -1,28 +1,50 @@
 from fastapi import APIRouter
 
-from ..config import INFLUX_IMU_TABLE
+from ..config import (
+    INFLUX_ECG_TABLE,
+    INFLUX_EEG_TABLE,
+    INFLUX_IMU_TABLE,
+    INFLUX_WATCH_IMU_TABLE,
+)
 from ..influx import query_influx_sql
 
 router = APIRouter(tags=["devices"])
 
 
+def _safe_devices(table: str) -> list[str]:
+    try:
+        rows = query_influx_sql(
+            f"SELECT DISTINCT device FROM {table} ORDER BY device ASC"
+        )
+        return [row["device"] for row in rows if "device" in row]
+    except Exception:
+        return []
+
+
 @router.get("/devices")
 def get_devices():
     """
-    Return distinct device values from the raw IMU measurement.
+    Return distinct device values from every configured sensor table.
     """
-    sql = f"""
-    SELECT DISTINCT device
-    FROM {INFLUX_IMU_TABLE}
-    ORDER BY device ASC
-    """.strip()
+    tables = {
+        "siddha_imu": INFLUX_IMU_TABLE,
+        "watch_imu": INFLUX_WATCH_IMU_TABLE,
+        "eeg": INFLUX_EEG_TABLE,
+        "ecg": INFLUX_ECG_TABLE,
+    }
 
-    rows = query_influx_sql(sql)
-
-    devices = [row["device"] for row in rows if "device" in row]
+    devices = []
+    for source, table in tables.items():
+        for device in _safe_devices(table):
+            devices.append(
+                {
+                    "source": source,
+                    "measurement": table,
+                    "device": device,
+                }
+            )
 
     return {
-        "measurement": INFLUX_IMU_TABLE,
         "count": len(devices),
         "devices": devices,
     }

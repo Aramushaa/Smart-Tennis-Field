@@ -219,6 +219,26 @@ Provisioned dashboard:
 Smart Tennis Field - Live Dashboard
 ```
 
+## API Endpoints
+
+FastAPI documentation is available at:
+
+```text
+http://localhost:8000/docs
+```
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /health` | Service and writer health |
+| `GET /stats` | Row counts and ingest queue metrics |
+| `GET /tables` | Configured InfluxDB table names |
+| `GET /schema` | Table schemas |
+| `GET /devices` | Known devices across sensor tables |
+| `GET /sensors/imu` | Siddha dataset IMU rows |
+| `GET /sensors/watch` | Real watch clean IMU rows |
+| `GET /sensors/eeg` | EEG fake-sensor rows |
+| `GET /sensors/ecg` | ECG fake-sensor rows |
+
 ## Architecture Diagrams
 
 Detailed diagrams are available in [`docs/diagrams`](docs/diagrams):

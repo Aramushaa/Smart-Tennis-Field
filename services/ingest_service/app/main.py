@@ -11,6 +11,8 @@ from .routers.imu import router as imu_router
 from .routers.devices import router as devices_router
 from .routers.stats import router as stats_router
 from .routers.schema import router as schema_router
+from .routers.tables import router as tables_router
+from .routers.sensors import router as sensors_router
 
 
 
@@ -37,3 +39,5 @@ app.include_router(imu_router)
 app.include_router(devices_router)
 app.include_router(stats_router)
 app.include_router(schema_router)
+app.include_router(tables_router)
+app.include_router(sensors_router)
