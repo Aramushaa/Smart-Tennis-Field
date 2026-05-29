@@ -230,16 +230,19 @@ Detailed diagrams are available in [`docs/diagrams`](docs/diagrams):
 - EEG/ECG fake-sensor pipeline
 - Data ownership and storage
 
-Thesis diagram mapping:
+## Architecture Diagrams
 
-| Thesis section | Diagram |
+Detailed diagrams are available in [`docs/diagrams`](docs/diagrams):
+
+| Diagram | Purpose |
 |---|---|
-| System architecture | `01-system-overview` |
-| Deployment | `02-docker-compose-topology` |
-| Real hardware integration | `03-watch-pipeline` |
-| Dataset validation | `04-siddha-dataset-pipeline` |
-| Extensibility | `05-eeg-ecg-fake-sensor-pipeline` |
-| Database/schema design | `06-data-ownership-and-storage` |
+| [`01-system-overview`](docs/diagrams/01-system-overview.md) | Full project architecture |
+| [`02-docker-compose-topology`](docs/diagrams/02-docker-compose-topology.md) | Docker services and profiles |
+| [`03-watch-pipeline`](docs/diagrams/03-watch-pipeline.md) | Real MetaWear watch pipeline |
+| [`04-siddha-dataset-pipeline`](docs/diagrams/04-siddha-dataset-pipeline.md) | Siddha replay and HAR DB mode |
+| [`05-eeg-ecg-fake-sensor-pipeline`](docs/diagrams/05-eeg-ecg-fake-sensor-pipeline.md) | Phase 6 fake-sensor extension |
+| [`06-data-ownership-and-storage`](docs/diagrams/06-data-ownership-and-storage.md) | Table ownership and storage separation |
+
 
 ## Documentation
 
