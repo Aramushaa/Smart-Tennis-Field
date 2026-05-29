@@ -33,7 +33,7 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    MW[MetaWear Bracelet] -->|BLE(Bluetooth Low Energy)| MB[metawear_bridge]
+    MW[MetaWear Bracelet] -->|BLE| MB[metawear_bridge]
     MB -->|tennis/watch/raw| EMQX[EMQX MQTT Broker]
     EMQX -->|tennis/watch/raw| WC[watch-cleaner-service]
     WC -->|tennis/watch/clean| EMQX
