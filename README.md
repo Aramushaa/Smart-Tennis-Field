@@ -230,6 +230,7 @@ Detailed diagrams are available in [`docs/diagrams`](docs/diagrams):
 - EEG/ECG fake-sensor pipeline
 - Data ownership and storage
 
+```md
 ## Architecture Diagrams
 
 Detailed diagrams are available in [`docs/diagrams`](docs/diagrams):
@@ -242,7 +243,7 @@ Detailed diagrams are available in [`docs/diagrams`](docs/diagrams):
 | [`04-siddha-dataset-pipeline`](docs/diagrams/04-siddha-dataset-pipeline.md) | Siddha replay and HAR DB mode |
 | [`05-eeg-ecg-fake-sensor-pipeline`](docs/diagrams/05-eeg-ecg-fake-sensor-pipeline.md) | Phase 6 fake-sensor extension |
 | [`06-data-ownership-and-storage`](docs/diagrams/06-data-ownership-and-storage.md) | Table ownership and storage separation |
-
+| [`07-grafana-observability`](docs/diagrams/07-grafana-observability.md) | Two Grafana dashboards |
 
 ## Documentation
 
