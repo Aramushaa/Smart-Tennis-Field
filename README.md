@@ -225,13 +225,13 @@ Detailed diagrams are available in [`docs/diagrams`](docs/diagrams):
 
 | Diagram | Purpose |
 |---|---|
-| [`01-system-overview`](docs/diagrams/01-system-overview.md) | Full project architecture |
-| [`02-docker-compose-topology`](docs/diagrams/02-docker-compose-topology.md) | Docker services and profiles |
-| [`03-watch-pipeline`](docs/diagrams/03-watch-pipeline.md) | Real MetaWear watch pipeline |
-| [`04-siddha-dataset-pipeline`](docs/diagrams/04-siddha-dataset-pipeline.md) | Siddha replay and HAR DB mode |
-| [`05-eeg-ecg-fake-sensor-pipeline`](docs/diagrams/05-eeg-ecg-fake-sensor-pipeline.md) | Phase 6 fake-sensor extension |
-| [`06-data-ownership-and-storage`](docs/diagrams/06-data-ownership-and-storage.md) | Table ownership and storage separation |
-| [`07-grafana-observability`](docs/diagrams/07-grafana-observability.md) | Two Grafana dashboards |
+| [`01-system-overview`](docs/diagrams/Diagram 1 —System overview File.md) | Full project architecture |
+| [`02-docker-compose-topology`](docs/diagrams/Diagram 2 — Docker Compose topology.md) | Docker services and profiles |
+| [`03-watch-pipeline`](docs/diagrams/Diagram 3 — Real watch pipeline.md) | Real MetaWear watch pipeline |
+| [`04-siddha-dataset-pipeline`](docs/diagrams/Diagram 4 — Siddha dataset pipeline.md) | Siddha replay and HAR DB mode |
+| [`05-eeg-ecg-fake-sensor-pipeline`](docs/diagrams/Diagram 5 — EEGECG fake sensors.md) | Phase 6 fake-sensor extension |
+| [`06-data-ownership-and-storage`](docs/diagrams/Diagram 6 — Data ownership and storage.md) | Table ownership and storage separation |
+| [`07-grafana-observability`](docs/diagrams/Diagram 7 — Grafana Observability.md) | Two Grafana dashboards |
 
 ## Documentation
 
