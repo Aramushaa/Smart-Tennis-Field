@@ -1,3 +1,4 @@
+```mermaid
 flowchart LR
     subgraph Sources
         MW[MetaWear Bracelet]
