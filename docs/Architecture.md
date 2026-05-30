@@ -1,422 +1,235 @@
 # Smart Tennis Field — System Architecture
 
-## Current System Context
+## 1. Architecture Summary
 
-The project has completed **Phase 6 — EEG/ECG dataset-based sensor extension**.
+Smart Tennis Field is a Docker-based IoT microservice system for wearable sensor ingestion, dataset replay, activity recognition, time-series storage, and Grafana visualization.
 
-Phase status:
+The final architecture follows this pattern:
 
-| Phase | Status | Main result |
+```mermaid
+flowchart LR
+    DS[Data Source] --> A[Adapter / Simulator]
+    A --> B[MQTT Broker]
+    B --> C[Cleaner / Normalizer]
+    C --> S[Storage / Processing]
+    S --> V[Visualization]
+```
+
+This separation keeps protocol adaptation, cleaning, ingestion, machine learning, storage, and visualization independent. Each service has a narrow responsibility, which makes the system easier to validate, observe, and extend.
+
+## 2. Implemented System Context
+
+| Phase | Status | Main Result |
 |---|---|---|
 | Phase 0 | Completed | EMQX MQTT broker validated |
 | Phase 1 | Completed | FastAPI ingest-service + InfluxDB persistence |
-| Phase 2 | Completed | Siddha dataset replay pipeline validated |
-| Phase 3 | Completed | HAR microservice with ONNX inference and prediction storage |
-| Phase 4 | Completed | Real MetaWear watch pipeline with cleaner + live HAR mode |
-| Phase 5 | Completed | Grafana dashboards for live IMU and HAR prediction visualization |
-| Phase 6 | Completed | EEG and ECG dataset-based sensors, storage and visualization only, no ML |
+| Phase 2 | Completed | Siddha dataset replay pipeline |
+| Phase 3 | Completed | ONNX HAR service with DB polling mode |
+| Phase 4 | Completed | Real MetaWear watch pipeline + live HAR mode |
+| Phase 5 | Completed | Grafana dashboards from InfluxDB |
+| Phase 6 | Completed | EEG/ECG dataset fake sensors, storage, and visualization |
 
-The current implemented Phase 3 pipeline is:
+The final project supports three main data paths:
 
-```text
-Siddha Dataset
-→ siddha-sensor-sim
-→ EMQX
-→ ingest-service
-→ InfluxDB: imu_raw_full_rows
-→ har-service in DB mode
-→ InfluxDB: har_predictions_7_activity
-```
+- Real MetaWear watch monitoring with HAR inference.
+- Siddha dataset replay for reproducible IMU/HAR validation.
+- OpenNeuro EEG/ECG fake-sensor replay for multi-source extensibility.
 
-The validated Phase 4 pipeline is:
+## 3. Microservice Responsibilities
 
-```text
-MetaWear Bracelet
-→ BLE
-→ metawear_bridge
-→ EMQX: tennis/watch/raw
-→ watch_cleaner_service
-→ EMQX: tennis/watch/clean
-→ ingest-service
-→ InfluxDB: watch_imu_clean
-
-tennis/watch/clean
-→ har-service in MQTT mode
-→ InfluxDB: real_har_predictions
-→ Grafana visualization
-```
-
----
-
-## 1. Architecture Principle
-
-The system follows this thesis-level principle:
-
-```text
-Data Source → Protocol Adapter → Broker → Cleaner → Storage / Processing → Visualization
-```
-
-The more general system loop remains:
-
-```text
-Data → Broker → Storage → Processing → Storage → Visualization
-```
-
-However, Phase 4 refines the architecture by inserting a dedicated cleaner between raw sensor acquisition and downstream services.
-
-This separation is important because raw hardware streams are not always safe, complete, or aligned with model expectations.
-
----
-
-## 2. Main Components
-
-### 2.1 EMQX — MQTT Broker
-
-EMQX is the event transport layer.
-
-Responsibilities:
-
-- Route raw and clean sensor events.
-- Decouple producers from consumers.
-- Support MQTT wildcard subscriptions.
-- Allow multiple consumers to read the same clean topic.
-
-Phase 4 topics:
-
-```text
-tennis/watch/raw
-tennis/watch/clean
-```
-
-Existing Siddha topic:
-
-```text
-tennis/sensor/<device>/events
-```
-
-Camera topics are removed from the future architecture because camera hardware is not part of the final thesis implementation.
-
----
-
-### 2.2 siddha-sensor-sim — Dataset Replay Producer
-
-The Siddha simulator remains implemented and valid for reproducible dataset validation.
-
-Flow:
-
-```text
-Siddha Parquet Dataset
-→ siddha-sensor-sim
-→ EMQX
-→ ingest-service
-→ InfluxDB: imu_raw_full_rows
-```
-
-This component is not deleted because it supports:
-
-- reproducible evaluation,
-- controlled replay speed,
-- known activity labels,
-- comparison with real sensor mode.
-
----
-
-### 2.3 metawear_bridge — BLE to MQTT Protocol Adapter
-
-The MetaWear bracelet does not publish MQTT by itself.
-
-The actual flow is:
-
-```text
-MetaWear Bracelet → BLE → metawear_bridge → MQTT
-```
-
-The `metawear_bridge` is a protocol adapter.
-
-Responsibilities:
-
-- Connect to the bracelet over BLE.
-- Receive accelerometer and gyroscope callbacks.
-- Publish raw MetaWear events to MQTT.
-- Avoid direct database writes.
-- Avoid ML inference.
-
-It publishes raw events to:
-
-```text
-tennis/watch/raw
-```
-
-The bridge should not contain storage logic or HAR logic. This keeps hardware acquisition separate from processing and persistence.
-
----
-
-### 2.4 watch_cleaner_service — Sensor-Specific Cleaner
-
-The cleaner is introduced in Phase 4.
-
-Responsibilities:
-
-- Subscribe to raw watch events.
-- Validate required values.
-- Pair accelerometer and gyroscope samples when needed.
-- Normalize timestamps.
-- Enforce a consistent sampling assumption.
-- Drop incomplete or physically implausible samples.
-- Publish canonical clean IMU rows.
-
-Input topic:
-
-```text
-tennis/watch/raw
-```
-
-Output topic:
-
-```text
-tennis/watch/clean
-```
-
-The cleaner exists so that ingest-service and HAR do not need to know MetaWear-specific details.
-
-This is the key architectural improvement in Phase 4.
-
----
-
-### 2.5 ingest-service — Sensor Storage Gateway
-
-The ingest-service remains the storage gateway for clean sensor data.
-
-Responsibilities:
-
-- Subscribe to clean sensor topics.
-- Validate storage-safe payloads.
-- Write clean sensor readings to InfluxDB.
-- Use batching and retry logic.
-- Expose health and stats endpoints.
-
-For Phase 4, it stores clean watch rows in:
-
-```text
-watch_imu_clean
-```
-
-For Phase 2/3 dataset replay, it still stores Siddha rows in:
-
-```text
-imu_raw_full_rows
-```
-
-Important boundary:
-
-```text
-ingest-service stores sensor data.
-HAR service stores prediction data.
-```
-
-Prediction outputs should not be routed through ingest-service because predictions are produced and owned by the ML service.
-
----
-
-### 2.6 har-service — Human Activity Recognition Service
-
-The HAR service has two modes.
-
-#### DB Mode — Reproducible Evaluation
-
-Used for Phase 3 and dataset validation.
-
-```text
-InfluxDB: imu_raw_full_rows
-→ har-service
-→ InfluxDB: har_predictions_7_activity
-```
-
-This mode is deterministic and easier to reproduce.
-
-#### MQTT Mode — Real-Time Watch Inference
-
-Used for Phase 4 real sensor mode.
-
-```text
-EMQX: tennis/watch/clean
-→ har-service
-→ InfluxDB: real_har_predictions
-```
-
-In MQTT mode, HAR keeps an in-memory sliding window buffer and runs ONNX inference when enough clean samples are available.
-
-The service writes predictions directly to InfluxDB because it owns the prediction result.
-
----
-
-### 2.7 InfluxDB 3 — Time-Series Storage
-
-InfluxDB stores clean sensor inputs and prediction outputs.
-
-Recommended tables:
-
-| Table | Purpose |
+| Service | Responsibility |
 |---|---|
-| `events` | Generic event log/debug storage |
-| `imu_raw_full_rows` | Siddha dataset IMU rows |
-| `watch_imu_clean` | Clean real MetaWear watch IMU rows |
-| `har_predictions_7_activity` | Phase 3 dataset HAR predictions |
-| `real_har_predictions` | Phase 4 real watch predictions |
-| `eeg_clean` | Future EEG dataset rows |
-| `ecg_clean` | Future ECG dataset rows |
+| `emqx` | MQTT broker for raw and clean sensor messages |
+| `ingest-service` | Stores clean sensor data in InfluxDB |
+| `siddha-sensor-sim` | Replays Siddha IMU dataset rows |
+| `metawear_bridge` | Converts MetaWear BLE callbacks into MQTT raw events |
+| `watch-cleaner-service` | Pairs and normalizes real watch ACC/GYRO samples |
+| `har-service` | Runs ONNX HAR inference and writes predictions |
+| `eeg-dataset-sim` | Replays EEG samples from OpenNeuro ds006848 |
+| `eeg-cleaner-service` | Validates and normalizes EEG samples |
+| `ecg-dataset-sim` | Replays ECG samples from OpenNeuro ds006848 |
+| `ecg-cleaner-service` | Validates and normalizes ECG samples |
+| `influxdb3` | Time-series storage |
+| `grafana` | Visualization dashboards |
 
-Clean sensor rows and prediction rows are separated deliberately.
-
-Prediction rows should reference the input time window. They should not duplicate the full raw window.
-
----
-
-### 2.8 Grafana — Visualization Layer
-
-Grafana is implemented as the Phase 5 visualization layer.
-
-Required visualization path:
+The main architectural rule is:
 
 ```text
-InfluxDB → Grafana
+ingest-service owns clean sensor storage.
+har-service owns prediction storage.
 ```
 
-This supports:
+This avoids turning the ingest-service into a monolithic writer for every possible output type.
 
-- historical prediction timelines,
-- confidence over time,
-- IMU signal visualization,
-- session summaries,
-- near-real-time dashboards with auto-refresh.
+## 4. Main Data Flows
 
-The final Phase 5 dashboard uses InfluxDB-backed Grafana panels with a 1-second refresh interval. Grafana Live / MQTT visualization was not required because the InfluxDB dashboard update speed was sufficient for thesis-scale live monitoring.
+### 4.1 Real Watch + HAR Pipeline
 
----
+```mermaid
+flowchart LR
+    MW[MetaWear Bracelet] -->|BLE| MB[metawear_bridge]
+    MB -->|tennis/watch/raw| EMQX[EMQX MQTT Broker]
+    EMQX -->|tennis/watch/raw| WC[watch-cleaner-service]
+    WC -->|tennis/watch/clean| EMQX
 
-## 3. Correct Prediction Path
+    EMQX -->|tennis/watch/clean| ING[ingest-service]
+    ING -->|watch_imu_clean| DB[(InfluxDB 3)]
 
-The correct prediction write path is:
+    EMQX -->|tennis/watch/clean| HAR[har-service<br/>MQTT stream mode]
+    HAR -->|real_har_predictions| DB
 
-```text
-HAR service → InfluxDB: real_har_predictions
+    DB --> G[Grafana<br/>Live Watch + HAR Dashboard]
 ```
 
-Not:
+The MetaWear bracelet does not publish MQTT directly. The local bridge converts BLE sensor callbacks into raw MQTT messages. The cleaner validates and pairs accelerometer/gyroscope samples, then publishes canonical clean IMU rows. Clean rows are stored by the ingest-service and consumed by HAR in MQTT stream mode for live predictions.
 
-```text
-HAR service → MQTT → ingest-service → InfluxDB
+### 4.2 Siddha Dataset Replay Pipeline
+
+```mermaid
+flowchart LR
+    SD[Siddha Parquet Dataset] --> SIM[siddha-sensor-sim]
+    SIM -->|tennis/sensor/&lt;device&gt;/events| EMQX[EMQX MQTT Broker]
+
+    EMQX --> ING[ingest-service]
+    ING -->|imu_raw_full_rows| DB[(InfluxDB 3)]
+
+    DB --> HAR[har-service<br/>DB polling mode]
+    HAR -->|har_predictions_7_activity| DB
 ```
 
-Reason:
+The Siddha replay path is used for reproducible dataset-based validation. Rows are replayed through MQTT and stored in InfluxDB before HAR reads them in DB polling mode. This path is deterministic and useful for testing the storage and inference pipeline with known dataset labels.
 
-- ingest-service owns sensor ingestion;
-- HAR service owns prediction generation;
-- prediction schemas differ from sensor schemas;
-- routing predictions through ingest would make ingest responsible for ML output formats.
+### 4.3 EEG/ECG Fake-Sensor Pipeline
 
-This avoids turning the ingest-service into a tightly coupled central monolith.
+```mermaid
+flowchart LR
+    OD[OpenNeuro ds006848] --> EEGSIM[eeg-dataset-sim]
+    OD --> ECGSIM[ecg-dataset-sim]
 
----
+    EEGSIM -->|tennis/eeg/raw| EMQX[EMQX MQTT Broker]
+    ECGSIM -->|tennis/ecg/raw| EMQX
 
-## 4. Why Store Clean IMU and Predictions Separately?
+    EMQX -->|tennis/eeg/raw| EEGC[eeg-cleaner-service]
+    EMQX -->|tennis/ecg/raw| ECGC[ecg-cleaner-service]
 
-The clean IMU table stores the model input:
+    EEGC -->|tennis/eeg/clean| EMQX
+    ECGC -->|tennis/ecg/clean| EMQX
 
-```text
-watch_imu_clean
+    EMQX -->|tennis/&lt;eeg or ecg&gt;/clean| ING[ingest-service]
+    ING -->|eeg_clean| DB[(InfluxDB 3)]
+    ING -->|ecg_clean| DB
+
+    DB --> G[Grafana<br/>EEG/ECG Dashboard]
 ```
 
-The prediction table stores model output:
+Phase 6 extends the architecture with heterogeneous dataset-based physiological sources. EEG and ECG are replayed as fake sensors, cleaned through dedicated services, stored in separate InfluxDB tables, and visualized in Grafana. No EEG/ECG machine learning is implemented; the purpose is to prove extensibility.
 
-```text
-real_har_predictions
+## 5. Data Ownership and Storage
+
+```mermaid
+flowchart TB
+    ING[ingest-service<br/>clean sensor storage]
+    HAR[har-service<br/>prediction storage]
+    DB[(InfluxDB 3)]
+
+    ING --> T1[imu_raw_full_rows<br/>Siddha IMU]
+    ING --> T2[watch_imu_clean<br/>Real watch IMU]
+    ING --> T3[eeg_clean<br/>EEG fake sensor]
+    ING --> T4[ecg_clean<br/>ECG fake sensor]
+
+    HAR --> P1[har_predictions_7_activity<br/>Dataset predictions]
+    HAR --> P2[real_har_predictions<br/>Live watch predictions]
+
+    T1 --> DB
+    T2 --> DB
+    T3 --> DB
+    T4 --> DB
+    P1 --> DB
+    P2 --> DB
 ```
 
-A prediction row should contain metadata such as:
+Sensor data and prediction data are stored separately. This keeps model inputs and model outputs independent, makes debugging easier, and avoids duplicating full input windows inside prediction rows.
 
-```text
-device
-recording_id
-predicted_label
-confidence
-window_start_dataset_ts
-window_end_dataset_ts
-window_size
-window_stride
+| Table | Producer | Purpose |
+|---|---|---|
+| `imu_raw_full_rows` | `ingest-service` | Siddha dataset IMU rows |
+| `watch_imu_clean` | `ingest-service` | Clean MetaWear watch rows |
+| `eeg_clean` | `ingest-service` | Clean EEG fake-sensor rows |
+| `ecg_clean` | `ingest-service` | Clean ECG fake-sensor rows |
+| `har_predictions_7_activity` | `har-service` | Dataset HAR predictions |
+| `real_har_predictions` | `har-service` | Live watch HAR predictions |
+
+## 6. HAR Modes
+
+The HAR service supports two modes because dataset evaluation and live inference have different needs.
+
+| Mode | Input | Output | Purpose |
+|---|---|---|---|
+| DB polling | `imu_raw_full_rows` | `har_predictions_7_activity` | Reproducible Siddha evaluation |
+| MQTT stream | `tennis/watch/clean` | `real_har_predictions` | Lower-latency live watch inference |
+
+```mermaid
+flowchart LR
+    DB1[(imu_raw_full_rows)] --> HAR1[HAR<br/>DB polling mode]
+    HAR1 --> DB2[(har_predictions_7_activity)]
+
+    MQTT[tennis/watch/clean] --> HAR2[HAR<br/>MQTT stream mode]
+    HAR2 --> DB3[(real_har_predictions)]
 ```
 
-It should not store the full raw input window again.
+DB polling is more reproducible because the service reads already-stored dataset rows. MQTT stream mode is better for live testing because predictions are generated directly from clean watch messages.
 
-This design supports:
+## 7. Grafana Observability
 
-- reproducibility,
-- debugging,
-- future model comparison,
-- data quality analysis,
-- historical visualization.
+The final visualization layer uses two Grafana dashboards.
 
----
+```mermaid
+flowchart LR
+    DB[(InfluxDB 3)] --> G[Grafana]
 
-## 5. Edge Computing Position
+    subgraph Dashboard_1["Dashboard 1 — Live Watch + HAR Monitoring"]
+    end
 
-This project is not a full edge-computing system.
+    subgraph Dashboard_2["Dashboard 2 — EEG/ECG Fake-Sensor Monitoring"]
+    end
 
-The MetaWear bracelet is a sensor. The laptop or Docker host performs cleaning, storage, and inference.
+    G --> Dashboard_1
+    G --> Dashboard_2
 
-A true edge deployment would be:
+The watch dashboard validates the real sensor and HAR path. The EEG/ECG dashboard validates multi-source extensibility. Both dashboards use InfluxDB as the source of truth, which keeps visualization tied to persisted data rather than transient MQTT messages.
 
-```text
-MetaWear → Raspberry Pi gateway → local inference → central storage
-```
+## 8. Scope Boundaries
 
-That is a valid future direction, but it is outside the current thesis scope.
+Implemented:
 
-The current choice is centralized local processing because it is:
+- MQTT-based transport with EMQX.
+- Clean sensor ingestion through FastAPI.
+- Batch writing to InfluxDB.
+- Siddha dataset replay.
+- ONNX HAR inference for supported Siddha activities.
+- Real MetaWear watch pipeline.
+- EEG/ECG dataset fake sensors.
+- Grafana dashboards.
 
-- more reproducible,
-- easier to observe,
-- easier to evaluate,
-- more suitable for Docker-based thesis validation.
+Not implemented:
 
----
+- Camera tracking.
+- EEG/ECG machine learning.
+- Production edge deployment.
+- Clinical interpretation of physiological signals.
+- Production authentication or authorization.
 
-## 6. Current Implemented Architecture
+These boundaries keep the thesis focused on IoT architecture, data pipelines, observability, and extensibility.
 
-```text
-MetaWear Bracelet (BLE)
-        │
-        ▼
-metawear_bridge
-        │
-        ▼
-EMQX: tennis/watch/raw
-        │
-        ▼
-watch_cleaner_service
-        │
-        ▼
-EMQX: tennis/watch/clean
-        │
-        ├──────────────────────────┐
-        ▼                          ▼
-ingest-service              har-service (MQTT mode)
-        │                          │
-        ▼                          ▼
-InfluxDB: watch_imu_clean   InfluxDB: real_har_predictions
-                                      │
-                                      ▼
-                                  Grafana
-```
+## 9. Why This Architecture Is Thesis-Defensible
 
-Dataset evaluation remains:
+The architecture is defensible because it provides:
 
-```text
-Siddha Dataset
-→ siddha-sensor-sim
-→ EMQX
-→ ingest-service
-→ InfluxDB: imu_raw_full_rows
-→ har-service (DB mode)
-→ InfluxDB: har_predictions_7_activity
-```
+- Separation of concerns: adapters, cleaners, ingestion, inference, and visualization are separate services.
+- Reproducibility: Siddha and OpenNeuro data can be replayed through controlled simulators.
+- Observability: queue depth, failed writes, stored row counts, predictions, and signals are visible.
+- Extensibility: EEG/ECG sources were added without changing the watch pipeline or HAR ownership.
+- Reliability: ingest-service uses bounded queues, batch writes, retries, and explicit drop counters.
+- Honest scope control: EEG/ECG are used for storage and visualization only, not unsupported ML claims.
+
+The project is validated for thesis-scale live testing, not production deployment.
