@@ -195,6 +195,7 @@ flowchart LR
 
     G --> Dashboard_1
     G --> Dashboard_2
+```
 
 The watch dashboard validates the real sensor and HAR path. The EEG/ECG dashboard validates multi-source extensibility. Both dashboards use InfluxDB as the source of truth, which keeps visualization tied to persisted data rather than transient MQTT messages.
 
