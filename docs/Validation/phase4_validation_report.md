@@ -1,29 +1,60 @@
-# Phase 4 — Live Validation Test Report
+# Phase 4 Validation Report — Real MetaWear Watch Pipeline
 
-**Recording ID:** `phase4_live_validation_001`  
-**Date:** 2026-05-14 15:19–15:27 (local) / 13:19–13:27 UTC  
-**Sensor:** MetaWear MMR (MAC: `C9:E5:38:6A:CC:E5`)  
-**Configured Rate:** 25 Hz  
+## 1. Goal
 
----
+Validate the real watch pipeline from MetaWear BLE acquisition to MQTT, cleaning, InfluxDB storage, HAR inference, and prediction storage.
 
-## Test Execution Summary
+This phase validates the live IoT path. It is not primarily an accuracy evaluation of the HAR model.
 
-| Step | Detail |
-|------|--------|
-| Docker services started | 7 containers: emqx, influxdb3, ingest-service, har-service, watch-cleaner-service, influxdb3-explorer |
-| MetaWear bridge started | `python -m app.bridge` via project `.venv` |
-| BLE connection | Successful over BLE to `C9:E5:38:6A:CC:E5` |
-| Observed raw publish rate | **26 acc + 26 gyro per second** (stable) |
-| Streaming duration | ~385 seconds (13:20:01 → 13:26:26 UTC) |
-| Bridge stopped | Terminated after streaming window |
+## 2. Test Context
 
-> [!NOTE]
-> Grafana was not running during this test
+| Item | Value |
+|---|---|
+| Recording ID | `phase4_live_validation_001` |
+| Date | 2026-05-14 |
+| Local time | 15:19–15:27 |
+| UTC time | 13:19–13:27 |
+| Sensor | MetaWear MMR |
+| MAC | `C9:E5:38:6A:CC:E5` |
+| Configured sampling rate | 25 Hz |
+| Streaming duration | ~385 seconds |
 
----
+## 3. Validated Architecture
 
-## Query 1: `watch_imu_clean` Row Count
+```mermaid
+flowchart LR
+    MW[MetaWear Bracelet] -->|BLE| MB[metawear_bridge]
+    MB -->|tennis/watch/raw| EMQX[EMQX Broker]
+
+    EMQX --> WC[watch-cleaner-service]
+    WC -->|tennis/watch/clean| EMQX
+
+    EMQX --> ING[ingest-service]
+    ING -->|watch_imu_clean| DB[(InfluxDB 3)]
+
+    EMQX --> HAR[har-service<br/>MQTT stream mode]
+    HAR -->|real_har_predictions| DB
+```
+
+The bridge converts BLE callbacks to MQTT raw messages. The cleaner creates canonical IMU rows. The ingest-service stores clean rows, while HAR consumes clean rows and stores predictions.
+
+## 4. Test Execution Summary
+
+| Step | Result |
+|---|---|
+| Docker services started | Running |
+| MetaWear bridge started | `python -m app.bridge` |
+| BLE connection | Successful |
+| Raw publish rate | ~26 ACC/s + ~26 GYRO/s |
+| Cleaner output | Clean IMU rows published |
+| Ingest storage | Rows stored in `watch_imu_clean` |
+| HAR output | Predictions stored in `real_har_predictions` |
+
+Grafana was not running during the original Phase 4 validation test. Visualization was validated later in Phase 5.
+
+## 5. Stored Watch Rows
+
+Query:
 
 ```sql
 SELECT COUNT(*) AS n
@@ -32,17 +63,19 @@ WHERE recording_id = 'phase4_live_validation_001';
 ```
 
 | Metric | Value |
-|--------|-------|
-| **Actual rows** | **9,599** |
-| Expected (25 Hz × 385s) | ~9,625 |
-| Delta | -26 rows (0.27% loss) |
+|---|---:|
+| Actual rows | 9,599 |
+| Expected rows | ~9,625 |
+| Delta | -26 rows |
+| Difference | ~0.27% |
 
-> [!TIP]
-> The 26-row shortfall is within expected tolerance — the cleaner service dropped one stale pair during initial ramp-up (logged as a `WARNING`), and the first second had partial data (`acc: 0, gyro: 1`). This is **excellent** data integrity.
+Interpretation:
 
----
+The small row difference is within thesis-scale tolerance and occurred during initial stream startup/pairing behavior.
 
-## Query 2: `real_har_predictions` Count
+## 6. Stored HAR Predictions
+
+Query:
 
 ```sql
 SELECT COUNT(*) AS n
@@ -51,114 +84,88 @@ WHERE recording_id = 'phase4_live_validation_001';
 ```
 
 | Metric | Value |
-|--------|-------|
-| **Actual predictions** | **463** |
-| Expected (385s ÷ 0.8s stride) | ~481 |
-| HAR_WINDOW_SIZE | 40 samples |
-| HAR_WINDOW_STRIDE | 20 samples |
-| Prediction interval (20 / 25 Hz) | 0.8 seconds |
+|---|---:|
+| Actual predictions | 463 |
+| Expected approximate predictions | ~481 |
+| Window size | 40 samples |
+| Window stride | 20 samples |
+| Approx. prediction interval | ~0.83 s |
 
-> [!NOTE]
-> The ~18-prediction deficit is expected: the HAR service polls on a ~1-second interval and must accumulate a full window (40 samples = 1.6s) before the first prediction. The startup transient and poll timing jitter account for the small gap.
+Interpretation:
 
----
+The difference from the theoretical count is expected because HAR must accumulate a complete first window and operates with timing/polling overhead.
 
-## Query 3: Sample Clean IMU Rows (latest 5)
+## 7. Sample Data Validation
 
-All rows have the correct schema and values:
+Clean IMU rows contained expected fields:
 
-| Field | Sample Value | Status |
-|-------|-------------|--------|
-| `device` | `watch` | ✅ |
-| `recording_id` | `phase4_live_validation_001` | ✅ |
-| `activity_gt` | `unknown` | ✅ (live data, no ground truth) |
-| `acc_x/y/z` | `-0.015, 0.026, 1.03` | ✅ (gravity on Z-axis, sensor at rest) |
-| `gyro_x/y/z` | `0.244, 0.274, -0.274` | ✅ (small angular drift) |
-| `sample_idx` | `9598` (0-indexed) | ✅ (matches row count) |
-| `dataset_ts` | `388.86` seconds | ✅ |
+| Field | Status |
+|---|---|
+| `device` | Valid |
+| `recording_id` | Valid |
+| `sample_idx` | Valid |
+| `dataset_ts` | Valid |
+| `acc_x`, `acc_y`, `acc_z` | Valid |
+| `gyro_x`, `gyro_y`, `gyro_z` | Valid |
+| `activity_gt` | `unknown`, expected for live data |
 
----
+Prediction rows contained expected fields:
 
-## Query 4: Sample HAR Predictions (latest 5)
+| Field | Status |
+|---|---|
+| `predicted_label` | Valid model output |
+| `confidence` | Present |
+| `model_name` | Present |
+| `input_layout` | `gyro_then_accel` |
+| `score_aggregation` | `sum` |
+| `window_size` | `40` |
+| `window_stride` | `20` |
+| `recording_id` | `phase4_live_validation_001` |
 
-| Field | Sample Value | Status |
-|-------|-------------|--------|
-| `predicted_label` | `catch` | ✅ mapped HAR label |
-| `confidence` | 70–99% | ✅ |
-| `model_name` | `L2MU_plain_leaky` | ✅ |
-| `input_layout` | `gyro_then_accel` | ✅ |
-| `score_aggregation` | `sum` | ✅ |
-| `window_size` | `40` | ✅ |
-| `window_stride` | `20` | ✅ |
-| `recording_id` | `phase4_live_validation_001` | ✅ |
+## 8. Ingest Writer Health
 
-> [!NOTE]
-> The model predicts one of the supported Siddha HAR activity classes, not tennis-specific stroke labels. The observed prediction is interpreted as model/domain-shift behavior, not as a pipeline failure.
+Command:
 
----
-
-## Ingest Service `/stats` Health Check
-
-```
+```bash
 curl http://localhost:8000/stats
 ```
 
 | Metric | Value | Status |
-|--------|-------|--------|
-| `queue_depth` | **0** | ✅ Fully flushed |
-| `failed_batch_count` | **0** | ✅ Zero failures |
-| `retried_line_count` | **0** | ✅ Zero retries |
-| `dropped_line_count` | **0** | ✅ Zero drops |
-| `writer_thread_alive` | **true** | ✅ Healthy |
+|---|---:|---|
+| `queue_depth` | 0 | Pass |
+| `failed_batch_count` | 0 | Pass |
+| `retried_line_count` | 0 | Pass |
+| `dropped_line_count` | 0 | Pass |
+| `writer_thread_alive` | true | Pass |
 
-> [!IMPORTANT]
-> **All five health metrics are pristine.** Zero data loss, zero retries, zero drops, zero queue backlog. The writer thread remained alive throughout the entire test.
-
----
-
-## Service Logs Summary
-
-### HAR Service
-- Continuous predictions at ~1 prediction/second
-- All predictions tagged with `recording_id=phase4_live_validation_001`
-- Confidence range: 58–99.98%
-
-### Watch Cleaner Service  
-- Successfully paired ACC+GYRO raw samples into canonical IMU rows
-- One stale-pair warning during initial ramp-up (pair_age=0.831s > max=0.250s) — expected during BLE connection establishment
-
-### Ingest Service
-- MQTT connected to `emqx:1883`
-- Subscribed to: `tennis/watch/clean`, `tennis/sensor/+/events`
-- Zero errors throughout the test
-
----
-
-## Overall Assessment
+## 9. Validation Summary
 
 | Criterion | Expected | Actual | Verdict |
-|-----------|----------|--------|---------|
-| Clean IMU rows | ~3,000 (for 120s) | **9,599** (385s stream) | ✅ PASS |
-| HAR predictions | ~150 (for 120s) | **463** (385s stream) | ✅ PASS |
-| Rows/sec rate | ~25 | ~24.9 (9599/385) | ✅ PASS |
-| Prediction interval | ~0.8s | ~0.83s (385/463) | ✅ PASS |
-| queue_depth | 0 | 0 | ✅ PASS |
-| failed_batch_count | 0 | 0 | ✅ PASS |
-| retried_line_count | 0 | 0 | ✅ PASS |
-| dropped_line_count | 0 | 0 | ✅ PASS |
-| writer_thread_alive | true | true | ✅ PASS |
+|---|---:|---:|---|
+| Clean IMU rows | ~9,625 | 9,599 | Pass |
+| HAR predictions | ~481 | 463 | Pass |
+| Row rate | ~25 rows/s | ~24.9 rows/s | Pass |
+| Prediction interval | ~0.8 s | ~0.83 s | Pass |
+| Queue depth | 0 | 0 | Pass |
+| Failed batches | 0 | 0 | Pass |
+| Retries | 0 | 0 | Pass |
+| Dropped lines | 0 | 0 | Pass |
+| Writer alive | true | true | Pass |
 
-> [!IMPORTANT]
-> **All 9 validation criteria passed within thesis-scale tolerance.** The end-to-end pipeline — MetaWear BLE → MQTT → Watch Cleaner → Ingest Service → InfluxDB → HAR Service → Predictions — is validated and operational for thesis-scale live testing, with only a small startup shortfall.
+## 10. Interpretation
 
----
+Phase 4 validates the complete real watch path:
 
-## ✅ Phase 4 — COMPLETED
+```text
+MetaWear → BLE → MQTT raw → watch cleaner → MQTT clean → ingest-service → InfluxDB → HAR MQTT mode → prediction storage
+```
 
-The live MetaWear sensor integration pipeline is validated and operational for thesis-scale live testing. The system correctly:
+The validation proves that the system can ingest and process real sensor data in near real time.
 
-1. **Captures** raw BLE sensor data at 26 Hz (acc + gyro)
-2. **Cleans & merges** acc/gyro pairs into canonical 6-axis IMU rows
-3. **Ingests** clean rows to InfluxDB with zero ingest-layer drops; the observed 0.27% row shortfall occurred during startup/pairing tolerance
-4. **Predicts** activity labels in near-real-time using the HAR model at approximately 0.83 seconds per prediction
-5. **Maintains** healthy writer state with zero failures, retries, or drops
+Weak or unexpected real-world labels should be interpreted as model/domain-shift behavior, not pipeline failure.
+
+## 11. Conclusion
+
+Phase 4 is completed.
+
+The MetaWear live watch pipeline is validated for thesis-scale live testing.
