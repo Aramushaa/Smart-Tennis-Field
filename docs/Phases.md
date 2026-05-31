@@ -285,18 +285,20 @@ Integrate the MetaWear bracelet as a real hardware sensor and run live HAR infer
 
 ```mermaid
 flowchart LR
-    MW[MetaWear Bracelet] -->|BLE| BR[metawear_bridge]
-    BR -->|tennis/watch/raw| EMQX[EMQX]
-
-    EMQX --> WC[watch-cleaner-service]
+    MW[MetaWear Bracelet] -->|BLE| MB[metawear_bridge]
+    MB -->|tennis/watch/raw| EMQX[EMQX MQTT Broker]
+    EMQX -->|tennis/watch/raw| WC[watch-cleaner-service]
     WC -->|tennis/watch/clean| EMQX
 
-    EMQX --> ING[ingest-service]
+    EMQX -->|tennis/watch/clean| ING[ingest-service]
     ING -->|watch_imu_clean| DB[(InfluxDB 3)]
 
-    EMQX --> HAR[har-service<br/>MQTT stream mode]
+    EMQX -->|tennis/watch/clean| HAR[har-service<br/>MQTT stream mode]
     HAR -->|real_har_predictions| DB
+
+    DB --> G[Grafana<br/>Live Watch + HAR Dashboard]
 ```
+
 
 The MetaWear bracelet produces raw ACC/GYRO samples over BLE. The bridge publishes them to MQTT. The cleaner pairs and validates samples before storage and HAR inference.
 
@@ -410,16 +412,16 @@ flowchart LR
     OD[OpenNeuro ds006848] --> EEGSIM[eeg-dataset-sim]
     OD --> ECGSIM[ecg-dataset-sim]
 
-    EEGSIM -->|tennis/eeg/raw| EMQX[EMQX]
+    EEGSIM -->|tennis/eeg/raw| EMQX[EMQX MQTT Broker]
     ECGSIM -->|tennis/ecg/raw| EMQX
 
-    EMQX --> EEGC[eeg-cleaner-service]
-    EMQX --> ECGC[ecg-cleaner-service]
+    EMQX -->|tennis/eeg/raw| EEGC[eeg-cleaner-service]
+    EMQX -->|tennis/ecg/raw| ECGC[ecg-cleaner-service]
 
     EEGC -->|tennis/eeg/clean| EMQX
     ECGC -->|tennis/ecg/clean| EMQX
 
-    EMQX --> ING[ingest-service]
+    EMQX -->|tennis/&lt;eeg or ecg&gt;/clean| ING[ingest-service]
     ING -->|eeg_clean| DB[(InfluxDB 3)]
     ING -->|ecg_clean| DB
 
