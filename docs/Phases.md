@@ -1,28 +1,86 @@
-# Phases — Smart Tennis Field Roadmap
+# Smart Tennis Field — Project Phases
 
-This roadmap reflects the completed Phase 5 visualization layer and the completed Phase 6 EEG/ECG extension.
+## 1. Purpose
 
-The project validates transport, persistence, dataset replay, HAR inference, live watch integration, Grafana visualization, and multi-source extensibility.
+This document summarizes the implementation phases of the Smart Tennis Field thesis project.
 
----
+The project evolved from a simple MQTT transport validation into a complete Docker-based IoT pipeline with:
 
-## Phase Overview
+- MQTT event transport.
+- FastAPI ingestion.
+- InfluxDB time-series storage.
+- Siddha dataset replay.
+- ONNX-based human activity recognition.
+- Real MetaWear watch integration.
+- Grafana visualization.
+- EEG/ECG dataset-based fake sensors.
 
-| Phase | Status | Goal |
+The final system validates both **real wearable monitoring** and **dataset-based multi-source extensibility**.
+
+## 2. Phase Overview
+
+```mermaid
+timeline
+    title Smart Tennis Field Development Phases
+
+    Phase 0 : MQTT Infrastructure
+            : EMQX broker
+            : Pub/sub validation
+
+    Phase 1 : Ingest + Persistence
+            : FastAPI ingest-service
+            : InfluxDB storage
+
+    Phase 2 : Siddha Dataset Replay
+            : Dataset simulator
+            : Structured IMU storage
+
+    Phase 3 : HAR Microservice
+            : ONNX inference
+            : DB polling mode
+
+    Phase 4 : Real Watch Pipeline
+            : MetaWear BLE bridge
+            : Watch cleaner
+            : HAR MQTT mode
+
+    Phase 5 : Grafana Visualization
+            : Live watch dashboard
+            : HAR prediction dashboard
+
+    Phase 6 : EEG/ECG Dataset Sources
+            : Fake sensors
+            : Clean physiological storage
+            : Grafana visualization
+```
+
+| Phase | Status | Main Result |
 |---|---|---|
-| Phase 0 — MQTT Infrastructure | Completed | Validate broker-based event transport |
-| Phase 1 — Ingest + Persistence | Completed | Store MQTT data in InfluxDB |
-| Phase 2 — Dataset Validation | Completed | Replay Siddha dataset through the full pipeline |
-| Phase 3 — HAR Microservice | Completed | Run ONNX HAR inference and store predictions |
-| Phase 4 — Real Watch Pipeline | Completed | Integrate MetaWear watch with cleaner + real-time HAR |
-| Phase 5 — Grafana Visualization | Completed | Visualize live IMU data and HAR predictions from InfluxDB |
-| Phase 6 — EEG/ECG Dataset Sources | Completed | Add two heterogeneous dataset-based sensors, storage and visualization only, no ML |
+| Phase 0 — MQTT Infrastructure | Completed | EMQX MQTT broker validated |
+| Phase 1 — Ingest + Persistence | Completed | MQTT data stored in InfluxDB |
+| Phase 2 — Dataset Validation | Completed | Siddha dataset replay stored as structured IMU rows |
+| Phase 3 — HAR Microservice | Completed | ONNX HAR predictions generated and stored |
+| Phase 4 — Real Watch Pipeline | Completed | MetaWear watch connected through BLE → MQTT → cleaner → storage → HAR |
+| Phase 5 — Grafana Visualization | Completed | InfluxDB-backed dashboards for live monitoring |
+| Phase 6 — EEG/ECG Dataset Sources | Completed | OpenNeuro EEG/ECG fake sensors stored and visualized |
 
-Camera-based features are removed from future phases because no camera hardware is available and camera tracking is not part of the final thesis contribution.
+Camera-based features were removed from the final thesis scope because no camera hardware was used and camera tracking is not part of the validated contribution.
 
----
+## 3. Final System Evolution
 
-## Phase 0 — MQTT Infrastructure
+```mermaid
+flowchart LR
+    P0[Phase 0<br/>MQTT Broker] --> P1[Phase 1<br/>Ingest + InfluxDB]
+    P1 --> P2[Phase 2<br/>Siddha Replay]
+    P2 --> P3[Phase 3<br/>HAR DB Mode]
+    P3 --> P4[Phase 4<br/>Real MetaWear Watch]
+    P4 --> P5[Phase 5<br/>Grafana]
+    P5 --> P6[Phase 6<br/>EEG/ECG Fake Sensors]
+```
+
+Each phase added one architectural capability without replacing the previous one. The final project keeps both dataset replay and real hardware monitoring, which supports reproducibility and live demonstration.
+
+## 4. Phase 0 — MQTT Infrastructure
 
 **Status:** Completed
 
@@ -33,103 +91,148 @@ Validate the event backbone using MQTT and Docker.
 ### Implemented
 
 - EMQX broker.
-- Publisher/subscriber validation.
 - Docker Compose networking.
-- MQTT host/port distinction:
-  - inside Docker: `emqx:1883`
-  - from host: `localhost:2883`
+- MQTT publisher/subscriber validation.
+- Host/container port separation.
 
-### Thesis Reasoning
+| Context | MQTT Address |
+|---|---|
+| Inside Docker | `emqx:1883` |
+| From host machine | `localhost:2883` |
 
-Before storing or processing sensor data, the transport layer had to be proven reliable and reproducible.
+### Flow
 
----
+```mermaid
+flowchart LR
+    PUB[Test Publisher] -->|MQTT message| EMQX[EMQX Broker]
+    EMQX --> SUB[Test Subscriber]
+```
 
-## Phase 1 — Ingest + Persistence
+This phase proved that services could communicate through the broker before storage, machine learning, or visualization were added.
+
+### Done When
+
+- EMQX container was running.
+- A publisher could send a message.
+- A subscriber could receive the message.
+- Docker networking and host port mapping were understood.
+
+## 5. Phase 1 — Ingest + Persistence
 
 **Status:** Completed
 
 ### Goal
 
-Persist MQTT messages in InfluxDB through an ingest microservice.
+Persist MQTT messages into InfluxDB using a dedicated ingest microservice.
 
 ### Implemented
 
 - FastAPI ingest-service.
 - MQTT background subscriber.
 - InfluxDB 3 write integration.
-- Event envelope normalization.
-- Batch writer with queue.
-- Health/stat endpoints.
+- Bounded write queue.
+- Batch writer.
+- Retry/drop counters.
+- Health and stats endpoints.
+
+### Flow
+
+```mermaid
+flowchart LR
+    SRC[MQTT Producer] --> EMQX[EMQX Broker]
+    EMQX --> ING[ingest-service]
+    ING --> DB[(InfluxDB 3)]
+```
+
+The ingest-service became the storage gateway for sensor data. It subscribes to configured MQTT topics and writes clean sensor rows to InfluxDB using batched writes.
 
 ### Important Design Choice
 
-The ingest-service is the gateway for sensor storage, not a universal writer for every type of system output.
+The ingest-service stores sensor data, not every possible system output. Prediction outputs are owned by the HAR service.
 
----
+### Done When
 
-## Phase 2 — Dataset Validation
+- MQTT messages reached ingest-service.
+- Rows were written to InfluxDB.
+- `/health` returned service status.
+- `/stats` exposed queue depth, failed batches, retries, and dropped rows.
+
+## 6. Phase 2 — Siddha Dataset Replay
 
 **Status:** Completed
 
 ### Goal
 
-Validate the full infrastructure with real dataset rows rather than simple fake messages.
+Validate the full infrastructure using real dataset rows instead of dummy messages.
 
 ### Implemented
 
-- Siddha Parquet loading.
-- Deterministic replay.
-- MQTT publishing.
-- Structured IMU writes.
-- Batch performance validation.
-- Metrics:
-  - `queue_depth`
-  - `failed_batch_count`
-  - `retried_line_count`
-  - `dropped_line_count`
+- Siddha Parquet dataset loader.
+- Deterministic dataset replay.
+- MQTT publishing through `siddha-sensor-sim`.
+- Structured IMU storage.
+- InfluxDB table: `imu_raw_full_rows`.
+- Batch-write performance validation.
 
-### Data Flow
+### Flow
 
-```text
-Siddha Dataset
-→ siddha-sensor-sim
-→ EMQX
-→ ingest-service
-→ InfluxDB: imu_raw_full_rows
+```mermaid
+flowchart LR
+    SD[Siddha Parquet Dataset] --> SIM[siddha-sensor-sim]
+    SIM -->|tennis/sensor/&lt;device&gt;/events| EMQX[EMQX]
+    EMQX --> ING[ingest-service]
+    ING -->|imu_raw_full_rows| DB[(InfluxDB 3)]
 ```
 
-### Thesis Reasoning
+The Siddha dataset replay proved that the system could ingest structured IMU data at scale and store it reproducibly.
 
-The system had to prove that it can ingest large, structured sensor data reproducibly before adding ML.
+### Key Storage Table
 
----
+```text
+imu_raw_full_rows
+```
 
-## Phase 3 — HAR Microservice
+### Done When
+
+- Dataset rows were published to MQTT.
+- Ingest-service wrote structured IMU rows.
+- Row counts matched the expected replay size.
+- Ingest writer metrics remained healthy.
+
+Important metrics:
+
+- `queue_depth`
+- `failed_batch_count`
+- `retried_line_count`
+- `dropped_line_count`
+
+## 7. Phase 3 — HAR Microservice
 
 **Status:** Completed
 
 ### Goal
 
-Add processing after storage using an ONNX activity recognition model.
+Add human activity recognition after sensor data storage.
 
 ### Implemented
 
-- HAR service.
-- InfluxDB polling.
+- `har-service`.
+- ONNX model loading.
+- InfluxDB DB polling mode.
 - Stream grouping by device and recording.
-- Deterministic ordering.
-- Sliding windows.
-- ONNX inference.
-- Prediction writing.
+- Sliding window construction.
+- Prediction storage.
+- Table: `har_predictions_7_activity`.
 
-### Data Flow
+### Flow
 
-```text
-InfluxDB: imu_raw_full_rows
-→ har-service
-→ InfluxDB: har_predictions_7_activity
+```mermaid
+flowchart LR
+    DB1[(InfluxDB<br/>imu_raw_full_rows)] --> HAR[har-service<br/>DB polling mode]
+    HAR --> DB2[(InfluxDB<br/>har_predictions_7_activity)]
 ```
+
+The HAR service reads stored Siddha IMU rows, builds windows, runs ONNX inference, and writes prediction rows back to InfluxDB.
 
 ### Validated Runtime
 
@@ -139,197 +242,310 @@ InfluxDB: imu_raw_full_rows
 | Input layout | `gyro_then_accel` |
 | Temporal preprocessing | `none` |
 | Score aggregation | `sum` |
+| Prediction table | `har_predictions_7_activity` |
 | Supported activities | `F,G,O,P,Q,R,S` |
 
 ### Important Limitation
 
-The model supports only seven Siddha activities:
+The HAR model is not tennis-specific and supports only seven Siddha activities:
 
 ```text
 F, G, O, P, Q, R, S
 ```
 
-It is not a full 18-activity classifier.
+This is a model/domain limitation, not a pipeline failure.
 
----
+### Done When
 
-# Phase 4 — Real Watch Pipeline
+- HAR could query stored IMU rows.
+- Windows were built in deterministic order.
+- ONNX inference ran successfully.
+- Predictions were written to InfluxDB.
 
-**Status:** Completed
-
-## Goal
-
-Integrate the MetaWear bracelet as a real hardware sensor source and run real-time HAR inference.
-
-## Target Data Flow
-
-```text
-MetaWear Bracelet
-→ BLE
-→ metawear_bridge
-→ EMQX: tennis/watch/raw
-→ watch_cleaner_service
-→ EMQX: tennis/watch/clean
-→ ingest-service
-→ InfluxDB: watch_imu_clean
-
-tennis/watch/clean
-→ har-service in MQTT mode
-→ InfluxDB: real_har_predictions
-```
-
-## Validation Result
-
-Phase 4 was validated with recording ID `phase4_live_validation_001`.
-
-- MetaWear connected successfully over BLE.
-- Raw ACC/GYRO data was published at approximately 26 Hz.
-- Watch cleaner produced 9,599 clean IMU rows.
-- HAR MQTT mode produced 463 live predictions.
-- Ingest writer finished with queue depth 0.
-- Failed batches, retries, and dropped lines were all 0.
-
-## New Components
-
-### `metawear_bridge`
-
-Protocol adapter:
-
-```text
-BLE → MQTT
-```
-
-Publishes raw events to:
-
-```text
-tennis/watch/raw
-```
-
-### `watch_cleaner_service`
-
-Sensor-specific cleaning layer.
-
-Responsibilities:
-
-- validate values,
-- normalize timestamps,
-- ensure complete IMU rows,
-- publish clean rows.
-
-Publishes to:
-
-```text
-tennis/watch/clean
-```
-
-### HAR MQTT Mode
-
-HAR uses:
-
-```env
-HAR_INPUT_MODE=mqtt_stream
-```
-
-for real-time watch inference.
-
-The existing Phase 3 mode remains:
-
-```env
-HAR_INPUT_MODE=db_polling
-```
-
-for reproducible dataset evaluation.
-
-## Phase 4 Done When
-
-- MetaWear data reaches `tennis/watch/raw`.
-- Cleaner publishes valid rows to `tennis/watch/clean`.
-- Ingest stores clean rows in `watch_imu_clean`.
-- HAR consumes clean rows in MQTT mode.
-- Predictions are written to `real_har_predictions`.
-- Delay and throughput can be observed.
-
-All completion criteria were satisfied during the Phase 4 validation test.
-
----
-
-# Phase 5 — Grafana Visualization
+## 8. Phase 4 — Real Watch Pipeline
 
 **Status:** Completed
 
-## Goal
+### Goal
 
-Visualize stored sensor data and predictions.
+Integrate the MetaWear bracelet as a real hardware sensor and run live HAR inference.
 
-## Required Path
+### Implemented
 
-```text
-InfluxDB → Grafana
+- Local `metawear_bridge`.
+- BLE → MQTT adaptation.
+- Raw topic: `tennis/watch/raw`.
+- `watch-cleaner-service`.
+- Clean topic: `tennis/watch/clean`.
+- InfluxDB table: `watch_imu_clean`.
+- HAR MQTT stream mode.
+- Prediction table: `real_har_predictions`.
+
+### Flow
+
+```mermaid
+flowchart LR
+    MW[MetaWear Bracelet] -->|BLE| BR[metawear_bridge]
+    BR -->|tennis/watch/raw| EMQX[EMQX]
+
+    EMQX --> WC[watch-cleaner-service]
+    WC -->|tennis/watch/clean| EMQX
+
+    EMQX --> ING[ingest-service]
+    ING -->|watch_imu_clean| DB[(InfluxDB 3)]
+
+    EMQX --> HAR[har-service<br/>MQTT stream mode]
+    HAR -->|real_har_predictions| DB
 ```
 
-Dashboards:
+The MetaWear bracelet produces raw ACC/GYRO samples over BLE. The bridge publishes them to MQTT. The cleaner pairs and validates samples before storage and HAR inference.
 
-- live watch IMU signal from `watch_imu_clean`
-- current/last predicted activity from `real_har_predictions`
-- prediction confidence over time
-- historical prediction timeline
-- session summary
-- ingestion / prediction health indicators where possible
+### Validation Result
 
-## Optional Enhancement
+Phase 4 was validated with recording ID:
 
-Grafana Live / MQTT visualization was considered but not implemented. The InfluxDB-backed dashboard refreshes at 1 second, which is sufficient for the validated live pipeline.
+```text
+phase4_live_validation_001
+```
 
-## Done When
+| Metric | Result |
+|---|---|
+| Duration | ~385 seconds |
+| Clean IMU rows | 9,599 |
+| HAR predictions | 463 |
+| Approx. clean row rate | ~24.9 rows/s |
+| Approx. prediction interval | ~0.83 s |
+| Queue depth | 0 |
+| Failed batches | 0 |
+| Retries | 0 |
+| Dropped lines | 0 |
 
-- Grafana connects to InfluxDB.
-- Dashboard panels show real watch IMU rows from `watch_imu_clean`.
-- Dashboard panels show HAR predictions from `real_har_predictions`.
-- Dashboard refresh is configured for 1 second.
-- MQTT/Grafana Live is not required for the final Phase 5 design.
+### Done When
 
----
+- MetaWear connected over BLE.
+- Raw ACC/GYRO messages reached `tennis/watch/raw`.
+- Cleaner published complete rows to `tennis/watch/clean`.
+- Ingest-service stored rows in `watch_imu_clean`.
+- HAR consumed clean rows in MQTT mode.
+- Predictions were stored in `real_har_predictions`.
 
-# Phase 6 — EEG/ECG Dataset Sources
+## 9. Phase 5 — Grafana Visualization
 
 **Status:** Completed
 
-## Goal
+### Goal
 
-Demonstrate multi-source extensibility using two additional sensor data sources.
+Visualize stored sensor data and predictions using Grafana.
 
-These are dataset-based sources, not physical hardware integrations.
+### Implemented
 
-## Scope
+- Grafana container.
+- InfluxDB datasource.
+- Live Watch + HAR dashboard.
+- 1-second refresh configuration.
+- Panels for IMU signals, predictions, confidence, history, and counts.
 
-Implemented:
+### Flow
 
-```text
-eeg_dataset_sim
-→ EMQX: tennis/eeg/raw
-→ eeg_cleaner_service
-→ EMQX: tennis/eeg/clean
-→ ingest-service
-→ InfluxDB: eeg_clean
-→ Grafana
+```mermaid
+flowchart LR
+    DB[(InfluxDB 3)] --> G[Grafana]
 
-ecg_dataset_sim
-→ EMQX: tennis/ecg/raw
-→ ecg_cleaner_service
-→ EMQX: tennis/ecg/clean
-→ ingest-service
-→ InfluxDB: ecg_clean
-→ Grafana
+    G --> W[Live Watch + HAR Dashboard]
 ```
 
-## Important Limitation
+Grafana reads from InfluxDB as the source of truth. MQTT/Grafana Live was considered but not needed because the InfluxDB-backed dashboard refreshes fast enough for thesis-scale live testing.
 
-No ML is implemented for EEG or ECG in this thesis.
+### Dashboard Content
 
-This is intentional.
+| Panel Area | Source Table |
+|---|---|
+| Watch accelerometer | `watch_imu_clean` |
+| Watch gyroscope | `watch_imu_clean` |
+| Current prediction | `real_har_predictions` |
+| Prediction confidence | `real_har_predictions` |
+| Prediction history | `real_har_predictions` |
+| Stored row counters | `watch_imu_clean`, `real_har_predictions` |
 
-The goal is to show that the architecture supports heterogeneous sensor sources. Sensor-specific ML for EEG/ECG is future work.
+### Done When
 
-## Thesis Reasoning
+- Grafana connected to InfluxDB.
+- Watch IMU panels displayed data.
+- HAR prediction panels displayed data.
+- Dashboard auto-refresh worked.
+- Visualization remained tied to persisted data.
 
-This phase demonstrates extensibility without expanding the scope into multiple ML research problems.
+## 10. Phase 6 — EEG/ECG Dataset Sources
+
+**Status:** Completed
+
+### Goal
+
+Demonstrate multi-source extensibility using two additional heterogeneous sensor streams.
+
+EEG and ECG are dataset-based fake sensors, not physical hardware integrations.
+
+### Implemented
+
+- OpenNeuro ds006848 dataset source.
+- `eeg-dataset-sim`.
+- `eeg-cleaner-service`.
+- `ecg-dataset-sim`.
+- `ecg-cleaner-service`.
+- MQTT raw topics:
+  - `tennis/eeg/raw`
+  - `tennis/ecg/raw`
+- MQTT clean topics:
+  - `tennis/eeg/clean`
+  - `tennis/ecg/clean`
+- InfluxDB tables:
+  - `eeg_clean`
+  - `ecg_clean`
+- Grafana EEG/ECG dashboard.
+
+### Flow
+
+```mermaid
+flowchart LR
+    OD[OpenNeuro ds006848] --> EEGSIM[eeg-dataset-sim]
+    OD --> ECGSIM[ecg-dataset-sim]
+
+    EEGSIM -->|tennis/eeg/raw| EMQX[EMQX]
+    ECGSIM -->|tennis/ecg/raw| EMQX
+
+    EMQX --> EEGC[eeg-cleaner-service]
+    EMQX --> ECGC[ecg-cleaner-service]
+
+    EEGC -->|tennis/eeg/clean| EMQX
+    ECGC -->|tennis/ecg/clean| EMQX
+
+    EMQX --> ING[ingest-service]
+    ING -->|eeg_clean| DB[(InfluxDB 3)]
+    ING -->|ecg_clean| DB
+
+    DB --> G[Grafana<br/>EEG/ECG Dashboard]
+```
+
+Phase 6 validates that the architecture can accept new sensor families without changing the watch pipeline or forcing EEG/ECG into the IMU schema.
+
+### Validation Target
+
+With:
+
+```text
+EEG_MAX_SECONDS=600
+ECG_MAX_SECONDS=600
+EEG_DOWNSAMPLE_HZ=100
+ECG_DOWNSAMPLE_HZ=100
+```
+
+Expected rows:
+
+| Table | Expected Rows |
+|---|---|
+| `eeg_clean` | ~60,000 |
+| `ecg_clean` | ~60,000 |
+
+### Important Limitation
+
+No EEG or ECG machine learning is implemented.
+
+This is intentional. The goal is architecture extensibility, storage, and visualization, not physiological signal classification.
+
+### Done When
+
+- EEG simulator published rows to `tennis/eeg/raw`.
+- ECG simulator published rows to `tennis/ecg/raw`.
+- Cleaners published to `tennis/eeg/clean` and `tennis/ecg/clean`.
+- Ingest-service stored rows in `eeg_clean` and `ecg_clean`.
+- Grafana displayed EEG and ECG signals.
+- Ingest writer metrics remained healthy.
+
+## 11. Final Architecture After All Phases
+
+```mermaid
+flowchart TB
+    subgraph Sources
+        MW[MetaWear Bracelet]
+        SD[Siddha Dataset]
+        OD[OpenNeuro EEG/ECG Dataset]
+    end
+
+    subgraph Producers
+        BR[metawear_bridge]
+        SS[siddha-sensor-sim]
+        EEGSIM[eeg-dataset-sim]
+        ECGSIM[ecg-dataset-sim]
+    end
+
+    subgraph Broker
+        EMQX[EMQX MQTT Broker]
+    end
+
+    subgraph Cleaning
+        WC[watch-cleaner-service]
+        EEGC[eeg-cleaner-service]
+        ECGC[ecg-cleaner-service]
+    end
+
+    subgraph StorageProcessing["Storage / Processing"]
+        ING[ingest-service]
+        HAR[har-service]
+        DB[(InfluxDB 3)]
+    end
+
+    subgraph Visualization
+        G[Grafana]
+    end
+
+    MW --> BR --> EMQX
+    SD --> SS --> EMQX
+    OD --> EEGSIM --> EMQX
+    OD --> ECGSIM --> EMQX
+
+    EMQX --> WC --> EMQX
+    EMQX --> EEGC --> EMQX
+    EMQX --> ECGC --> EMQX
+
+    EMQX --> ING --> DB
+    EMQX --> HAR --> DB
+    DB --> G
+```
+
+The final system supports real hardware, dataset replay, machine learning inference, physiological fake sensors, storage, and visualization using the same microservice pattern.
+
+## 12. Final Scope Summary
+
+### Implemented
+
+- MQTT broker-based transport.
+- FastAPI ingest-service.
+- InfluxDB 3 persistence.
+- Siddha dataset replay.
+- HAR ONNX inference.
+- MetaWear BLE integration.
+- Watch cleaner.
+- EEG/ECG dataset fake sensors.
+- Grafana visualization.
+
+### Not Implemented
+
+- Camera tracking.
+- EEG/ECG machine learning.
+- Production deployment.
+- Clinical interpretation.
+- Production authentication/authorization.
+
+### Final Thesis Position
+
+The project is validated for thesis-scale live testing.
+
+It demonstrates:
+
+- Reproducible dataset replay.
+- Real wearable sensor integration.
+- Service-level separation of responsibilities.
+- Time-series storage.
+- ML prediction storage.
+- Grafana observability.
+- Extensibility to additional heterogeneous sensor types.
