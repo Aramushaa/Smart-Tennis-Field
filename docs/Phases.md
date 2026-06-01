@@ -110,12 +110,7 @@ flowchart LR
 
 This phase proved that services could communicate through the broker before storage, machine learning, or visualization were added.
 
-### Done When
-
-- EMQX container was running.
-- A publisher could send a message.
-- A subscriber could receive the message.
-- Docker networking and host port mapping were understood.
+**Validation:** See [Validation/phase0_mqtt_validation_report.md](Validation/phase0_mqtt_validation_report.md)
 
 ## 5. Phase 1 — Ingest + Persistence
 
@@ -150,12 +145,7 @@ The ingest-service became the storage gateway for sensor data. It subscribes to 
 
 The ingest-service stores sensor data, not every possible system output. Prediction outputs are owned by the HAR service.
 
-### Done When
-
-- MQTT messages reached ingest-service.
-- Rows were written to InfluxDB.
-- `/health` returned service status.
-- `/stats` exposed queue depth, failed batches, retries, and dropped rows.
+**Validation:** See [Validation/phase1_ingest_influx_validation_report.md](Validation/phase1_ingest_influx_validation_report.md)
 
 ## 6. Phase 2 — Siddha Dataset Replay
 
@@ -192,19 +182,7 @@ The Siddha dataset replay proved that the system could ingest structured IMU dat
 imu_raw_full_rows
 ```
 
-### Done When
-
-- Dataset rows were published to MQTT.
-- Ingest-service wrote structured IMU rows.
-- Row counts matched the expected replay size.
-- Ingest writer metrics remained healthy.
-
-Important metrics:
-
-- `queue_depth`
-- `failed_batch_count`
-- `retried_line_count`
-- `dropped_line_count`
+**Validation:** See [Validation/phase2_siddha_replay_validation_report.md](Validation/phase2_siddha_replay_validation_report.md)
 
 ## 7. Phase 3 — HAR Microservice
 
@@ -255,12 +233,7 @@ F, G, O, P, Q, R, S
 
 This is a model/domain limitation, not a pipeline failure.
 
-### Done When
-
-- HAR could query stored IMU rows.
-- Windows were built in deterministic order.
-- ONNX inference ran successfully.
-- Predictions were written to InfluxDB.
+**Validation:** See [Validation/phase3_har_validation_report.md](Validation/phase3_har_validation_report.md)
 
 ## 8. Phase 4 — Real Watch Pipeline
 
@@ -322,14 +295,7 @@ phase4_live_validation_001
 | Retries | 0 |
 | Dropped lines | 0 |
 
-### Done When
-
-- MetaWear connected over BLE.
-- Raw ACC/GYRO messages reached `tennis/watch/raw`.
-- Cleaner published complete rows to `tennis/watch/clean`.
-- Ingest-service stored rows in `watch_imu_clean`.
-- HAR consumed clean rows in MQTT mode.
-- Predictions were stored in `real_har_predictions`.
+**Validation:** See [Validation/phase4_validation_report.md](Validation/phase4_validation_report.md)
 
 ## 9. Phase 5 — Grafana Visualization
 
@@ -369,13 +335,7 @@ Grafana reads from InfluxDB as the source of truth. MQTT/Grafana Live was consid
 | Prediction history | `real_har_predictions` |
 | Stored row counters | `watch_imu_clean`, `real_har_predictions` |
 
-### Done When
-
-- Grafana connected to InfluxDB.
-- Watch IMU panels displayed data.
-- HAR prediction panels displayed data.
-- Dashboard auto-refresh worked.
-- Visualization remained tied to persisted data.
+**Validation:** See [Validation/phase5_grafana_validation_report.md](Validation/phase5_grafana_validation_report.md)
 
 ## 10. Phase 6 — EEG/ECG Dataset Sources
 
@@ -454,14 +414,7 @@ No EEG or ECG machine learning is implemented.
 
 This is intentional. The goal is architecture extensibility, storage, and visualization, not physiological signal classification.
 
-### Done When
-
-- EEG simulator published rows to `tennis/eeg/raw`.
-- ECG simulator published rows to `tennis/ecg/raw`.
-- Cleaners published to `tennis/eeg/clean` and `tennis/ecg/clean`.
-- Ingest-service stored rows in `eeg_clean` and `ecg_clean`.
-- Grafana displayed EEG and ECG signals.
-- Ingest writer metrics remained healthy.
+**Validation:** See [Validation/phase6_eeg_ecg_validation_report.md](Validation/phase6_eeg_ecg_validation_report.md)
 
 ## 11. Final Architecture After All Phases
 

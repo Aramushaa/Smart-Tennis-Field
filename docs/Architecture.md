@@ -159,25 +159,9 @@ Sensor data and prediction data are stored separately. This keeps model inputs a
 | `har_predictions_7_activity` | `har-service` | Dataset HAR predictions |
 | `real_har_predictions` | `har-service` | Live watch HAR predictions |
 
-## 6. HAR Modes
+## 6. HAR Service
 
-The HAR service supports two modes because dataset evaluation and live inference have different needs.
-
-| Mode | Input | Output | Purpose |
-|---|---|---|---|
-| DB polling | `imu_raw_full_rows` | `har_predictions_7_activity` | Reproducible Siddha evaluation |
-| MQTT stream | `tennis/watch/clean` | `real_har_predictions` | Lower-latency live watch inference |
-
-```mermaid
-flowchart LR
-    DB1[(imu_raw_full_rows)] --> HAR1[HAR<br/>DB polling mode]
-    HAR1 --> DB2[(har_predictions_7_activity)]
-
-    MQTT[tennis/watch/clean] --> HAR2[HAR<br/>MQTT stream mode]
-    HAR2 --> DB3[(real_har_predictions)]
-```
-
-DB polling is more reproducible because the service reads already-stored dataset rows. MQTT stream mode is better for live testing because predictions are generated directly from clean watch messages.
+The HAR service supports two execution modes: DB polling for Siddha dataset evaluation and MQTT streaming for live watch inference. See [Phases.md §7-8](Phases.md#7-phase-3--har-microservice) for implementation details.
 
 ## 7. Grafana Observability
 
@@ -199,30 +183,9 @@ flowchart LR
 
 The watch dashboard validates the real sensor and HAR path. The EEG/ECG dashboard validates multi-source extensibility. Both dashboards use InfluxDB as the source of truth, which keeps visualization tied to persisted data rather than transient MQTT messages.
 
-## 8. Scope Boundaries
+## 8. Project Scope
 
-Implemented:
-
-- MQTT-based transport with EMQX.
-- Clean sensor ingestion through FastAPI.
-- Batch writing to InfluxDB.
-- Siddha dataset replay.
-- ONNX HAR inference for supported Siddha activities.
-- Real MetaWear watch pipeline.
-- EEG/ECG dataset fake sensors.
-- Grafana dashboards.
-
-Not implemented:
-
-- Camera tracking.
-- EEG/ECG machine learning.
-- Production edge deployment.
-- Clinical interpretation of physiological signals.
-- Production authentication or authorization.
-
-These boundaries keep the thesis focused on IoT architecture, data pipelines, observability, and extensibility.
-
-## 9. Why This Architecture Is Thesis-Defensible
+For a complete list of implemented features and intentional limitations, see [Result.md §10 Final Limitations](Result.md#10-final-limitations).
 
 The architecture is defensible because it provides:
 

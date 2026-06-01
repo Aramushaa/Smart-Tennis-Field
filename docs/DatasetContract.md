@@ -50,7 +50,7 @@ flowchart TB
     HAR --> RP[real_har_predictions]
 ```
 
-The ingest-service owns sensor data storage. The HAR service owns prediction storage. Prediction rows are not routed through ingest-service because their schema is different from sensor rows.
+Prediction rows are not routed through ingest-service because their schema is different from sensor rows. See [Architecture.md](Architecture.md) §3 for service ownership boundaries.
 
 ## 3. Siddha IMU Dataset Contract
 
@@ -289,7 +289,7 @@ The watch cleaner must:
 | `sample_idx` | Clean row index |
 | `acc_x`, `acc_y`, `acc_z` | Accelerometer axes |
 | `gyro_x`, `gyro_y`, `gyro_z` | Gyroscope axes |
-| `activity_gt` | Usually `unknown` for real sensor data |
+| `activity_gt` | Always `unknown` for real watch data (no ground truth during live acquisition). Ground truth is only present in Siddha dataset rows. |
 | `sampling_rate_hz` | Expected sample rate |
 | `quality` | Cleaner output status |
 | `ts` | Wall-clock timestamp used for live Grafana display |

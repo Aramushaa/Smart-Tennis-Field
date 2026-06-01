@@ -100,47 +100,38 @@ flowchart LR
 | `ecg-dataset-sim` | Replays ECG samples from OpenNeuro |
 | `ecg-cleaner-service` | Validates and normalizes ECG rows |
 
-## Requirements
+## Prerequisites
 
-- Docker Desktop and Docker Compose.
-- Python 3.11 or newer.
-- InfluxDB token.
-- MetaWear bracelet for the live watch pipeline.
-- OpenNeuro ds006848 dataset subset for Phase 6.
+**System Requirements:**
+- Docker Desktop and Docker Compose (latest versions)
+- Python 3.11 or newer
+- InfluxDB token (for data persistence)
+- 8+ GB RAM available to Docker
 
-## Environment Setup
+**Optional Hardware:**
+- MetaWear bracelet (for Phase 4 live watch pipeline)
+- OpenNeuro ds006848 dataset (for Phase 6 fake sensors)
 
-Create your local environment file:
+## Quick Start
+
+**Step 1: Create environment file**
 
 ```bash
 cp .env.example .env
 ```
 
-Set at least:
+**Step 2: Configure .env**
+
+Set at minimum:
 
 ```env
 INFLUX_TOKEN=YOUR_TOKEN_HERE
 HAR_INFLUX_TOKEN=YOUR_TOKEN_HERE
-METAWEAR_MAC_ADDRESS=YOUR_METAWEAR_MAC_ADDRESS
-
-# Local MetaWear bridge on Windows
-METAWEAR_MQTT_HOST=localhost
-METAWEAR_MQTT_PORT=2883
-
-# Docker services
-MQTT_HOST=emqx
-MQTT_PORT=1883
-
-# Phase 6 defaults
-EEG_MAX_SECONDS=600
-ECG_MAX_SECONDS=600
-EEG_DOWNSAMPLE_HZ=100
-ECG_DOWNSAMPLE_HZ=100
-INFLUX_EEG_TABLE=eeg_clean
-INFLUX_ECG_TABLE=ecg_clean
 ```
 
-## Quick Start
+For other variables, defaults are provided in `.env.example`.
+
+**Step 3: Start core services**
 
 ```bash
 docker compose up -d emqx influxdb3 influxdb3-explorer ingest-service grafana
@@ -148,6 +139,8 @@ docker compose ps
 curl http://localhost:8000/health
 curl http://localhost:8000/stats
 ```
+
+The system is ready when all containers report `healthy` status.
 
 ## Run Live Watch + HAR
 
@@ -259,17 +252,13 @@ http://localhost:8000/docs
 
 ## Architecture Diagrams
 
-Detailed diagrams are available in [`docs/diagrams`](docs/diagrams):
+Topology and ownership diagrams are available in [`docs/diagrams`](docs/diagrams):
 
 | Diagram | Purpose |
 |---|---|
-| [`01-system-overview`](docs/diagrams/01-system-overview.md) | Full project architecture |
 | [`02-docker-compose-topology`](docs/diagrams/02-docker-compose-topology.md) | Docker services and profiles |
-| [`03-watch-pipeline`](docs/diagrams/03-watch-pipeline.md) | Real MetaWear watch pipeline |
 | [`04-siddha-dataset-pipeline`](docs/diagrams/04-siddha-dataset-pipeline.md) | Siddha replay and HAR DB mode |
-| [`05-eeg-ecg-fake-sensor-pipeline`](docs/diagrams/05-eeg-ecg-fake-sensor-pipeline.md) | Phase 6 fake-sensor extension |
 | [`06-data-ownership-and-storage`](docs/diagrams/06-data-ownership-and-storage.md) | Table ownership and storage separation |
-| [`07-grafana-observability`](docs/diagrams/07-grafana-observability.md) | Two Grafana dashboards |
 
 ## Documentation
 
@@ -280,10 +269,6 @@ Detailed diagrams are available in [`docs/diagrams`](docs/diagrams):
 - [Phase 4 validation](docs/Validation/phase4_validation_report.md)
 - [Phase 5 Grafana validation](docs/Validation/phase5_grafana_validation_report.md)
 
-## Scope Notes
+## Scope
 
-- EEG/ECG ML is not implemented.
-- The HAR model is not tennis-specific.
-- Clean sensor data and predictions are stored separately.
-- Grafana uses InfluxDB as the source of truth.
-- This project is validated for thesis-scale live testing, not production deployment.
+For the complete project scope and intentional limitations, see [Result.md §10](docs/Result.md#10-final-limitations).

@@ -217,14 +217,7 @@ HAR writes predictions directly to InfluxDB.
 
 Predictions are not routed through ingest-service.
 
-Reason:
-
-```text
-ingest-service owns sensor ingestion.
-har-service owns prediction output.
-```
-
-Routing predictions through ingest-service would make the ingest-service responsible for multiple ML output schemas and reduce modularity.
+Reason: Service ownership boundaries require separation. See [Architecture.md](Architecture.md) §3 for the architectural rule defining service responsibilities.
 
 ### Result
 
@@ -379,125 +372,15 @@ not physiological signal classification.
 
 Phase 6 completed the architecture extension and validated that the system can store and visualize heterogeneous sensor types.
 
-## 13. Phase 4 Validation Result
+## 13. Validation Results
 
-Recording ID:
+Detailed validation evidence for each phase is documented separately:
 
-```text
-phase4_live_validation_001
-```
+- [Phase 4: Real MetaWear Watch Pipeline](Validation/phase4_validation_report.md)
+- [Phase 5: Grafana Visualization](Validation/phase5_grafana_validation_report.md)
+- [Phase 6: EEG/ECG Extensibility](Validation/phase6_eeg_ecg_validation_report.md)
 
-| Metric | Result |
-|---|---|
-| Test duration | ~385 seconds |
-| Raw publish rate | ~26 ACC/sec + ~26 GYRO/sec |
-| Clean rows stored | 9,599 |
-| Expected rows | ~9,625 |
-| Row difference | -26 rows / 0.27% |
-| HAR predictions stored | 463 |
-| Approx. prediction interval | 0.83 seconds |
-| Queue depth | 0 |
-| Failed batches | 0 |
-| Retries | 0 |
-| Dropped lines | 0 |
-| Writer thread alive | true |
-
-### Interpretation
-
-The live watch path was validated successfully.
-
-This result proves the pipeline can acquire, clean, store, and process real sensor data. It does not prove that the HAR model is tennis-specific or perfectly accurate on real-world movement.
-
-## 14. Phase 5 Validation Result
-
-Grafana was added to the Docker Compose stack and connected to InfluxDB.
-
-The Live Watch + HAR dashboard visualizes:
-
-- Live watch accelerometer and gyroscope signals from `watch_imu_clean`.
-- Latest predicted activity from `real_har_predictions`.
-- Prediction confidence.
-- Prediction history.
-- Stored clean IMU row count.
-- Stored prediction count.
-
-The dashboard uses:
-
-```text
-GF_DASHBOARDS_MIN_REFRESH_INTERVAL=1s
-```
-
-### Interpretation
-
-The visualization layer is validated through persistent InfluxDB data. MQTT/Grafana Live was not necessary.
-
-## 15. Phase 6 Validation Result
-
-Phase 6 validates the EEG/ECG fake-sensor path.
-
-Default validation configuration:
-
-```text
-EEG_MAX_SECONDS=600
-ECG_MAX_SECONDS=600
-EEG_DOWNSAMPLE_HZ=100
-ECG_DOWNSAMPLE_HZ=100
-```
-
-Expected result:
-
-| Table | Expected Rows |
-|---|---|
-| `eeg_clean` | ~60,000 |
-| `ecg_clean` | ~60,000 |
-
-Healthy ingest result:
-
-```text
-queue_depth = 0
-failed_batch_count = 0
-retried_line_count = 0
-dropped_line_count = 0
-```
-
-### Interpretation
-
-The EEG/ECG pipeline validates storage and visualization of heterogeneous physiological signals. It does not validate EEG/ECG classification.
-
-## 16. Final Architecture Lesson
-
-The main engineering lesson is that the system becomes easier to defend when each service has one responsibility.
-
-```mermaid
-flowchart LR
-    A[Adapter / Simulator] --> B[MQTT Broker]
-    B --> C[Cleaner]
-    C --> D[Storage Gateway]
-    C --> E[Processing Service]
-    D --> F[(Sensor Tables)]
-    E --> G[(Prediction Tables)]
-    F --> H[Grafana]
-    G --> H
-```
-
-Adapters acquire or simulate data. Cleaners normalize it. The ingest-service stores sensor data. The HAR service stores predictions. Grafana observes persisted results.
-
-## 17. Final Journal Summary
-
-The final project is not only a HAR demo. It is a validated IoT architecture that supports:
-
-- Reproducible dataset replay.
-- Real wearable sensor ingestion.
-- Live HAR inference.
-- Time-series storage.
-- Operational observability.
-- Grafana visualization.
-- EEG/ECG fake-sensor extensibility.
-
-The final scope is intentionally limited:
-
-- No camera pipeline.
-- No EEG/ECG ML.
+For a summary of all results, see [Result.md](Result.md).
 - No production deployment claims.
 - No clinical interpretation.
 

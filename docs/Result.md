@@ -104,8 +104,11 @@ Phase 3 evaluated the ONNX HAR model using stored Siddha watch data.
 The validated seven-activity evaluation produced:
 
 ```text
-119 / 140 correct = 85.0% overall accuracy
+Watch-device data only: 119 / 140 correct = 85.0% accuracy
+Overall (all devices):    21 / 140 correct = 15.0% accuracy
 ```
+
+**Note:** The 85% result is achieved using `device=watch` filter with `gyro_then_accel` input layout. Without device filtering, overall accuracy drops to 15% due to phone data and unsupported activities.
 
 Supported activities:
 
