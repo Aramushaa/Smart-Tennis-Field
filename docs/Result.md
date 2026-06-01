@@ -110,6 +110,8 @@ Overall (all devices):    21 / 140 correct = 15.0% accuracy
 
 **Note:** The 85% result is achieved using `device=watch` filter with `gyro_then_accel` input layout. Without device filtering, overall accuracy drops to 15% due to phone data and unsupported activities.
 
+Evidence note: `services/har_service/eval_results.txt` contains the unfiltered 15% run. Add the watch-filtered run output to the repository if the 85% claim must be independently reproducible from tracked artifacts.
+
 Supported activities:
 
 | Code | Activity |
@@ -250,10 +252,10 @@ flowchart LR
     ING -->|eeg_clean| DB[(InfluxDB)]
     ING -->|ecg_clean| DB
 
-    DB --> G[Grafana<br/>EEG/ECG Dashboard]
+    DB --> G[Grafana<br/>EEG/ECG queries]
 ```
 
-EEG and ECG are replayed as dataset-based fake sensors. Each has its own simulator, cleaner, MQTT topics, storage table, and Grafana panels. No EEG/ECG ML is implemented.
+EEG and ECG are replayed as dataset-based fake sensors. Each has its own simulator, cleaner, MQTT topics, storage table, and documented Grafana query set. No EEG/ECG ML is implemented.
 
 ### 7.1 Expected Validation Size
 
@@ -326,7 +328,7 @@ flowchart TB
 
 The storage result confirms the ownership model: clean sensor data belongs to ingest-service, while prediction output belongs to HAR.
 
-## 9. Final Grafana Result
+## 9. Final Visualization Result
 
 The final visualization layer contains two dashboards:
 
@@ -338,12 +340,12 @@ flowchart LR
     G --> D2[EEG/ECG Fake-Sensor Monitoring]
 ```
 
-| Dashboard | Purpose |
+| Dashboard or query set | Status | Purpose |
 |---|---|
 | Live Watch + HAR Monitoring | Validate real watch IMU and HAR predictions |
 | EEG/ECG Fake-Sensor Monitoring | Validate dataset-based physiological sensor ingestion |
 
-This confirms that both real and fake sensor pipelines are observable from persisted InfluxDB data.
+This confirms that the real watch pipeline is reproducibly observable from persisted InfluxDB data. To make the EEG/ECG dashboard reproducible in a fresh clone, export its Grafana JSON into `services/grafana/dashboards/`.
 
 ## 10. Final Limitations
 

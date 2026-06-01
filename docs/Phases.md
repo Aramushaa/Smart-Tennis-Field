@@ -46,7 +46,7 @@ timeline
 
     Phase 5 : Grafana Visualization
             : Live watch dashboard
-            : HAR prediction dashboard
+            : HAR prediction panels
 
     Phase 6 : EEG/ECG Dataset Sources
             : Fake sensors
@@ -385,7 +385,7 @@ flowchart LR
     ING -->|eeg_clean| DB[(InfluxDB 3)]
     ING -->|ecg_clean| DB
 
-    DB --> G[Grafana<br/>EEG/ECG Dashboard]
+    DB --> G[Grafana<br/>EEG/ECG queries]
 ```
 
 Phase 6 validates that the architecture can accept new sensor families without changing the watch pipeline or forcing EEG/ECG into the IMU schema.
@@ -418,56 +418,7 @@ This is intentional. The goal is architecture extensibility, storage, and visual
 
 ## 11. Final Architecture After All Phases
 
-```mermaid
-flowchart TB
-    subgraph Sources
-        MW[MetaWear Bracelet]
-        SD[Siddha Dataset]
-        OD[OpenNeuro EEG/ECG Dataset]
-    end
-
-    subgraph Producers
-        BR[metawear_bridge]
-        SS[siddha-sensor-sim]
-        EEGSIM[eeg-dataset-sim]
-        ECGSIM[ecg-dataset-sim]
-    end
-
-    subgraph Broker
-        EMQX[EMQX MQTT Broker]
-    end
-
-    subgraph Cleaning
-        WC[watch-cleaner-service]
-        EEGC[eeg-cleaner-service]
-        ECGC[ecg-cleaner-service]
-    end
-
-    subgraph StorageProcessing["Storage / Processing"]
-        ING[ingest-service]
-        HAR[har-service]
-        DB[(InfluxDB 3)]
-    end
-
-    subgraph Visualization
-        G[Grafana]
-    end
-
-    MW --> BR --> EMQX
-    SD --> SS --> EMQX
-    OD --> EEGSIM --> EMQX
-    OD --> ECGSIM --> EMQX
-
-    EMQX --> WC --> EMQX
-    EMQX --> EEGC --> EMQX
-    EMQX --> ECGC --> EMQX
-
-    EMQX --> ING --> DB
-    EMQX --> HAR --> DB
-    DB --> G
-```
-
-The final system supports real hardware, dataset replay, machine learning inference, physiological fake sensors, storage, and visualization using the same microservice pattern.
+The final topology is maintained in [Architecture.md](Architecture.md). This file keeps the phase chronology and avoids repeating the full architecture diagram.
 
 ## 12. Final Scope Summary
 

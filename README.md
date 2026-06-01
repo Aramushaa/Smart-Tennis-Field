@@ -120,6 +120,12 @@ flowchart LR
 cp .env.example .env
 ```
 
+On Windows PowerShell:
+
+```powershell
+Copy-Item .env.example .env
+```
+
 **Step 2: Configure .env**
 
 Set at minimum:
@@ -183,6 +189,15 @@ Check stored rows:
 SELECT COUNT(*) AS n FROM imu_raw_full_rows;
 ```
 
+To run HAR against Siddha replay data, switch HAR to DB polling mode before starting `har-service`:
+
+```env
+HAR_INPUT_MODE=db_polling
+HAR_PREDICTION_TABLE=har_predictions_7_activity
+HAR_FILTER_DEVICE=watch
+HAR_ALLOWED_ACTIVITY_GT=F,G,O,P,Q,R,S
+```
+
 ## Run EEG/ECG Phase 6
 
 Place the OpenNeuro dataset at `dataset/openneuro_ds006848/`.
@@ -194,6 +209,8 @@ docker compose --profile phase6 up -d eeg-cleaner-service ecg-cleaner-service
 docker compose --profile phase6 up -d eeg-dataset-sim
 docker compose --profile phase6 up -d ecg-dataset-sim
 ```
+
+On Windows, use `python reset_phase6_tables.py` if `python3` is not available.
 
 Check logs:
 
@@ -224,11 +241,10 @@ SELECT COUNT(*) AS n FROM ecg_clean;
 | Grafana | `http://localhost:3000` | `admin` / `admin` |
 | InfluxDB Explorer | `http://localhost:8888` | token from `.env` |
 
-Provisioned dashboard:
-
-```text
-Smart Tennis Field - Live Dashboard
-```
+| Dashboard | Status |
+|---|---|
+| `Smart Tennis Field - Live Dashboard` | Provisioned at `services/grafana/dashboards/smart-tennis-live-dashboard.json` |
+| `EEG/ECG Fake-Sensor Monitoring` | Query set is documented in `docs/Validation/phase6_eeg_ecg_validation_report.md`; no dashboard JSON is currently provisioned in this repo |
 
 ## API Endpoints
 
@@ -250,24 +266,14 @@ http://localhost:8000/docs
 | `GET /sensors/eeg` | EEG fake-sensor rows |
 | `GET /sensors/ecg` | ECG fake-sensor rows |
 
-## Architecture Diagrams
-
-Topology and ownership diagrams are available in [`docs/diagrams`](docs/diagrams):
-
-| Diagram | Purpose |
-|---|---|
-| [`02-docker-compose-topology`](docs/diagrams/02-docker-compose-topology.md) | Docker services and profiles |
-| [`04-siddha-dataset-pipeline`](docs/diagrams/04-siddha-dataset-pipeline.md) | Siddha replay and HAR DB mode |
-| [`06-data-ownership-and-storage`](docs/diagrams/06-data-ownership-and-storage.md) | Table ownership and storage separation |
-
 ## Documentation
 
-- [Architecture](docs/Architecture.md)
-- [Dataset contract](docs/DatasetContract.md)
-- [Phases](docs/Phases.md)
-- [Results](docs/Result.md)
-- [Phase 4 validation](docs/Validation/phase4_validation_report.md)
-- [Phase 5 Grafana validation](docs/Validation/phase5_grafana_validation_report.md)
+- [Documentation navigation](docs/NAVIGATION.md) - start here when looking for a specific document.
+- [Architecture](docs/Architecture.md) - service boundaries, data flows, and storage ownership.
+- [Dataset contract](docs/DatasetContract.md) - MQTT payloads, field meanings, and InfluxDB table design.
+- [Phases](docs/Phases.md) - project chronology and implementation milestones.
+- [Results](docs/Result.md) - validated outcomes, limits, and final thesis position.
+- [Validation reports](docs/Validation) - phase-by-phase evidence.
 
 ## Scope
 

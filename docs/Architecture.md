@@ -19,17 +19,9 @@ This separation keeps protocol adaptation, cleaning, ingestion, machine learning
 
 ## 2. Implemented System Context
 
-| Phase | Status | Main Result |
-|---|---|---|
-| Phase 0 | Completed | EMQX MQTT broker validated |
-| Phase 1 | Completed | FastAPI ingest-service + InfluxDB persistence |
-| Phase 2 | Completed | Siddha dataset replay pipeline |
-| Phase 3 | Completed | ONNX HAR service with DB polling mode |
-| Phase 4 | Completed | Real MetaWear watch pipeline + live HAR mode |
-| Phase 5 | Completed | Grafana dashboards from InfluxDB |
-| Phase 6 | Completed | EEG/ECG dataset fake sensors, storage, and visualization |
+This file describes the final architecture. For implementation chronology, see [Phases.md](Phases.md). For measured outcomes, see [Result.md](Result.md).
 
-The final project supports three main data paths:
+The final project supports three validated data paths:
 
 - Real MetaWear watch monitoring with HAR inference.
 - Siddha dataset replay for reproducible IMU/HAR validation.
@@ -178,7 +170,7 @@ flowchart LR
     end
 
     G --> Dashboard_1
-    G --> Dashboard_2
+    G -. export dashboard JSON if needed .-> Dashboard_2
 ```
 
 The watch dashboard validates the real sensor and HAR path. The EEG/ECG dashboard validates multi-source extensibility. Both dashboards use InfluxDB as the source of truth, which keeps visualization tied to persisted data rather than transient MQTT messages.

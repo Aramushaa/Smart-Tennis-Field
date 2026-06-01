@@ -2,6 +2,15 @@
 
 This page helps you find answers to specific questions about Smart Tennis Field. Start here to navigate the full documentation suite.
 
+## Recommended Reading Flow
+
+1. [README.md](../README.md) - run the project and understand the main services.
+2. [Architecture.md](Architecture.md) - understand service ownership and data flow.
+3. [DatasetContract.md](DatasetContract.md) - check MQTT payloads, fields, and table contracts.
+4. [Phases.md](Phases.md) - follow how the implementation was built over time.
+5. [Result.md](Result.md) - review validated outcomes and limitations.
+6. [Validation reports](Validation) - inspect detailed phase evidence.
+
 | Question | File |
 |---|---|
 | **How do I run the system?** | [README.md](../README.md) |
