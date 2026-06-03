@@ -29,6 +29,58 @@ flowchart LR
 
 ## Implemented Data Flows
 
+
+### Final Validated System
+
+```mermaid
+flowchart TB
+    subgraph Sources
+        MW[MetaWear Bracelet]
+        SD[Siddha Dataset]
+        OE[OpenNeuro EEG/ECG Dataset]
+    end
+
+    subgraph Transport
+        EMQX[EMQX MQTT Broker]
+    end
+
+    subgraph Services
+        MB[metawear_bridge]
+        WC[watch-cleaner-service]
+        SS[siddha-sensor-sim]
+        EEGSIM[eeg-dataset-sim]
+        ECGSIM[ecg-dataset-sim]
+        EEGC[eeg-cleaner-service]
+        ECGC[ecg-cleaner-service]
+        ING[ingest-service]
+        HAR[har-service]
+    end
+
+    subgraph Storage
+        DB[(InfluxDB 3)]
+    end
+
+    subgraph Visualization
+        G[Grafana]
+    end
+
+    MW --> MB --> EMQX
+    SD --> SS --> EMQX
+    OE --> EEGSIM --> EMQX
+    OE --> ECGSIM --> EMQX
+
+    EMQX --> WC --> EMQX
+    EMQX --> EEGC --> EMQX
+    EMQX --> ECGC --> EMQX
+
+    EMQX --> ING --> DB
+    EMQX --> HAR --> DB
+    DB --> G
+```
+
+The final system supports both real hardware data and dataset-based replay. All clean sensor data is stored by the ingest-service, while HAR predictions are produced and stored by the HAR service.
+
+
 ### Real Watch + HAR
 
 ```mermaid
@@ -128,7 +180,7 @@ Copy-Item .env.example .env
 
 **Step 2: Configure .env**
 
-Set at minimum:
+Set at least the following variables in the `.env` file:
 
 ```env
 INFLUX_TOKEN=YOUR_TOKEN_HERE
